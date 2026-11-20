@@ -18,13 +18,13 @@ VENDOR_FILES = (
 )
 
 
-def test_start_page_shows_component_versions(client: TestClient) -> None:
+def test_start_page_shows_component_versions(auth_client: TestClient) -> None:
     """The start page renders and names the installed versions.
 
     Args:
-        client: Test client of a default application.
+        auth_client: Logged-in test client.
     """
-    response = client.get("/")
+    response = auth_client.get("/")
 
     assert response.status_code == 200
     assert "Anki Studio" in response.text
@@ -36,7 +36,7 @@ def test_health_check(client: TestClient) -> None:
     """The health check answers with a fixed JSON body.
 
     Args:
-        client: Test client of a default application.
+        client: Anonymous test client.
     """
     response = client.get("/healthz")
 
@@ -49,7 +49,7 @@ def test_static_files_are_served(client: TestClient, path: str, content_type: st
     """Bundled frontend files are served by the application itself.
 
     Args:
-        client: Test client of a default application.
+        client: Anonymous test client.
         path: File below ``/static``.
         content_type: Expected part of the content type.
     """
@@ -59,29 +59,46 @@ def test_static_files_are_served(client: TestClient, path: str, content_type: st
     assert content_type in response.headers["content-type"]
 
 
-def test_page_loads_only_local_resources(client: TestClient) -> None:
-    """Every script, stylesheet, and icon of the layout comes from the app.
+def assert_local_references(html: str) -> None:
+    """Check that every script, stylesheet, icon, and form target is local.
 
     Args:
-        client: Test client of a default application.
+        html: Rendered page.
     """
-    html = client.get("/").text
-    references = re.findall(r'(?:src|href)="([^"]+)"', html)
+    references = re.findall(r'(?:src|href|action)="([^"]+)"', html)
 
     assert references
     for reference in references:
         assert reference.startswith(("/", "http://testserver/")), reference
 
 
-@pytest.mark.parametrize("path", ["/", "/static/app.css", "/healthz"])
+def test_login_page_loads_only_local_resources(client: TestClient) -> None:
+    """The login page references only resources of the app.
+
+    Args:
+        client: Anonymous test client.
+    """
+    assert_local_references(client.get("/login").text)
+
+
+def test_start_page_loads_only_local_resources(auth_client: TestClient) -> None:
+    """The start page, including the logout form, references only the app.
+
+    Args:
+        auth_client: Logged-in test client.
+    """
+    assert_local_references(auth_client.get("/").text)
+
+
+@pytest.mark.parametrize("path", ["/", "/login", "/static/app.css", "/healthz"])
 def test_security_headers(client: TestClient, path: str) -> None:
     """HTML, static files, and JSON carry the security headers.
 
     Args:
-        client: Test client of a default application.
+        client: Anonymous test client.
         path: Requested path.
     """
-    headers = client.get(path).headers
+    headers = client.get(path, follow_redirects=False).headers
 
     assert headers["content-security-policy"] == CONTENT_SECURITY_POLICY
     assert headers["x-content-type-options"] == "nosniff"
@@ -98,11 +115,11 @@ def test_policy_forbids_external_sources() -> None:
 
 
 @pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
-def test_api_documentation_is_disabled(client: TestClient, path: str) -> None:
+def test_api_documentation_is_disabled(auth_client: TestClient, path: str) -> None:
     """The interactive API documentation, which would load a CDN, is off.
 
     Args:
-        client: Test client of a default application.
+        auth_client: Logged-in test client.
         path: Default documentation path of FastAPI.
     """
-    assert client.get(path).status_code == 404
+    assert auth_client.get(path).status_code == 404

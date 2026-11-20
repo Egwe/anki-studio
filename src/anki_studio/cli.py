@@ -2,13 +2,14 @@
 
 import argparse
 import getpass
+import os
 import sys
 from pathlib import Path
 
 import uvicorn
 
 from anki_studio.app import create_app
-from anki_studio.credentials import PASSWORD_HASH_ENV
+from anki_studio.credentials import PASSWORD_HASH_ENV, CredentialsError, load_credentials
 from anki_studio.passwords import hash_password
 from anki_studio.settings import CONFIG_ENV, SettingsError, load_settings, settings_path
 
@@ -74,14 +75,17 @@ def serve_command(args: argparse.Namespace) -> int:
         args: Parsed options; ``config`` is an optional settings path.
 
     Returns:
-        0 after a regular shutdown, 1 if the settings are invalid.
+        0 after a regular shutdown, 1 if the settings or the secrets in the
+        environment are invalid.
     """
     try:
         settings = load_settings(settings_path(args.config))
-    except SettingsError as error:
+        credentials = load_credentials(os.environ)
+    except (SettingsError, CredentialsError) as error:
         print(f"Fehler: {error}", file=sys.stderr)
         return 1
-    uvicorn.run(create_app(settings), host=settings.host, port=settings.port, server_header=False)
+    app = create_app(settings, credentials)
+    uvicorn.run(app, host=settings.host, port=settings.port, server_header=False)
     return 0
 
 

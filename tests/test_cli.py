@@ -70,6 +70,28 @@ def test_serve_rejects_invalid_settings(
     assert "Ungültige Einstellungen" in capsys.readouterr().err
 
 
+def test_serve_rejects_invalid_secrets(
+    monkeypatch: pytest.MonkeyPatch,
+    uvicorn_calls: list[dict[str, Any]],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """An invalid session key stops the start without showing its value.
+
+    Args:
+        monkeypatch: Pytest fixture for environment changes.
+        uvicorn_calls: Recorded server starts.
+        capsys: Pytest fixture capturing console output.
+    """
+    monkeypatch.delenv("ANKI_STUDIO_CONFIG", raising=False)
+    monkeypatch.setenv("ANKI_STUDIO_SESSION_SECRET", "zu-kurz-und-geheim")
+
+    assert cli.main(["serve"]) == 1
+    assert uvicorn_calls == []
+    error = capsys.readouterr().err
+    assert "ANKI_STUDIO_SESSION_SECRET" in error
+    assert "zu-kurz-und-geheim" not in error
+
+
 def answer_prompts(monkeypatch: pytest.MonkeyPatch, *answers: str) -> None:
     """Feed fixed answers to the password prompts.
 

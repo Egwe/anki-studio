@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Anmelden – Anki Studio{% endblock %}
+{% block content %}
+<article class="login">
+  <header><strong>Anmelden</strong></header>
+  {% if password_set %}
+  <form method="post" action="{{ url_for('login') }}">
+    <input type="hidden" name="next" value="{{ next }}">
+    <label for="password">Passwort</label>
+    <input id="password" name="password" type="password" autocomplete="current-password"
+           required autofocus
+           {% if error %}aria-invalid="true" aria-describedby="login-error"{% endif %}>
+    {% if error %}<small id="login-error">{{ error }}</small>{% endif %}
+    <button type="submit">Anmelden</button>
+  </form>
+  {% else %}
+  <p>Es ist noch kein Passwort eingerichtet, deshalb ist keine Anmeldung möglich.</p>
+  <ol>
+    <li>Auf dem Server <code>anki-studio hash-password</code> ausführen.</li>
+    <li>Die ausgegebene Zeile <code>{{ hash_env }}=…</code> in die Umgebungsdatei eintragen, im Container <code>/etc/anki-studio/env</code>.</li>
+    <li>Den Dienst neu starten.</li>
+  </ol>
+  {% endif %}
+</article>
+{% endblock %}
