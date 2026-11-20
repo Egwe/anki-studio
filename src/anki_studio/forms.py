@@ -121,12 +121,7 @@ class GenerateForm(BaseModel):
         Raises:
             ValueError: If a level between ``::`` is empty.
         """
-        if not deck:
-            return deck
-        levels = [level.strip() for level in deck.split("::")]
-        if not all(levels):
-            raise ValueError("Deckname mit leerer Ebene; Ebenen werden mit :: getrennt")
-        return "::".join(levels)
+        return normalize_deck(deck) if deck else deck
 
     def generator_values(self) -> dict[str, Any]:
         """Return only the explicitly set values for the generator.
@@ -139,6 +134,24 @@ class GenerateForm(BaseModel):
         values: dict[str, Any] = {name: getattr(self, name) for name in TEXT_FIELDS}
         values |= {name: getattr(self, name) for name in VALUE_FIELDS + SWITCH_FIELDS}
         return {name: value for name, value in values.items() if value not in ("", None)}
+
+
+def normalize_deck(deck: str) -> str:
+    """Trim every ``::`` level of a deck name and refuse empty levels.
+
+    Args:
+        deck: Deck name such as ``Vorlesung :: Kapitel 1``.
+
+    Returns:
+        The name with whitespace around every level removed.
+
+    Raises:
+        ValueError: If the name or a level between ``::`` is empty.
+    """
+    levels = [level.strip() for level in deck.split("::")]
+    if not all(levels):
+        raise ValueError("Deckname mit leerer Ebene; Ebenen werden mit :: getrennt")
+    return "::".join(levels)
 
 
 def form_errors(errors: list[dict[str, Any]]) -> dict[str, str]:
