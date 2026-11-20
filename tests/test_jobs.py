@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from anki_studio.jobs import EVENTS_FILE, JOB_FILE, RESTART_MESSAGE, JobStatus, JobStore
-from anki_studio.uploads import UploadError
+from anki_studio.uploads import APKG, UploadError
 
 
 @pytest.fixture
@@ -182,3 +182,21 @@ def test_unreadable_job_file_is_skipped(store: JobStore) -> None:
     (store.job_dir(broken) / JOB_FILE).write_text("{kaputt", encoding="utf-8")
 
     assert [job.id for job in store.list_jobs()] == [good]
+
+
+def test_add_file_and_delete(store: JobStore) -> None:
+    """An extra upload lands in its subfolder; delete removes the job.
+
+    Args:
+        store: Empty job store.
+    """
+    job_id = add_job(store)
+
+    name = store.add_file(job_id, "target", io.BytesIO(b"PK"), "../Mein Deck.APKG", 2, APKG)
+
+    assert name == "Mein Deck.apkg"
+    assert (store.job_dir(job_id) / "target" / name).read_bytes() == b"PK"
+    with pytest.raises(UploadError):
+        store.add_file(job_id, "target", io.BytesIO(b"x"), "deck.pdf", 1, APKG)
+    store.delete(job_id)
+    assert store.get(job_id) is None
