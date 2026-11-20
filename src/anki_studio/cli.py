@@ -1,12 +1,15 @@
 """Command line entry point ``anki-studio``."""
 
 import argparse
+import getpass
 import sys
 from pathlib import Path
 
 import uvicorn
 
 from anki_studio.app import create_app
+from anki_studio.credentials import PASSWORD_HASH_ENV
+from anki_studio.passwords import hash_password
 from anki_studio.settings import CONFIG_ENV, SettingsError, load_settings, settings_path
 
 
@@ -28,7 +31,37 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"studio.yaml; ohne Angabe gilt {CONFIG_ENV} oder die Standardwerte",
     )
     serve.set_defaults(handler=serve_command)
+    hash_command = commands.add_parser(
+        "hash-password",
+        help=f"Login-Passwort abfragen und die Zeile {PASSWORD_HASH_ENV}=… ausgeben",
+    )
+    hash_command.set_defaults(handler=hash_password_command)
     return parser
+
+
+def hash_password_command(args: argparse.Namespace) -> int:
+    """Ask twice for a new password and print the environment line with its hash.
+
+    The prompts go to the terminal; only the line for the environment file
+    is written to standard output, so it can be appended with ``>>``.
+
+    Args:
+        args: Parsed options; the command has none.
+
+    Returns:
+        0 after printing, 1 if the inputs differ or the password is too short.
+    """
+    password = getpass.getpass("Neues Passwort: ")
+    if getpass.getpass("Passwort wiederholen: ") != password:
+        print("Fehler: Die Eingaben stimmen nicht überein.", file=sys.stderr)
+        return 1
+    try:
+        encoded = hash_password(password)
+    except ValueError as error:
+        print(f"Fehler: {error}", file=sys.stderr)
+        return 1
+    print(f"{PASSWORD_HASH_ENV}={encoded}")
+    return 0
 
 
 def serve_command(args: argparse.Namespace) -> int:

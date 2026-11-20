@@ -7,6 +7,7 @@ import pytest
 from fastapi import FastAPI
 
 from anki_studio import cli
+from anki_studio.passwords import verify_password
 
 
 @pytest.fixture
@@ -67,6 +68,63 @@ def test_serve_rejects_invalid_settings(
     assert cli.main(["serve", "--config", str(config)]) == 1
     assert uvicorn_calls == []
     assert "Ungültige Einstellungen" in capsys.readouterr().err
+
+
+def answer_prompts(monkeypatch: pytest.MonkeyPatch, *answers: str) -> None:
+    """Feed fixed answers to the password prompts.
+
+    Args:
+        monkeypatch: Pytest fixture for replacing attributes.
+        *answers: Inputs returned by consecutive ``getpass`` calls.
+    """
+    replies = iter(answers)
+    monkeypatch.setattr(cli.getpass, "getpass", lambda prompt: next(replies))
+
+
+def test_hash_password_prints_environment_line(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Matching inputs print one verifiable ``ANKI_STUDIO_PASSWORD_HASH`` line.
+
+    Args:
+        monkeypatch: Pytest fixture for replacing attributes.
+        capsys: Pytest fixture capturing console output.
+    """
+    answer_prompts(monkeypatch, "richtig-geheim", "richtig-geheim")
+
+    assert cli.main(["hash-password"]) == 0
+    name, _, encoded = capsys.readouterr().out.strip().partition("=")
+    assert name == "ANKI_STUDIO_PASSWORD_HASH"
+    assert verify_password("richtig-geheim", encoded)
+
+
+@pytest.mark.parametrize(
+    ("answers", "message"),
+    [
+        (("richtig-geheim", "anders-geheim"), "stimmen nicht überein"),
+        (("kurz", "kurz"), "mindestens 8"),
+    ],
+)
+def test_hash_password_rejects_bad_input(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    answers: tuple[str, str],
+    message: str,
+) -> None:
+    """Different or too short inputs end with exit code 1 and no output line.
+
+    Args:
+        monkeypatch: Pytest fixture for replacing attributes.
+        capsys: Pytest fixture capturing console output.
+        answers: The two inputs.
+        message: Expected part of the error message.
+    """
+    answer_prompts(monkeypatch, *answers)
+
+    assert cli.main(["hash-password"]) == 1
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert message in output.err
 
 
 def test_command_is_required() -> None:
