@@ -51,6 +51,7 @@ Nicht mehrere unabhängige Requirements bis zu einem großen Schluss-Commit aufs
 - Nicht committen: Secrets, `.env`, lokale Konfigurationen, virtuelle Umgebungen, Caches, Anki-Sammlungen (`*.anki2`, `*.colpkg`), Job- und Datenordner, Uploads, heruntergeladene Modelle, erzeugte APKG- und Karten-JSON-Dateien.
 - Commit-Nachrichten beschreiben das abgeschlossene Anforderungspaket und verwenden bei Agent-Commits den vorgesehenen Co-authored-by-Trailer.
 - Der Commit ersetzt nicht den Abschlussbericht mit getestetem Verhalten und ausgeführten Prüfungen.
+- Remote `origin` ist das **öffentliche** GitHub-Repository `Egwe/anki-studio`. Nach jedem erfolgreichen Merge und der Prüfung auf `main` wird `main` dorthin gepusht (Freigabe des Projektinhabers vom 20.11.2026). Feature-Branches bleiben lokal. Weil das Repository öffentlich ist, gilt die Liste „Nicht committen“ besonders streng.
 
 ## 4. Python- und Coderegeln
 
@@ -144,10 +145,11 @@ Bei Klassen werden wesentliche Attribute beziehungsweise Konstruktorparameter do
 ## 8. Infrastruktur und Deployment
 
 - Zielsystem ist der LXC „anki-studio“, erreichbar mit `ssh ct-anki-studio` (Alias in `~/.ssh/config` des Projektinhabers): Debian, NVIDIA Quadro K1200 durchgereicht.
-- **Kein Entwicklungsort:** Im Container wird kein Repository geklont oder abgelegt, kein Code bearbeitet und nicht experimentiert. Code gelangt nur über die Skripte in `deploy/` dorthin, und zwar aus einem geprüften Stand von `main` (sauberes Arbeitsverzeichnis, alle Prüfungen grün, Version gesetzt).
+- **Kein Entwicklungsort:** Im Container wird kein Code bearbeitet und nicht experimentiert. Code gelangt nur über die Skripte in `deploy/` dorthin, und zwar aus einem geprüften und gepushten Stand von `main` (sauberes Arbeitsverzeichnis, alle Prüfungen grün).
+- **Vorschau-Betrieb** (Freigabe des Projektinhabers vom 20.11.2026, gilt bis zur Installation nach AS-040): `deploy/preview.sh` legt in `/opt/anki-studio` einen Git-Checkout von `main` aus GitHub an, aktualisiert ihn und startet den Dienst `anki-studio-preview` neu. Nach jedem Merge darf die Vorschau so aktualisiert und im Container getestet werden, damit der Projektinhaber den Stand im Browser prüfen kann. Der Checkout wird nur durch das Skript verändert, nie von Hand.
 - Lesende Bestandsaufnahme ist jederzeit erlaubt.
 - Änderungen im Container (Pakete, Treiber, Benutzer, Dienste, Neustarts, Dateien außerhalb von `/opt/anki-studio`, `/var/lib/anki-studio`, `/etc/anki-studio`) nur nach Freigabe durch den Projektinhaber. Freigegebene Einrichtungsschritte landen als wiederholbares Skript in `deploy/`, nicht als einmalige Handarbeit.
-- Ein Deployment ist eine Aktion nach außen und erfolgt nur auf ausdrücklichen Auftrag.
+- Ein Deployment ist eine Aktion nach außen und erfolgt nur auf ausdrücklichen Auftrag. Ausgenommen ist das Aktualisieren der Vorschau mit `deploy/preview.sh`.
 - Install- und Update-Skripte sind idempotent, behalten `/var/lib/anki-studio` und `/etc/anki-studio`, überschreiben nie eine vorhandene `env` und lassen den Dienst als eigenen Systembenutzer laufen.
 - Den Container des Sync-Servers und den Proxmox-Host nicht verändern.
 - Ins Repository gehören nur der SSH-Alias, keine IP-Adressen, weiteren Hostnamen, Schlüssel oder Passwörter. Ergebnisse von Bestandsaufnahmen und GPU-Tests werden ohne Adressen in requirements.md beziehungsweise README dokumentiert.
@@ -189,4 +191,4 @@ Bei Änderungen an der Oberfläche zusätzlich lokal starten und die betroffenen
 - requirements.md erhält stabile IDs und einen ehrlichen Status; die Originalübergabe wird nicht überschrieben.
 - Keine zusätzlichen Planungs- oder Notizdateien anlegen, wenn die Information in requirements.md, README.md oder diese Datei gehört.
 - Abschlussmeldungen enthalten kurz: umgesetzte Requirement-IDs, geänderte wesentliche Dateien, tatsächlich ausgeführte Prüfungen und verbleibende Einschränkungen.
-- Kein Push, keine externe Veröffentlichung und kein Deployment ohne ausdrücklichen Auftrag.
+- Kein Push, keine externe Veröffentlichung und kein Deployment ohne ausdrücklichen Auftrag. Ausgenommen sind der Push von `main` nach jedem Merge (Abschnitt 3) und das Aktualisieren der Vorschau (Abschnitt 8).
