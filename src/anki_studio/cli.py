@@ -2,6 +2,7 @@
 
 import argparse
 import getpass
+import logging
 import os
 import sys
 from pathlib import Path
@@ -84,6 +85,7 @@ def serve_command(args: argparse.Namespace) -> int:
     except (SettingsError, CredentialsError) as error:
         print(f"Fehler: {error}", file=sys.stderr)
         return 1
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(name)s: %(message)s")
     app = create_app(settings, credentials)
     uvicorn.run(app, host=settings.host, port=settings.port, server_header=False)
     return 0

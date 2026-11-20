@@ -11,6 +11,11 @@ footer.container {
   padding-block: 1.5rem;
 }
 
+header.container nav,
+header.container nav ul {
+  flex-wrap: wrap;
+}
+
 .nav-form {
   margin: 0;
 }
@@ -58,6 +63,17 @@ footer.container {
 
 .transfer {
   border-left: 0.3rem solid #d97706;
+}
+
+.success {
+  border-left: 0.3rem solid #15803d;
+}
+
+.key-row header {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .field-error {

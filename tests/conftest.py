@@ -1,5 +1,6 @@
 """Shared fixtures and helpers for the Anki Studio tests."""
 
+import os
 import time
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -8,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from anki_studio.app import create_app
-from anki_studio.credentials import Credentials
+from anki_studio.credentials import Credentials, new_secret_key
 from anki_studio.passwords import hash_password
 from anki_studio.routes import login
 from anki_studio.settings import StudioSettings
@@ -16,6 +17,7 @@ from anki_studio.settings import StudioSettings
 PASSWORD = "richtig-geheim"
 PASSWORD_HASH = hash_password(PASSWORD)
 SESSION_SECRET = "test-session-secret-" + "x" * 20
+SECRET_KEY = new_secret_key()
 GENERATOR_YAML = """
 default_profile: lokal
 generation:
@@ -30,6 +32,19 @@ models:
     api_key_env: TEST_STUDIO_KEY
     pdf_mode: native
 """
+
+
+@pytest.fixture(autouse=True)
+def restore_environment() -> Iterator[None]:
+    """Undo changes the application makes to ``os.environ`` (stored keys).
+
+    Yields:
+        Control to the test; afterwards the environment is restored.
+    """
+    saved = dict(os.environ)
+    yield
+    os.environ.clear()
+    os.environ.update(saved)
 
 
 @pytest.fixture(autouse=True)
@@ -60,17 +75,24 @@ def studio_settings(tmp_path: Path) -> StudioSettings:
     )
 
 
-def make_client(settings: StudioSettings, password_hash: str | None = PASSWORD_HASH) -> TestClient:
+def make_client(
+    settings: StudioSettings,
+    password_hash: str | None = PASSWORD_HASH,
+    secret_key: str | None = SECRET_KEY,
+) -> TestClient:
     """Create a test client for an application with test secrets.
 
     Args:
         settings: Settings of the application.
         password_hash: Configured password hash, or None for "not set".
+        secret_key: Encryption key for API keys, or None for "not set".
 
     Returns:
         A test client; use it as context manager so the worker runs.
     """
-    credentials = Credentials(password_hash=password_hash, session_secret=SESSION_SECRET)
+    credentials = Credentials(
+        password_hash=password_hash, session_secret=SESSION_SECRET, secret_key=secret_key
+    )
     return TestClient(create_app(settings, credentials))
 
 
