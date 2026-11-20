@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from anki_studio.auth import SESSION_COOKIE, safe_next
+from anki_studio.settings import StudioSettings
 from tests.conftest import PASSWORD, make_client
 
 
@@ -130,9 +131,13 @@ def test_start_page_offers_logout(auth_client: TestClient) -> None:
     assert "Abmelden" in auth_client.get("/").text
 
 
-def test_without_password_nobody_can_log_in() -> None:
-    """Without a configured hash the page explains the setup and login fails."""
-    with make_client(password_hash=None) as client:
+def test_without_password_nobody_can_log_in(studio_settings: StudioSettings) -> None:
+    """Without a configured hash the page explains the setup and login fails.
+
+    Args:
+        studio_settings: Settings of the test application.
+    """
+    with make_client(studio_settings, password_hash=None) as client:
         page = client.get("/login")
         response = client.post("/login", data={"password": PASSWORD}, follow_redirects=False)
 

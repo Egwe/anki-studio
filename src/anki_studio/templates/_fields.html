@@ -1,0 +1,17 @@
+{# Small building blocks for forms. #}
+
+{% macro error(errors, name) -%}
+{% if errors[name] %}<small class="field-error" id="{{ name }}-error">{{ errors[name] }}</small>{% endif %}
+{%- endmacro %}
+
+{# Yes/no option: the hidden "false" is sent first, a checked box adds "true";
+   the server uses the last value. Without a previous submission the
+   checkbox shows the default of the generator configuration. #}
+{% macro switch(name, label, values, default) -%}
+{% set checked = (values[name] == "true") if name in values else default %}
+<label>
+  <input type="hidden" name="{{ name }}" value="false">
+  <input type="checkbox" role="switch" name="{{ name }}" value="true" {% if checked %}checked{% endif %}>
+  {{ label }}
+</label>
+{%- endmacro %}

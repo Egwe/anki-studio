@@ -60,7 +60,22 @@ def test_empty_file_uses_defaults(tmp_path: Path) -> None:
     """
     settings = load_settings(write(tmp_path, ""))
 
-    assert settings == StudioSettings(data_dir=tmp_path / "data")
+    assert settings == StudioSettings(
+        data_dir=tmp_path / "data", generator_config=tmp_path / "config.yaml"
+    )
+
+
+def test_relative_generator_config_is_resolved_next_to_file(tmp_path: Path) -> None:
+    """The generator YAML is found next to ``studio.yaml`` unless absolute.
+
+    Args:
+        tmp_path: Temporary test folder.
+    """
+    relative = load_settings(write(tmp_path, "generator_config: generator.yaml\n"))
+    absolute = load_settings(write(tmp_path, "generator_config: /etc/anki-studio/config.yaml\n"))
+
+    assert relative.generator_config == tmp_path / "generator.yaml"
+    assert absolute.generator_config == Path("/etc/anki-studio/config.yaml")
 
 
 def test_relative_data_dir_is_resolved_next_to_file(tmp_path: Path) -> None:

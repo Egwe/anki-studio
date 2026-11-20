@@ -21,3 +21,7 @@ data_dir: data
 
 # Abgeschlossene Jobs werden nach so vielen Tagen gelöscht.
 job_retention_days: 14
+
+# YAML-Konfiguration des Generators (Profile, Standardwerte, pdf_conversion).
+# Relativ zu dieser Datei; im Container /etc/anki-studio/config.yaml.
+generator_config: config.yaml

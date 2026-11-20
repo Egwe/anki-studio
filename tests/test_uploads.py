@@ -6,7 +6,14 @@ from pathlib import Path
 import pytest
 
 from anki_studio import uploads
-from anki_studio.uploads import UploadError, check_upload, clean_filename, store_upload
+from anki_studio.uploads import (
+    APKG,
+    UploadError,
+    UploadKind,
+    check_upload,
+    clean_filename,
+    store_upload,
+)
 
 
 @pytest.mark.parametrize(
@@ -86,11 +93,11 @@ def test_wrong_reported_size_is_caught_while_copying(
         tmp_path: Temporary upload folder.
         monkeypatch: Pytest fixture to lower the limit for the test.
     """
-    monkeypatch.setattr(uploads, "MAX_FILE_SIZE", 10)
     monkeypatch.setattr(uploads, "COPY_CHUNK", 4)
+    tiny = UploadKind(frozenset({".md"}), 10)
 
-    with pytest.raises(UploadError, match="100 MiB"):
-        store_upload(io.BytesIO(b"x" * 11), "notizen.md", tmp_path, size=5)
+    with pytest.raises(UploadError, match="größer als"):
+        store_upload(io.BytesIO(b"x" * 11), "notizen.md", tmp_path, size=5, kind=tiny)
 
     assert list(tmp_path.iterdir()) == []
 
@@ -102,9 +109,19 @@ def test_exact_limit_is_accepted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
         tmp_path: Temporary upload folder.
         monkeypatch: Pytest fixture to lower the limit for the test.
     """
-    monkeypatch.setattr(uploads, "MAX_FILE_SIZE", 10)
     monkeypatch.setattr(uploads, "COPY_CHUNK", 4)
+    tiny = UploadKind(frozenset({".md"}), 10)
 
-    path = store_upload(io.BytesIO(b"x" * 10), "notizen.md", tmp_path)
+    path = store_upload(io.BytesIO(b"x" * 10), "notizen.md", tmp_path, kind=tiny)
 
     assert path.stat().st_size == 10
+
+
+def test_apkg_kind_accepts_packages_up_to_512_mib() -> None:
+    """Packages to extend have their own type and a larger limit."""
+    check_upload("deck.apkg", 512 * 2**20, APKG)
+
+    with pytest.raises(UploadError, match="512 MiB"):
+        check_upload("deck.apkg", 512 * 2**20 + 1, APKG)
+    with pytest.raises(UploadError, match="nicht unterstützt"):
+        check_upload("deck.pdf", 10, APKG)

@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Anki Studio – Benutzerhandbuch</title>
+<style>
+:root {
+  --bg: #ffffff; --fg: #1f2933; --muted: #5f6b7a; --line: #d9e0e8; --panel: #f5f7fa;
+  --accent: #1d5fa8; --warn: #b45309; --code: #eef2f6; --mark: #fde68a;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12161c; --fg: #e3e8ee; --muted: #9aa5b1; --line: #2c3440; --panel: #1a2029;
+    --accent: #6aa7ec; --warn: #f0a04b; --code: #1f2731; --mark: #7c5e10;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 system-ui, sans-serif; }
+header.top { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line);
+  padding: 0.75rem 1rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+header.top h1 { font-size: 1.15rem; margin: 0; }
+header.top input { flex: 1; min-width: 12rem; padding: 0.45rem 0.7rem; border: 1px solid var(--line);
+  border-radius: 0.4rem; background: var(--panel); color: var(--fg); font: inherit; }
+#hits { color: var(--muted); font-size: 0.9rem; }
+.layout { display: grid; grid-template-columns: 16rem 1fr; gap: 2rem; max-width: 72rem; margin: 0 auto; padding: 1rem; }
+nav.toc { position: sticky; top: 4.5rem; align-self: start; max-height: calc(100vh - 5rem); overflow: auto; font-size: 0.92rem; }
+nav.toc a { display: block; padding: 0.2rem 0; color: var(--muted); text-decoration: none; }
+nav.toc a:hover { color: var(--accent); }
+main { min-width: 0; }
+section { border-bottom: 1px solid var(--line); padding-bottom: 1rem; margin-bottom: 1.5rem; scroll-margin-top: 5rem; }
+section.hidden { display: none; }
+h2 { margin-top: 0.5rem; }
+a { color: var(--accent); }
+code { background: var(--code); padding: 0.05rem 0.3rem; border-radius: 0.25rem; font-size: 0.92em; }
+pre { position: relative; background: var(--code); padding: 0.8rem; border-radius: 0.4rem; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+button.copy { position: absolute; top: 0.4rem; right: 0.4rem; font: inherit; font-size: 0.8rem;
+  border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 0.3rem; cursor: pointer; }
+table { border-collapse: collapse; width: 100%; margin: 0.8rem 0; font-size: 0.95rem; }
+th, td { border: 1px solid var(--line); padding: 0.4rem 0.6rem; text-align: left; vertical-align: top; }
+th { background: var(--panel); }
+.note { border-left: 0.3rem solid var(--accent); background: var(--panel); padding: 0.6rem 0.9rem; margin: 0.8rem 0; }
+.warn { border-left-color: var(--warn); }
+mark { background: var(--mark); color: inherit; }
+@media (max-width: 52rem) { .layout { grid-template-columns: 1fr; } nav.toc { position: static; max-height: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Anki Studio – Benutzerhandbuch</h1>
+  <input id="search" type="search" placeholder="Suchen, z. B. Bestätigung, Job, Passwort" aria-label="Handbuch durchsuchen">
+  <span id="hits"></span>
+</header>
+<div class="layout">
+<nav class="toc" aria-label="Inhalt">
+  <a href="#ueberblick">Überblick</a>
+  <a href="#anmelden">Anmelden und Abmelden</a>
+  <a href="#startseite">Startseite</a>
+  <a href="#generieren">Karten generieren</a>
+  <a href="#ziel">Ziel und Deck</a>
+  <a href="#modell">Modell</a>
+  <a href="#karten">Karten-Optionen</a>
+  <a href="#pdf">PDF-Verarbeitung</a>
+  <a href="#uebertragung">Datenübertragung bestätigen</a>
+  <a href="#jobs">Jobs</a>
+  <a href="#jobseite">Job-Seite</a>
+  <a href="#fehler">Meldungen und Lösungen</a>
+  <a href="#grenzen">Was noch fehlt</a>
+</nav>
+<main>
+
+<section id="ueberblick">
+  <h2>Überblick</h2>
+  <p>Anki Studio ist die Web-Oberfläche für den Anki Flashcard Generator. Du lädst Dokumente hoch, wählst die Optionen und lässt eine KI daraus Karteikarten erzeugen. Später landen geprüfte Karten direkt in deiner Anki-Sammlung und damit auf allen Geräten; bis dahin bleiben sie als Datei im Job.</p>
+  <p>Anki Studio läuft nur im Heimnetz oder über NetBird, für einen Benutzer, und verlangt eine Anmeldung. API-Schlüssel stehen nur in der Umgebungsdatei auf dem Server; die Oberfläche zeigt höchstens, ob ein Schlüssel gesetzt ist.</p>
+  <div class="note">Stand dieses Handbuchs: Anmeldung, Generieren und Jobs. Kartenprüfung, Downloads und Sync folgen und werden hier ergänzt, sobald sie nutzbar sind.</div>
+</section>
+
+<section id="anmelden">
+  <h2>Anmelden und Abmelden</h2>
+  <p>Jede Seite außer der Anmeldung verlangt das Passwort. Nach der Anmeldung bleibst du 14 Tage angemeldet, solange der Server nicht mit neuem Session-Schlüssel startet. <strong>Abmelden</strong> oben rechts beendet die Sitzung sofort.</p>
+  <p>Nach einem falschen Passwort antwortet der Server erst nach einer Sekunde. Ist noch kein Passwort eingerichtet, erklärt die Anmeldeseite die Einrichtung, und niemand kann sich anmelden.</p>
+  <h3>Passwort setzen oder ändern</h3>
+  <p>Vom eigenen Rechner aus setzt dieser Befehl das Passwort im Container und startet die Vorschau neu. Er fragt das Passwort zweimal ab (mindestens 8 Zeichen); gespeichert wird nur ein Hash.</p>
+  <pre><code>ssh -t ct-anki-studio '/opt/anki-studio/.venv/bin/anki-studio hash-password &gt;&gt; /etc/anki-studio/env &amp;&amp; systemctl restart anki-studio-preview'</code></pre>
+  <p>Für ein neues Passwort vorher die alte Zeile <code>ANKI_STUDIO_PASSWORD_HASH=…</code> aus <code>/etc/anki-studio/env</code> löschen.</p>
+  <h3>Unbekannter Host</h3>
+  <p>Anki Studio antwortet nur unter Namen und Adressen, die in <code>allowed_hosts</code> der <code>/etc/anki-studio/studio.yaml</code> stehen. Rufst du es unter einem anderen Namen auf, etwa dem NetBird-Namen, erscheint „Unbekannter Host“. Den Namen dort ergänzen und den Dienst neu starten:</p>
+  <pre><code>ssh ct-anki-studio 'systemctl restart anki-studio-preview'</code></pre>
+</section>
+
+<section id="startseite">
+  <h2>Startseite</h2>
+  <p>Die Startseite führt zu <strong>Karten generieren</strong> und zu den <strong>Jobs</strong> und zeigt die installierten Versionen von Anki Studio, Generator und Anki. Die Anki-Version muss zu der des Sync-Servers passen. Die Navigation oben bietet dieselben Ziele auf jeder Seite.</p>
+</section>
+
+<section id="generieren">
+  <h2>Karten generieren</h2>
+  <p>Unter <strong>Generieren</strong> wählst du ein oder mehrere Dokumente: PDF, DOCX, HTML, Markdown oder Text, je höchstens 100 MiB, bis zu zehn Dateien. <strong>Jede Datei wird ein eigener Job</strong> mit denselben Optionen.</p>
+  <p>Leere Felder übernehmen den Wert aus der Generator-Konfiguration. Der graue Platzhalter zeigt, welcher Wert dann gilt. Selten genutzte Optionen sind eingeklappt; ein Klick auf die Überschrift öffnet sie. Ja/Nein-Schalter zeigen den Wert der Konfiguration und gelten so, wie sie stehen.</p>
+  <p><strong>Karten erzeugen</strong> prüft alle Eingaben. Stimmt etwas nicht, bleibt das Formular mit deinen Eingaben stehen, und unter dem betroffenen Feld steht, was zu ändern ist. Sonst öffnet sich die Job-Seite (ein Dokument) oder die Jobliste (mehrere).</p>
+  <p>Geschrieben wird beim Generieren noch nichts: Die Karten landen zuerst im Job, damit du sie prüfen kannst.</p>
+</section>
+
+<section id="ziel">
+  <h2>Ziel und Deck</h2>
+  <table>
+    <tr><th>Ziel</th><th>Bedeutung</th></tr>
+    <tr><td>Neue APKG-Datei</td><td>Die Karten bilden ein neues Paket, das du in Anki importieren kannst.</td></tr>
+    <tr><td>Vorhandene APKG erweitern</td><td>Du lädst ein vorhandenes Paket hoch (höchstens 512 MiB), und neue Karten kommen hinzu; Duplikate werden übersprungen, Lernstände bleiben. Nur mit einem Dokument zur Zeit.</td></tr>
+  </table>
+  <p><strong>Deck:</strong> Name des Zieldecks; <code>::</code> trennt Ebenen, etwa <code>Elektrotechnik::Kapitel 1</code>. Leer bedeutet: Wert der Konfiguration oder der Dateiname ohne Endung.</p>
+  <p><strong>KI ordnet Karten Unterdecks zu:</strong> Das Deck wird zum übergeordneten Deck, etwa der Name einer Vorlesung, und die KI ordnet jede Karte einem Kapitel-Unterdeck zu. Beim Erweitern werden vorhandene Unterdecks erkannt und bevorzugt wiederverwendet; dafür gehen ihre Namen und einige Beispielfragen an das Modell.</p>
+  <p>Die Sammlung als Ziel (Karten direkt auf alle Geräte) folgt mit dem Sync.</p>
+</section>
+
+<section id="modell">
+  <h2>Modell</h2>
+  <p><strong>Profil:</strong> wählt ein Modellprofil aus der Generator-Konfiguration. Die Liste zeigt je Profil Modell und PDF-Modus und den Hinweis „Schlüssel fehlt“, wenn der API-Schlüssel in der Umgebungsdatei fehlt. „Standard“ nimmt das Standardprofil der Konfiguration.</p>
+  <p>Eingeklappt lassen sich für diesen Lauf überschreiben:</p>
+  <table>
+    <tr><th>Feld</th><th>Bedeutung</th></tr>
+    <tr><td>Modell</td><td>Provider und Modell im Format <code>provider/modell</code>, etwa <code>ollama/llama3.2</code> oder <code>openai/gpt-4o-mini</code>.</td></tr>
+    <tr><td>API-Basis</td><td>Endpunkt des Providers, etwa die Adresse eines eigenen Ollama-Servers.</td></tr>
+    <tr><td>Timeout</td><td>Sekunden je Anfrage, 1 bis 3600.</td></tr>
+  </table>
+</section>
+
+<section id="karten">
+  <h2>Karten-Optionen</h2>
+  <table>
+    <tr><th>Feld</th><th>Bedeutung</th></tr>
+    <tr><td>Sprache</td><td>Sprache der Karten, etwa Deutsch.</td></tr>
+    <tr><td>Höchstzahl</td><td>Höchstens so viele Karten; <code>0</code> heißt unbegrenzt: Die KI erstellt so viele sinnvolle Karten, wie die Quelle hergibt.</td></tr>
+    <tr><td>Zusätzliche Anweisungen</td><td>Freier Text an das Modell, etwa „Bevorzuge Verständnisfragen“.</td></tr>
+    <tr><td>Zeichen pro Abschnitt</td><td>Länge der Textstücke, die einzeln an das Modell gehen, 1.000 bis 100.000.</td></tr>
+  </table>
+</section>
+
+<section id="pdf">
+  <h2>PDF-Verarbeitung</h2>
+  <table>
+    <tr><th>Modus</th><th>Was passiert</th><th>Datenfluss</th></tr>
+    <tr><td><code>local</code></td><td>Nur die eingebettete Textebene wird gelesen. Bilder, Scans und Formeln fehlen.</td><td>Nur Text geht an das Kartenmodell.</td></tr>
+    <tr><td><code>structured</code></td><td>Docling bereitet die PDF auf dem Server auf: OCR, Tabellen, Formeln als LaTeX, Abbildungen als Beschreibung. Braucht die GPU.</td><td>Nur Text geht an das Kartenmodell; beim Bild-Backend <code>profile</code> zusätzlich Bildausschnitte.</td></tr>
+    <tr><td><code>native</code></td><td>Das Modell des Providers liest die Original-PDF (nur freigegebene OpenAI-Modelle).</td><td><strong>Das ganze Dokument wird hochgeladen.</strong></td></tr>
+  </table>
+  <p>„Wirksam“ unter dem Auswahlfeld zeigt, welcher Modus mit dem gewählten Profil gilt. Nur im Modus <code>structured</code> erscheinen dessen Optionen: Formeln erkennen, jede Seite per OCR lesen, nicht lesbare Elemente als Platzhalter zulassen, ohne GPU arbeiten und die Bildbeschreibung (<code>local</code>, <code>profile</code> mit Bild-Profil oder <code>none</code>).</p>
+  <div class="note warn">Auf der Quadro K1200 des Servers scheitert die Formelerkennung derzeit am Grafikspeicher. Der Generator bricht dann mit einer Liste nicht lesbarer Formeln ab. Ohne Formeln läuft der Modus zuverlässig. Den strukturierten Modus selbst richtet Anki Studio erst noch ein (siehe <a href="#grenzen">Was noch fehlt</a>).</div>
+  <p>Der aufbereitete Text wird im strukturierten Modus immer im Job gespeichert (<code>source.md</code>) und mit dem Job gelöscht.</p>
+</section>
+
+<section id="uebertragung">
+  <h2>Datenübertragung bestätigen</h2>
+  <p>Geht Inhalt deines Dokuments an einen Provider, also im Modus <code>native</code> oder beim Bild-Backend <code>profile</code> im strukturierten Modus, erscheint ein Kasten mit einem Häkchen: „Ich bestätige, dass das Dokument beziehungsweise Bildausschnitte an den Provider übertragen werden.“ <strong>Ohne dieses Häkchen startet kein Job.</strong> Der Server prüft das beim Absenden und vor dem Start des Jobs noch einmal, auch wenn das Profil den Modus vorgibt.</p>
+  <p>Im Verlauf des Jobs erscheint jede Übertragung zusätzlich als hervorgehobene Zeile „Datenübertragung: …“.</p>
+</section>
+
+<section id="jobs">
+  <h2>Jobs</h2>
+  <p>Die Seite <strong>Jobs</strong> listet alle Jobs, die neuesten oben, mit Dokument, Status, Zeit und Hinweis. Es läuft immer nur ein Job; weitere warten in der Reihenfolge, in der du sie abgeschickt hast.</p>
+  <table>
+    <tr><th>Status</th><th>Bedeutung</th></tr>
+    <tr><td>wartet</td><td>Der Job steht in der Warteschlange.</td></tr>
+    <tr><td>läuft</td><td>Das Dokument wird gelesen oder aufbereitet, die KI erzeugt Karten.</td></tr>
+    <tr><td>fertig</td><td>Die Karten sind erzeugt und im Job gespeichert.</td></tr>
+    <tr><td>fehlgeschlagen</td><td>Der Hinweis nennt den Grund, etwa einen nicht erreichbaren Provider.</td></tr>
+    <tr><td>abgebrochen</td><td>Von dir abgebrochen oder durch einen Neustart von Anki Studio beendet.</td></tr>
+  </table>
+  <p>Abgeschlossene Jobs bleiben nach einem Neustart sichtbar und werden nach der eingestellten Frist gelöscht (Standard 14 Tage), einschließlich des hochgeladenen Dokuments.</p>
+</section>
+
+<section id="jobseite">
+  <h2>Job-Seite</h2>
+  <p>Die Job-Seite zeigt Status, die gewählten Optionen und den <strong>Verlauf</strong>: Beginn und Fortschritt der Aufbereitung und Generierung (Abschnitt x von y, bisher einzigartige Karten), Hinweise, Warnungen, die Statistik der Aufbereitung und am Ende die Zahl der erzeugten Karten. Solange der Job wartet oder läuft, lädt sich die Seite alle drei Sekunden neu.</p>
+  <p><strong>Abbrechen</strong> beendet einen wartenden Job sofort. Ein laufender Job hält nach dem aktuellen Abschnitt an; eine Anfrage, die gerade beim Provider läuft, wird noch zu Ende geführt. Ein abgebrochener Job schreibt keine Karten.</p>
+</section>
+
+<section id="fehler">
+  <h2>Meldungen und Lösungen</h2>
+  <table>
+    <tr><th>Meldung</th><th>Lösung</th></tr>
+    <tr><td>Die Generator-Konfiguration ist nicht nutzbar</td><td>Die Datei aus <code>generator_config</code> fehlt oder ist ungültig. Im Container <code>/etc/anki-studio/config.yaml</code> prüfen.</td></tr>
+    <tr><td>Schlüssel fehlt (beim Profil)</td><td>Die in <code>api_key_env</code> genannte Variable in <code>/etc/anki-studio/env</code> eintragen und den Dienst neu starten.</td></tr>
+    <tr><td>… Connection refused</td><td>Der Provider ist nicht erreichbar, etwa ein Ollama-Server; Adresse (API-Basis) und Dienst prüfen.</td></tr>
+    <tr><td>Dateityp wird nicht unterstützt</td><td>Nur PDF, DOCX, HTML, Markdown und Text; zum Erweitern nur <code>.apkg</code>.</td></tr>
+    <tr><td>… ist größer als 100 MiB</td><td>Dokument verkleinern oder aufteilen.</td></tr>
+    <tr><td>Bitte die Übertragung bestätigen</td><td>Siehe <a href="#uebertragung">Datenübertragung bestätigen</a>.</td></tr>
+    <tr><td>Unknown model profile</td><td>Das Profil steht nicht (mehr) in der Generator-Konfiguration.</td></tr>
+    <tr><td>Unbekannter Host</td><td>Siehe <a href="#anmelden">Anmelden</a>, Abschnitt „Unbekannter Host“.</td></tr>
+  </table>
+  <p>Meldungen des Generators sind teils englisch, genau wie in seiner Kommandozeile.</p>
+</section>
+
+<section id="grenzen">
+  <h2>Was noch fehlt</h2>
+  <ul>
+    <li>Live-Fortschritt ohne Neuladen der Seite.</li>
+    <li>Karten prüfen, bearbeiten und abwählen; Download von APKG, Karten-JSON und aufbereitetem Text.</li>
+    <li>Sync mit der Anki-Sammlung, Deckauswahl aus der Sammlung, Sync-Status.</li>
+    <li>Decks, Export, Konfiguration und Modelle als eigene Seiten.</li>
+    <li>Der strukturierte PDF-Modus auf der GPU des Servers (PyTorch und Docling werden noch nicht mitinstalliert).</li>
+  </ul>
+</section>
+
+</main>
+</div>
+<script>
+(() => {
+  const sections = [...document.querySelectorAll("main section")];
+  const input = document.getElementById("search");
+  const hits = document.getElementById("hits");
+
+  function clearMarks(section) {
+    section.querySelectorAll("mark").forEach((mark) => mark.replaceWith(mark.textContent));
+    section.normalize();
+  }
+
+  function markText(section, term) {
+    const walker = document.createTreeWalker(section, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach((node) => {
+      const index = node.textContent.toLowerCase().indexOf(term);
+      if (index < 0 || node.parentElement.closest("button")) return;
+      const match = node.splitText(index);
+      match.splitText(term.length);
+      const mark = document.createElement("mark");
+      mark.textContent = match.textContent;
+      match.replaceWith(mark);
+    });
+  }
+
+  input.addEventListener("input", () => {
+    const term = input.value.trim().toLowerCase();
+    let count = 0;
+    sections.forEach((section) => {
+      clearMarks(section);
+      const found = !term || section.textContent.toLowerCase().includes(term);
+      section.classList.toggle("hidden", !found);
+      if (found && term) { count += 1; markText(section, term); }
+    });
+    hits.textContent = term ? `${count} Abschnitt(e)` : "";
+  });
+
+  document.querySelectorAll("pre").forEach((pre) => {
+    const button = document.createElement("button");
+    button.className = "copy";
+    button.type = "button";
+    button.textContent = "Kopieren";
+    button.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(pre.querySelector("code").textContent);
+      button.textContent = "Kopiert";
+      setTimeout(() => { button.textContent = "Kopieren"; }, 1500);
+    });
+    pre.appendChild(button);
+  });
+})();
+</script>
+</body>
+</html>

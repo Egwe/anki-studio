@@ -8,6 +8,14 @@ from fastapi.templating import Jinja2Templates
 PACKAGE_DIR = Path(__file__).parent
 STATIC_DIR = PACKAGE_DIR / "static"
 
+STATUS_LABELS = {
+    "queued": "wartet",
+    "running": "läuft",
+    "done": "fertig",
+    "failed": "fehlgeschlagen",
+    "cancelled": "abgebrochen",
+}
+
 COMPONENTS = {
     "studio": "anki-studio",
     "generator": "anki-flashcard-generator",
@@ -45,8 +53,10 @@ def create_templates() -> Jinja2Templates:
 
     Returns:
         Templates loaded from the package's ``templates`` folder; every page
-        can use ``versions`` (see ``component_versions``).
+        can use ``versions`` (see ``component_versions``) and
+        ``status_labels`` (German job status names).
     """
     templates = Jinja2Templates(directory=PACKAGE_DIR / "templates")
     templates.env.globals["versions"] = component_versions()
+    templates.env.globals["status_labels"] = STATUS_LABELS
     return templates

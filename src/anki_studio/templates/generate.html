@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% from "_fields.html" import error, switch %}
+{% block title %}Generieren – Anki Studio{% endblock %}
+{% block content %}
+<hgroup>
+  <h1>Karten generieren</h1>
+  <p>Dokumente hochladen, Optionen wählen, Karten erzeugen. Geschrieben wird erst nach der Prüfung.</p>
+</hgroup>
+
+{% if config_error %}
+<article class="alert">
+  <strong>Die Generator-Konfiguration ist nicht nutzbar.</strong>
+  <p>{{ config_error }}</p>
+  <p>Pfad und Inhalt stehen in <code>generator_config</code> der <code>studio.yaml</code>.</p>
+</article>
+{% else %}
+{% if errors.form %}<article class="alert" role="alert">{{ errors.form }}</article>{% endif %}
+<form method="post" action="{{ url_for('generate_submit') }}" enctype="multipart/form-data"
+      x-data="generateForm"
+      data-profile-modes="{{ profile_modes }}"
+      data-default-backend="{{ defaults.conversion.picture_backend.value }}"
+      data-profile="{{ values.profile or '' }}"
+      data-pdf-mode="{{ values.pdf_mode or '' }}"
+      data-picture-backend="{{ values.picture_backend or '' }}"
+      data-target="{{ values.target or 'new_apkg' }}">
+
+  <fieldset>
+    <legend><strong>Dokumente</strong></legend>
+    <input type="file" name="documents" multiple required
+           accept=".pdf,.docx,.html,.htm,.md,.markdown,.txt"
+           {% if errors.documents %}aria-invalid="true"{% endif %}>
+    <small>PDF, DOCX, HTML, Markdown oder Text, je höchstens 100 MiB, bis zu {{ max_documents }} Dateien. Jede Datei wird ein eigener Job.</small>
+    {{ error(errors, "documents") }}
+  </fieldset>
+
+  <fieldset>
+    <legend><strong>Ziel</strong></legend>
+    <label><input type="radio" name="target" value="new_apkg" x-model="target"> Neue APKG-Datei</label>
+    <label><input type="radio" name="target" value="extend_apkg" x-model="target"> Vorhandene APKG erweitern</label>
+    <div x-show="extend">
+      <label for="target_apkg">APKG-Datei zum Erweitern</label>
+      <input id="target_apkg" type="file" name="target_apkg" accept=".apkg"
+             {% if errors.target_apkg %}aria-invalid="true"{% endif %}>
+      <small>Höchstens 512 MiB; nur zusammen mit einem einzelnen Dokument.</small>
+    </div>
+    {{ error(errors, "target_apkg") }}
+    <label for="deck">Deck</label>
+    <input id="deck" name="deck" value="{{ values.deck or '' }}"
+           placeholder="{{ deck_placeholder }}"
+           {% if errors.deck %}aria-invalid="true"{% endif %}>
+    <small>Leer: Wert aus der Konfiguration oder Dateiname. <code>::</code> trennt Unterdecks.</small>
+    {{ error(errors, "deck") }}
+    {{ switch("subdecks", "KI ordnet Karten Unterdecks zu", values, defaults.subdecks) }}
+  </fieldset>
+
+  <fieldset>
+    <legend><strong>Modell</strong></legend>
+    <label for="profile">Profil</label>
+    <select id="profile" name="profile" x-model="profile">
+      <option value="">Standard{% if defaults.profile_name %}: {{ defaults.profile_name }}{% endif %}</option>
+      {% for view in profiles %}
+      <option value="{{ view.name }}">{{ view.name }} – {{ view.model }} ({{ view.pdf_mode.value }}{% if view.key_status == "fehlt" %}, Schlüssel fehlt{% endif %})</option>
+      {% endfor %}
+    </select>
+    {{ error(errors, "profile") }}
+    <details>
+      <summary>Modell, Endpunkt und Timeout überschreiben</summary>
+      <label for="model">Modell</label>
+      <input id="model" name="model" value="{{ values.model or '' }}" placeholder="{{ defaults.ai.model or 'provider/modell' }}"
+             {% if errors.model %}aria-invalid="true"{% endif %}>
+      {{ error(errors, "model") }}
+      <label for="api_base">API-Basis</label>
+      <input id="api_base" name="api_base" value="{{ values.api_base or '' }}" placeholder="{{ defaults.ai.api_base or 'Standard des Providers' }}">
+      {{ error(errors, "api_base") }}
+      <label for="timeout">Timeout in Sekunden (1–3600)</label>
+      <input id="timeout" name="timeout" type="number" min="1" max="3600" value="{{ values.timeout or '' }}"
+             placeholder="{{ defaults.ai.timeout }}" {% if errors.timeout %}aria-invalid="true"{% endif %}>
+      {{ error(errors, "timeout") }}
+    </details>
+  </fieldset>
+
+  <fieldset>
+    <legend><strong>Karten</strong></legend>
+    <div class="grid">
+      <div>
+        <label for="language">Sprache</label>
+        <input id="language" name="language" value="{{ values.language or '' }}" placeholder="{{ defaults.language }}">
+        {{ error(errors, "language") }}
+      </div>
+      <div>
+        <label for="limit">Höchstzahl (0 = unbegrenzt)</label>
+        <input id="limit" name="limit" type="number" min="0" value="{{ values.limit or '' }}"
+               placeholder="{{ defaults.limit }}" {% if errors.limit %}aria-invalid="true"{% endif %}>
+        {{ error(errors, "limit") }}
+      </div>
+    </div>
+    <details>
+      <summary>Anweisungen und Textaufteilung</summary>
+      <label for="instructions">Zusätzliche Anweisungen</label>
+      <textarea id="instructions" name="instructions" rows="3" placeholder="{{ defaults.instructions or 'z. B. Bevorzuge Verständnisfragen.' }}">{{ values.instructions or '' }}</textarea>
+      {{ error(errors, "instructions") }}
+      <label for="chunk_size">Zeichen pro Abschnitt (1000–100000)</label>
+      <input id="chunk_size" name="chunk_size" type="number" min="1000" max="100000" value="{{ values.chunk_size or '' }}"
+             placeholder="{{ defaults.chunk_size }}" {% if errors.chunk_size %}aria-invalid="true"{% endif %}>
+      {{ error(errors, "chunk_size") }}
+    </details>
+  </fieldset>
+
+  <fieldset>
+    <legend><strong>PDF-Verarbeitung</strong></legend>
+    <label for="pdf_mode">PDF-Modus</label>
+    <select id="pdf_mode" name="pdf_mode" x-model="pdfMode">
+      <option value="">Standard des Profils</option>
+      <option value="local">local – nur eingebetteter Text</option>
+      <option value="structured">structured – lokal mit Docling (GPU)</option>
+      <option value="native">native – Provider liest die PDF (Upload)</option>
+    </select>
+    <small>Wirksam: <strong x-text="effectiveMode">{{ defaults.pdf_mode.value }}</strong></small>
+    {{ error(errors, "pdf_mode") }}
+    <div x-show="structured">
+      {% set options = defaults.conversion.options %}
+      {{ switch("formulas", "Formeln als LaTeX erkennen", values, options.formulas) }}
+      {{ switch("force_ocr", "Jede Seite per OCR lesen", values, options.force_ocr) }}
+      {{ switch("allow_unreadable", "Nicht lesbare Elemente als Platzhalter zulassen", values, options.allow_unreadable) }}
+      {{ switch("allow_cpu", "Ohne GPU auf der CPU arbeiten (langsam)", values, options.allow_cpu) }}
+      <label for="picture_backend">Bildbeschreibung</label>
+      <select id="picture_backend" name="picture_backend" x-model="pictureBackend">
+        <option value="">Standard ({{ defaults.conversion.picture_backend.value }})</option>
+        <option value="local">local – Bildmodell im Programm</option>
+        <option value="profile">profile – Modellprofil (Bildausschnitte gehen an den Provider)</option>
+        <option value="none">none – keine Beschreibung</option>
+      </select>
+      {{ error(errors, "picture_backend") }}
+      <div x-show="pictureBackend === 'profile' || (!pictureBackend && defaultBackend === 'profile')">
+        <label for="picture_profile">Bild-Profil</label>
+        <select id="picture_profile" name="picture_profile">
+          <option value="">Standard der Konfiguration</option>
+          {% for view in picture_profiles %}
+          <option value="{{ view.name }}" {% if values.picture_profile == view.name %}selected{% endif %}>{{ view.name }} – {{ view.model }}</option>
+          {% endfor %}
+        </select>
+        {{ error(errors, "picture_profile") }}
+      </div>
+    </div>
+  </fieldset>
+
+  <article class="transfer" x-show="transfer || {{ 'true' if errors.confirm_transfer else 'false' }}">
+    <label>
+      <input type="checkbox" name="confirm_transfer" value="true" {% if values.confirm_transfer %}checked{% endif %}
+             {% if errors.confirm_transfer %}aria-invalid="true"{% endif %}>
+      Ich bestätige, dass das Dokument beziehungsweise Bildausschnitte an den Provider übertragen werden.
+    </label>
+    {{ error(errors, "confirm_transfer") }}
+  </article>
+
+  <button type="submit">Karten erzeugen</button>
+  <small>Konfiguration: <code>{{ config_path }}</code></small>
+</form>
+{% endif %}
+{% endblock %}

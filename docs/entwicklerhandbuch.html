@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Anki Studio – Entwicklerhandbuch</title>
+<style>
+:root {
+  --bg: #ffffff; --fg: #1f2933; --muted: #5f6b7a; --line: #d9e0e8; --panel: #f5f7fa;
+  --accent: #1d5fa8; --warn: #b45309; --code: #eef2f6; --mark: #fde68a;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12161c; --fg: #e3e8ee; --muted: #9aa5b1; --line: #2c3440; --panel: #1a2029;
+    --accent: #6aa7ec; --warn: #f0a04b; --code: #1f2731; --mark: #7c5e10;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 system-ui, sans-serif; }
+header.top { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line);
+  padding: 0.75rem 1rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+header.top h1 { font-size: 1.15rem; margin: 0; }
+header.top input { flex: 1; min-width: 12rem; padding: 0.45rem 0.7rem; border: 1px solid var(--line);
+  border-radius: 0.4rem; background: var(--panel); color: var(--fg); font: inherit; }
+#hits { color: var(--muted); font-size: 0.9rem; }
+.layout { display: grid; grid-template-columns: 16rem 1fr; gap: 2rem; max-width: 76rem; margin: 0 auto; padding: 1rem; }
+nav.toc { position: sticky; top: 4.5rem; align-self: start; max-height: calc(100vh - 5rem); overflow: auto; font-size: 0.92rem; }
+nav.toc a { display: block; padding: 0.2rem 0; color: var(--muted); text-decoration: none; }
+nav.toc a:hover { color: var(--accent); }
+main { min-width: 0; }
+section { border-bottom: 1px solid var(--line); padding-bottom: 1rem; margin-bottom: 1.5rem; scroll-margin-top: 5rem; }
+section.hidden { display: none; }
+a { color: var(--accent); }
+code { background: var(--code); padding: 0.05rem 0.3rem; border-radius: 0.25rem; font-size: 0.92em; }
+pre { position: relative; background: var(--code); padding: 0.8rem; border-radius: 0.4rem; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+button.copy { position: absolute; top: 0.4rem; right: 0.4rem; font: inherit; font-size: 0.8rem;
+  border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 0.3rem; cursor: pointer; }
+table { border-collapse: collapse; width: 100%; margin: 0.8rem 0; font-size: 0.94rem; }
+th, td { border: 1px solid var(--line); padding: 0.4rem 0.6rem; text-align: left; vertical-align: top; }
+th { background: var(--panel); }
+.note { border-left: 0.3rem solid var(--accent); background: var(--panel); padding: 0.6rem 0.9rem; margin: 0.8rem 0; }
+.warn { border-left-color: var(--warn); }
+mark { background: var(--mark); color: inherit; }
+figure { margin: 1rem 0; }
+figure svg { width: 100%; height: auto; color: var(--fg); }
+figure svg .box { fill: var(--panel); stroke: var(--line); }
+figure svg .accent { stroke: var(--accent); }
+figcaption { color: var(--muted); font-size: 0.9rem; }
+@media (max-width: 52rem) { .layout { grid-template-columns: 1fr; } nav.toc { position: static; max-height: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Anki Studio – Entwicklerhandbuch</h1>
+  <input id="search" type="search" placeholder="Suchen, z. B. lifespan, events.jsonl, Patch-Ziel" aria-label="Handbuch durchsuchen">
+  <span id="hits"></span>
+</header>
+<div class="layout">
+<nav class="toc" aria-label="Inhalt">
+  <a href="#ueberblick">Überblick</a>
+  <a href="#architektur">Architektur</a>
+  <a href="#module">Module</a>
+  <a href="#anfrage">Weg einer Anfrage</a>
+  <a href="#konfiguration">Konfiguration und Secrets</a>
+  <a href="#generator">Einbindung des Generators</a>
+  <a href="#formular">Formular und Validierung</a>
+  <a href="#jobs">Jobs und Worker</a>
+  <a href="#formate">Datenformate</a>
+  <a href="#sicherheit">Sicherheit</a>
+  <a href="#frontend">Frontend</a>
+  <a href="#tests">Tests und Nahtstellen</a>
+  <a href="#vorschau">Vorschau im Container</a>
+  <a href="#besonderheiten">Besonderheiten</a>
+</nav>
+<main>
+
+<section id="ueberblick">
+  <h2>Überblick</h2>
+  <p>Anki Studio ist eine FastAPI-Anwendung (Python 3.13, uv) mit Jinja2-Templates, htmx, Alpine.js und Pico CSS, alles mitgeliefert, ohne Node-Build. Fachlich ruft sie ausschließlich die öffentliche Schnittstelle des Anki Flashcard Generators 0.2.0 auf. Verbindliche Regeln stehen in <code>AGENTS.md</code>, Anforderungen und Status in <code>requirements.md</code>.</p>
+  <p>Stand: Projektgerüst, Login (AS-030), Uploads (AS-033), Jobs mit Worker (AS-032), Generierungsformular und Job-Seiten (AS-001 bis AS-004 teilweise). Kartenprüfung, Downloads, SSE und Sync folgen.</p>
+  <pre><code>uv sync
+.venv/bin/python -m ruff check src tests
+.venv/bin/python -m ruff format --check src tests
+.venv/bin/python -m pytest</code></pre>
+</section>
+
+<section id="architektur">
+  <h2>Architektur</h2>
+  <figure>
+    <svg viewBox="0 0 760 330" role="img" aria-labelledby="arch-title">
+      <title id="arch-title">Schichten von Anki Studio: Browser, Middleware, Routen, Dienste, Generator</title>
+      <g font-family="system-ui, sans-serif" font-size="13" fill="currentColor">
+        <rect class="box" x="10" y="10" width="740" height="40" rx="6"/>
+        <text x="380" y="35" text-anchor="middle">Browser (LAN / NetBird) – HTML-Formulare, htmx, Alpine.js</text>
+        <rect class="box" x="10" y="70" width="740" height="50" rx="6"/>
+        <text x="380" y="92" text-anchor="middle">Middleware: SecurityHeaders → HostCheck → BodyLimit → Session → LoginRequired</text>
+        <text x="380" y="110" text-anchor="middle" font-size="12">headers.py · hosts.py · limits.py · Starlette SessionMiddleware · auth.py</text>
+        <rect class="box" x="10" y="140" width="740" height="45" rx="6"/>
+        <text x="380" y="167" text-anchor="middle">Routen: login · pages · generate · jobs (routes/*.py) + Templates</text>
+        <rect class="box" x="10" y="205" width="360" height="55" rx="6"/>
+        <text x="190" y="228" text-anchor="middle">Dienste: forms · generator_config</text>
+        <text x="190" y="246" text-anchor="middle">uploads · jobs (JobStore)</text>
+        <rect class="box" x="390" y="205" width="360" height="55" rx="6"/>
+        <text x="570" y="228" text-anchor="middle">worker (JobWorker, ein Thread)</text>
+        <text x="570" y="246" text-anchor="middle">generation (GenerationRunner)</text>
+        <rect class="box accent" x="10" y="280" width="740" height="40" rx="6"/>
+        <text x="380" y="305" text-anchor="middle">anki_flashcards 0.2.0: settings · pipeline · models · apkg · errors</text>
+      </g>
+    </svg>
+    <figcaption>Abhängigkeiten zeigen nach unten. Routen kennen Dienste; Dienste kennen weder Request noch Templates.</figcaption>
+  </figure>
+</section>
+
+<section id="module">
+  <h2>Module</h2>
+  <table>
+    <tr><th>Modul</th><th>Aufgabe</th><th>Tests</th></tr>
+    <tr><td><code>app.py</code></td><td>App-Factory <code>create_app(settings, credentials)</code>, Middleware-Reihenfolge, <code>lifespan</code> startet und stoppt den Worker</td><td><code>test_app.py</code></td></tr>
+    <tr><td><code>cli.py</code></td><td><code>anki-studio serve</code> (genau ein uvicorn-Prozess) und <code>hash-password</code></td><td><code>test_cli.py</code></td></tr>
+    <tr><td><code>settings.py</code></td><td><code>StudioSettings</code> aus <code>studio.yaml</code>: host, port, allowed_hosts, data_dir, job_retention_days, generator_config; relative Pfade neben der Datei</td><td><code>test_settings.py</code></td></tr>
+    <tr><td><code>credentials.py</code></td><td>Passwort-Hash und Session-Schlüssel aus der Umgebung; Werte nie in <code>repr</code> oder Meldungen</td><td><code>test_credentials.py</code></td></tr>
+    <tr><td><code>passwords.py</code></td><td>scrypt-Hash <code>scrypt:n:r:p:salt:key</code>, Prüfung in konstanter Zeit</td><td><code>test_passwords.py</code></td></tr>
+    <tr><td><code>auth.py</code></td><td><code>LoginRequiredMiddleware</code>, öffentliche Pfade, sicheres <code>next</code></td><td><code>test_auth.py</code></td></tr>
+    <tr><td><code>hosts.py</code></td><td><code>HostCheckMiddleware</code> gegen DNS-Rebinding</td><td><code>test_hosts.py</code></td></tr>
+    <tr><td><code>headers.py</code></td><td>Content Security Policy und weitere Sicherheits-Header</td><td><code>test_app.py</code></td></tr>
+    <tr><td><code>limits.py</code></td><td><code>BodyLimitMiddleware</code>: 411 ohne Länge, 413 über der Grenze</td><td><code>test_limits.py</code></td></tr>
+    <tr><td><code>uploads.py</code></td><td>Dateinamen bereinigen, <code>UploadKind</code> (DOCUMENT, APKG), Größe vor und beim Speichern prüfen</td><td><code>test_uploads.py</code></td></tr>
+    <tr><td><code>jobs.py</code></td><td><code>JobStore</code>: Job-Ordner, <code>job.json</code>, <code>events.jsonl</code>, Wiederanlauf, Löschfrist</td><td><code>test_jobs.py</code></td></tr>
+    <tr><td><code>worker.py</code></td><td><code>JobWorker</code>: Warteschlange, ein Thread, Abbruch, Status-Ereignisse</td><td><code>test_worker.py</code></td></tr>
+    <tr><td><code>generator_config.py</code></td><td>Generator-YAML laden (nur expliziter Pfad), wirksame Standardwerte und Profilübersicht über den Generator</td><td><code>test_generator_config.py</code></td></tr>
+    <tr><td><code>forms.py</code></td><td><code>GenerateForm</code>: Typen, Bereiche, Enums, nur gesetzte Werte; deutsche Fehlermeldungen</td><td><code>test_forms.py</code></td></tr>
+    <tr><td><code>generation.py</code></td><td><code>GenerationRunner</code>: Einstellungen je Job, Übertragungsprüfung, <code>produce_cards</code>, <code>cards.json</code></td><td><code>test_generation.py</code></td></tr>
+    <tr><td><code>templating.py</code></td><td>Jinja2-Umgebung mit Versionen und Statusnamen</td><td>indirekt</td></tr>
+    <tr><td><code>routes/</code></td><td><code>login</code>, <code>pages</code> (Start, <code>/healthz</code>), <code>generate</code>, <code>jobs</code></td><td><code>test_auth.py</code>, <code>test_web_generate.py</code></td></tr>
+  </table>
+</section>
+
+<section id="anfrage">
+  <h2>Weg einer Anfrage</h2>
+  <ol>
+    <li><strong>SecurityHeaders</strong> hängt an jede Antwort CSP, <code>nosniff</code> und <code>no-referrer</code> an, auch an Fehlerantworten der inneren Schichten.</li>
+    <li><strong>HostCheck</strong> vergleicht den <code>Host</code>-Header (ohne Port, IPv6 ohne Klammern) mit <code>allowed_hosts</code>; sonst 400.</li>
+    <li><strong>BodyLimit</strong> verlangt bei POST ein <code>Content-Length</code>; <code>/generate</code> darf zehn Dokumente plus eine APKG tragen, alles andere 1 MiB.</li>
+    <li><strong>Session</strong> (Starlette, signiert mit <code>itsdangerous</code>) setzt <code>scope["session"]</code>; Cookie <code>anki_studio_session</code>, <code>HttpOnly</code>, <code>SameSite=Strict</code>, 14 Tage.</li>
+    <li><strong>LoginRequired</strong> lässt <code>/login</code>, <code>/healthz</code> und <code>/static/…</code> durch; sonst 303 nach <code>/login?next=…</code> (nur bei GET) beziehungsweise 401 mit <code>HX-Redirect</code> für htmx.</li>
+    <li>Die <strong>Route</strong> validiert, ruft Dienste auf und rendert ein Template. Blockierende Arbeit (Dateien kopieren, scrypt) läuft im Threadpool.</li>
+  </ol>
+  <p>Alle Middlewares sind reine ASGI-Klassen, damit gestreamte Antworten (SSE) unverändert durchlaufen.</p>
+</section>
+
+<section id="konfiguration">
+  <h2>Konfiguration und Secrets</h2>
+  <table>
+    <tr><th>Quelle</th><th>Inhalt</th><th>Ort im Container</th></tr>
+    <tr><td><code>studio.yaml</code></td><td>Einstellungen der Web-Anwendung (<code>StudioSettings</code>, unbekannte Schlüssel verboten)</td><td><code>/etc/anki-studio/studio.yaml</code></td></tr>
+    <tr><td>Generator-YAML</td><td>Profile, Standardwerte, <code>pdf_conversion</code>; Schema des Generators</td><td><code>/etc/anki-studio/config.yaml</code></td></tr>
+    <tr><td>Umgebung</td><td><code>ANKI_STUDIO_PASSWORD_HASH</code>, <code>ANKI_STUDIO_SESSION_SECRET</code>, API-Schlüssel der Profile</td><td><code>/etc/anki-studio/env</code> (0600, <code>EnvironmentFile</code>)</td></tr>
+  </table>
+  <p><code>anki-studio serve</code> liest die Datei aus <code>--config</code> oder <code>ANKI_STUDIO_CONFIG</code>, sonst gelten die Standardwerte. Ungültige Einstellungen oder Secrets beenden den Start mit Exit-Code 1 und einer Meldung ohne Secret-Werte. Lokal lädt <code>uv run --env-file .env</code> die Secrets; der Generator selbst lädt keine <code>.env</code>.</p>
+</section>
+
+<section id="generator">
+  <h2>Einbindung des Generators</h2>
+  <p>Abhängigkeit über den Git-Tag <code>v0.2.0</code>. Verwendet werden nur öffentliche Namen:</p>
+  <table>
+    <tr><th>Aufruf</th><th>Zweck in Anki Studio</th></tr>
+    <tr><td><code>settings.load_selected_config(path)</code></td><td>YAML immer mit explizitem Pfad laden, nie <code>ANKI_CONFIG</code> oder <code>./config.yaml</code></td></tr>
+    <tr><td><code>settings.resolve_generate_settings(values, config, path)</code></td><td>Wirksame Werte für das Formular (Platzhalterpfade) und je Job (echte Pfade); die Rangfolge Default → YAML → Profil → Formular wird nie nachgebaut</td></tr>
+    <tr><td><code>pipeline.validate_output</code>, <code>apkg_subdeck_context</code>, <code>produce_cards</code>, <code>event_to_dict</code></td><td>Ablauf eines Jobs bis zu den Karten, ohne zu schreiben</td></tr>
+    <tr><td><code>models.save_cards</code>, <code>Card</code></td><td><code>cards.json</code> im Job-Ordner</td></tr>
+    <tr><td><code>errors.FlashcardError</code>, <code>GenerationCancelled</code></td><td>Status „fehlgeschlagen“ mit Meldung beziehungsweise „abgebrochen“</td></tr>
+    <tr><td><code>documents.SUPPORTED_SUFFIXES</code>, <code>MAX_FILE_SIZE</code></td><td>Upload-Prüfung ohne doppelte Konstanten (öffentlich, aber nicht in der Schnittstellenliste der Übergabe)</td></tr>
+  </table>
+  <p>Je Job übergibt Anki Studio <code>input_file</code>, <code>output</code> (<code>karten.apkg</code> oder die hochgeladene APKG), <code>extend</code> und <code>source_text</code> (<code>source.md</code>) ausdrücklich. Damit spielen <code>input_dir</code>, <code>output_dir</code>, <code>source_text_dir</code> und <code>generation.json_output</code> der YAML keine Rolle. Der strukturierte Modus verlangt ein absolutes <code>pdf_conversion.models_dir</code>.</p>
+</section>
+
+<section id="formular">
+  <h2>Formular und Validierung</h2>
+  <p><code>GenerateForm</code> prüft alles, was der Generator nicht selbst prüft: Limit ≥ 0, Chunk-Größe 1.000–100.000, Timeout 1–3.600, Format <code>provider/modell</code>, Deck-Ebenen, Textlängen, <code>PDFMode</code> und <code>PictureBackend</code> als Enum-Objekte. <code>generator_values()</code> liefert nur gesetzte Werte: leere Texte und Zahlen fehlen, damit die YAML entscheidet.</p>
+  <p>Ja/Nein-Optionen senden zuerst ein verstecktes <code>false</code>, eine angehakte Checkbox danach <code>true</code>; die Route nimmt je Name den letzten Wert. Fehlt das Feld ganz, gilt die YAML. Die Checkboxen sind mit den YAML-Werten vorbelegt.</p>
+  <p>Die Route prüft nacheinander Formular, Dokumente (Anzahl, Typ, Größe), Ziel (APKG vorhanden, nur ein Dokument), Generator-YAML und wirksame Einstellungen samt Übertragungsbestätigung. Fehler kommen als <code>{feld: meldung}</code> zurück; das Formular erscheint mit Status 400 und den bisherigen Eingaben.</p>
+</section>
+
+<section id="jobs">
+  <h2>Jobs und Worker</h2>
+  <figure>
+    <svg viewBox="0 0 760 200" role="img" aria-labelledby="state-title">
+      <title id="state-title">Zustände eines Jobs: queued, running, done, failed, cancelled</title>
+      <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+      <g font-family="system-ui, sans-serif" font-size="13" fill="currentColor">
+        <rect class="box" x="20" y="80" width="120" height="40" rx="20"/><text x="80" y="105" text-anchor="middle">queued</text>
+        <rect class="box" x="270" y="80" width="120" height="40" rx="20"/><text x="330" y="105" text-anchor="middle">running</text>
+        <rect class="box" x="560" y="15" width="120" height="40" rx="20"/><text x="620" y="40" text-anchor="middle">done</text>
+        <rect class="box" x="560" y="80" width="120" height="40" rx="20"/><text x="620" y="105" text-anchor="middle">failed</text>
+        <rect class="box" x="560" y="145" width="120" height="40" rx="20"/><text x="620" y="170" text-anchor="middle">cancelled</text>
+        <g stroke="currentColor" fill="none" marker-end="url(#arrow)">
+          <line x1="140" y1="100" x2="268" y2="100"/>
+          <line x1="390" y1="92" x2="558" y2="38"/>
+          <line x1="390" y1="100" x2="558" y2="100"/>
+          <line x1="390" y1="108" x2="558" y2="162"/>
+          <path d="M80,120 C80,175 400,175 558,168"/>
+        </g>
+        <text x="204" y="92" text-anchor="middle" font-size="11">Worker</text>
+        <text x="470" y="55" text-anchor="middle" font-size="11">Karten gespeichert</text>
+        <text x="470" y="95" text-anchor="middle" font-size="11">FlashcardError</text>
+        <text x="472" y="122" text-anchor="middle" font-size="11">GenerationCancelled</text>
+        <text x="300" y="190" text-anchor="middle" font-size="11">Abbrechen oder Neustart</text>
+      </g>
+    </svg>
+    <figcaption>Jeder Übergang wird in <code>job.json</code> gespeichert und als <code>job_status</code>-Ereignis protokolliert.</figcaption>
+  </figure>
+  <ul>
+    <li><code>JobWorker</code> nimmt Job-IDs aus einer <code>queue.Queue</code> und arbeitet sie in einem Daemon-Thread nacheinander ab (eine GPU, ein Benutzer).</li>
+    <li>Statuswechsel laufen unter einer Sperre: <code>_claim</code> setzt nur wartende Jobs auf <code>running</code>, <code>cancel</code> beendet wartende Jobs sofort und setzt bei laufenden das <code>threading.Event</code>, das der Generator als <code>cancel</code> prüft.</li>
+    <li>Der Worker-Thread ist die Grenze zum Generator: <code>GenerationCancelled</code> → cancelled, <code>FlashcardError</code> → failed mit Meldung, jede andere Exception → failed mit allgemeiner Meldung und Traceback im Log.</li>
+    <li><code>start()</code> markiert Jobs, die beim Ende des letzten Prozesses wartend oder laufend waren, als abgebrochen und löscht abgelaufene Jobs; <code>stop()</code> bricht den laufenden Job ab.</li>
+    <li>Der <code>GenerationRunner</code> liest die Generator-YAML für jeden Job neu; Änderungen wirken ohne Neustart.</li>
+  </ul>
+</section>
+
+<section id="formate">
+  <h2>Datenformate</h2>
+  <pre><code>&lt;data_dir&gt;/jobs/&lt;32 Hex-Zeichen&gt;/
+  job.json        Zustand, atomar ersetzt
+  events.jsonl    ein JSON-Ereignis pro Zeile
+  upload/&lt;name&gt;   hochgeladenes Dokument
+  target/&lt;name&gt;   APKG zum Erweitern (optional)
+  cards.json      Karten-JSON des Generators (schema_version 1)
+  source.md       aufbereiteter Text (strukturierter Modus)</code></pre>
+  <p><code>job.json</code>: <code>id</code>, <code>status</code>, <code>created_at</code>, <code>updated_at</code> (UTC), <code>source_name</code>, <code>message</code>, <code>options</code> mit <code>form</code> (validierte Formularwerte) und <code>target_file</code>.</p>
+  <table>
+    <tr><th><code>type</code></th><th>Herkunft</th><th>Felder</th></tr>
+    <tr><td><code>job_status</code></td><td>Worker</td><td><code>status</code>, <code>message</code></td></tr>
+    <tr><td><code>notice</code></td><td>Generator</td><td><code>text</code>, <code>level</code> (<code>info</code>, <code>warning</code>, <code>transfer</code>)</td></tr>
+    <tr><td><code>stage_started</code> / <code>stage_finished</code></td><td>Generator</td><td><code>stage</code> (<code>conversion</code>, <code>generation</code>), <code>description</code></td></tr>
+    <tr><td><code>stage_progress</code></td><td>Generator</td><td><code>label</code>, <code>completed</code>, <code>total</code>, <code>cards</code></td></tr>
+    <tr><td><code>conversion_finished</code></td><td>Generator</td><td><code>stats</code> (Seiten, OCR, Tabellen, Formeln, Abbildungen, <code>unreadable</code>)</td></tr>
+    <tr><td><code>cards_saved</code></td><td>Runner</td><td><code>count</code>, <code>deck</code></td></tr>
+  </table>
+</section>
+
+<section id="sicherheit">
+  <h2>Sicherheit</h2>
+  <ul>
+    <li><strong>Login:</strong> scrypt (n=2<sup>15</sup>, r=8, p=1, rund 90 ms), Vergleich mit <code>hmac.compare_digest</code>, eine Sekunde Verzögerung nach Fehlversuchen, neue Session nach Erfolg.</li>
+    <li><strong>CSP:</strong> <code>default-src 'self'</code>; <code>script-src 'self' 'unsafe-eval'</code> (Alpine braucht <code>new Function</code>); keine Inline-Skripte, keine Inline-Styles (htmx-Indikatorstyles sind per <code>htmx-config</code> abgeschaltet und stehen in <code>app.css</code>).</li>
+    <li><strong>Uploads:</strong> Dateinamen ohne Pfadanteile, nur bekannte Endungen, Größe vor dem Speichern und beim Kopieren in eine <code>.part</code>-Datei geprüft; Job-IDs per Regex, bevor sie Pfade werden.</li>
+    <li><strong>Secrets:</strong> nur in der Umgebung; <code>Credentials</code> blendet Werte in <code>repr</code> aus; Meldungen nennen nur Variablennamen; die Oberfläche zeigt nur „gesetzt“ oder „fehlt“.</li>
+    <li><strong>Datenübertragung:</strong> <code>transfer_notice</code> erkennt <code>native</code> und Bild-Profile; Route und Runner verlangen die Bestätigung.</li>
+  </ul>
+</section>
+
+<section id="frontend">
+  <h2>Frontend</h2>
+  <p>Templates erben von <code>base.html</code>; Makros für Formularfelder stehen in <code>_fields.html</code>, Ereigniszeilen in <code>_events.html</code>. Interaktive Zustände des Formulars kapselt die Alpine-Komponente <code>generateForm</code> in <code>static/app.js</code>: wirksamer PDF-Modus (Formular → Profil → Standard, Werte je Profil vom Server), Sichtbarkeit der strukturierten Optionen, Bestätigungskasten, APKG-Feld. Die Bibliotheken liegen versioniert unter <code>static/vendor/</code> (siehe README).</p>
+</section>
+
+<section id="tests">
+  <h2>Tests und Nahtstellen</h2>
+  <ul>
+    <li>Reguläre Tests laufen ohne Netzwerk, GPU, Schlüssel und Sync-Server.</li>
+    <li><strong>KI simulieren:</strong> <code>monkeypatch.setattr(anki_flashcards.pipeline, "generate_cards", fake)</code>; der Fake ruft <code>kwargs["progress"](…)</code> auf, damit Fortschrittsereignisse entstehen. Für <code>native</code>: <code>pipeline.generate_native_cards</code>.</li>
+    <li><strong>Web:</strong> Fixtures <code>client</code> (anonym) und <code>auth_client</code> (angemeldet) in <code>tests/conftest.py</code>; beide als Kontextmanager, damit <code>lifespan</code> den Worker startet. <code>studio_settings</code> legt Datenordner und Generator-YAML in <code>tmp_path</code>.</li>
+    <li><strong>Asynchrones warten:</strong> <code>wait_until(bedingung)</code> mit Zeitlimit statt fester Pausen.</li>
+    <li><strong>APKG:</strong> echte Pakete mit <code>anki_flashcards.apkg.create_apkg</code> im Testordner.</li>
+    <li>Die Login-Verzögerung setzt eine Autouse-Fixture auf 0.</li>
+  </ul>
+  <pre><code>.venv/bin/python -m pytest tests/test_web_generate.py -q</code></pre>
+</section>
+
+<section id="vorschau">
+  <h2>Vorschau im Container</h2>
+  <p><code>deploy/preview.sh</code> läuft als root per <code>ssh ct-anki-studio 'bash -s' &lt; deploy/preview.sh</code> und ist idempotent: git (apt) und uv mit Prüfsumme, Checkout von <code>main</code> nach <code>/opt/anki-studio</code>, <code>uv sync --locked --no-dev</code>, fehlende Konfiguration ergänzen (nie überschreiben), systemd-Dienst <code>anki-studio-preview</code> mit <code>DynamicUser</code>, <code>StateDirectory=anki-studio</code>, <code>ProtectSystem=strict</code>, danach Prüfung von <code>/healthz</code>. Die reguläre Installation folgt mit AS-040.</p>
+  <pre><code>ssh ct-anki-studio 'bash -s' &lt; deploy/preview.sh
+ssh ct-anki-studio 'journalctl -u anki-studio-preview -n 50 --no-pager'</code></pre>
+</section>
+
+<section id="besonderheiten">
+  <h2>Besonderheiten</h2>
+  <ul>
+    <li><code>tenacity</code> ist direkte Abhängigkeit: LiteLLM braucht es für die <code>num_retries</code> des Generators, deklariert es aber nicht; der Generator 0.2.0 auch nicht.</li>
+    <li>Die Klasse <code>JobStore</code> heißt ihre Listenmethode <code>list_jobs</code>, weil eine Methode <code>list</code> im Klassenkörper die späteren Annotationen <code>list[…]</code> überdecken würde.</li>
+    <li>Die Quadro K1200 braucht PyTorch aus dem <code>cu126</code>-Index; die Formelerkennung von Docling passt mit Batch-Größe 5 nicht in 4 GiB VRAM (requirements.md, Abschnitt 5.3).</li>
+  </ul>
+</section>
+
+</main>
+</div>
+<script>
+(() => {
+  const sections = [...document.querySelectorAll("main section")];
+  const input = document.getElementById("search");
+  const hits = document.getElementById("hits");
+
+  function clearMarks(section) {
+    section.querySelectorAll("mark").forEach((mark) => mark.replaceWith(mark.textContent));
+    section.normalize();
+  }
+
+  function markText(section, term) {
+    const walker = document.createTreeWalker(section, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach((node) => {
+      const index = node.textContent.toLowerCase().indexOf(term);
+      if (index < 0 || node.parentElement.closest("button, svg")) return;
+      const match = node.splitText(index);
+      match.splitText(term.length);
+      const mark = document.createElement("mark");
+      mark.textContent = match.textContent;
+      match.replaceWith(mark);
+    });
+  }
+
+  input.addEventListener("input", () => {
+    const term = input.value.trim().toLowerCase();
+    let count = 0;
+    sections.forEach((section) => {
+      clearMarks(section);
+      const found = !term || section.textContent.toLowerCase().includes(term);
+      section.classList.toggle("hidden", !found);
+      if (found && term) { count += 1; markText(section, term); }
+    });
+    hits.textContent = term ? `${count} Abschnitt(e)` : "";
+  });
+
+  document.querySelectorAll("pre").forEach((pre) => {
+    const button = document.createElement("button");
+    button.className = "copy";
+    button.type = "button";
+    button.textContent = "Kopieren";
+    button.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(pre.querySelector("code").textContent);
+      button.textContent = "Kopiert";
+      setTimeout(() => { button.textContent = "Kopieren"; }, 1500);
+    });
+    pre.appendChild(button);
+  });
+})();
+</script>
+</body>
+</html>

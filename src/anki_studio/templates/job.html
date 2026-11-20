@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% from "_events.html" import event_line %}
+{% block title %}{{ job.source_name }} – Anki Studio{% endblock %}
+{% block head %}
+{% if not job.status.finished %}<meta http-equiv="refresh" content="3">{% endif %}
+{% endblock %}
+{% block content %}
+<hgroup>
+  <h1>{{ job.source_name }}</h1>
+  <p><span class="status status-{{ job.status.value }}">{{ status_labels[job.status.value] }}</span>
+     · erstellt {{ job.created_at.strftime("%d.%m.%Y %H:%M") }} UTC</p>
+</hgroup>
+
+{% if job.message %}
+<article class="{{ 'alert' if job.status.value == 'failed' else '' }}">{{ job.message }}</article>
+{% endif %}
+
+<article>
+  <header><strong>Optionen</strong></header>
+  <dl class="components">
+    <dt>Ziel</dt><dd>{% if target_file %}{{ target_file }} erweitern{% else %}neue APKG{% endif %}</dd>
+    <dt>Deck</dt><dd>{{ form.deck or "Standard" }}</dd>
+    <dt>Profil</dt><dd>{{ form.profile or "Standard" }}</dd>
+    {% if form.model %}<dt>Modell</dt><dd>{{ form.model }}</dd>{% endif %}
+    <dt>PDF-Modus</dt><dd>{{ form.pdf_mode or "Standard" }}</dd>
+    {% if form.confirm_transfer %}<dt>Übertragung</dt><dd>bestätigt</dd>{% endif %}
+  </dl>
+</article>
+
+<article>
+  <header><strong>Verlauf</strong></header>
+  {% if events %}
+  <ul class="events">
+    {% for event in events %}{{ event_line(event) }}{% endfor %}
+  </ul>
+  {% else %}
+  <p>Wartet auf den Start.</p>
+  {% endif %}
+  {% if not job.status.finished %}
+  <footer>
+    <form method="post" action="{{ url_for('cancel_job', job_id=job.id) }}">
+      <button type="submit" class="secondary">Abbrechen</button>
+    </form>
+    <small>Die Seite aktualisiert sich alle drei Sekunden. Ein laufender Provider-Aufruf wird noch zu Ende geführt.</small>
+  </footer>
+  {% endif %}
+</article>
+<p><a href="{{ url_for('job_list') }}">Alle Jobs</a></p>
+{% endblock %}

@@ -6,7 +6,9 @@ Anforderungen und ihr Status stehen in [requirements.md](./requirements.md), Arb
 
 ## Stand
 
-Das Projektgerüst und der Login stehen: Nach der Anmeldung zeigt die Startseite die installierten Versionen von Anki Studio, Generator und Anki; alle Frontend-Dateien liefert die Anwendung selbst aus. Generieren, Live-Fortschritt und Kartenprüfung folgen als nächste Pakete (Phase 2).
+Nach der Anmeldung lassen sich Dokumente hochladen und Karten erzeugen: Jede Datei wird ein Job, die Jobs laufen nacheinander im Hintergrund, und die Karten landen als `cards.json` im Job-Ordner. Live-Fortschritt per SSE, Kartenprüfung und die Downloads von APKG und JSON folgen als nächste Pakete (Phase 2), Sync mit der Sammlung in Phase 3.
+
+Ausführlich: [docs/benutzerhandbuch.html](./docs/benutzerhandbuch.html) für die Bedienung, [docs/entwicklerhandbuch.html](./docs/entwicklerhandbuch.html) für Module, Abläufe und Tests. Beide Dateien lassen sich ohne Server im Browser öffnen.
 
 ## Installation (lokal)
 
@@ -22,12 +24,13 @@ uv sync
 
 ```bash
 cp studio.example.yaml studio.yaml
+cp ../anki-flashcard-generator/config.example.yaml config.yaml   # Generator-YAML, anpassen
 cp .env.example .env
 uv run anki-studio hash-password      # Zeile ANKI_STUDIO_PASSWORD_HASH=… in .env eintragen
 uv run --env-file .env anki-studio serve --config studio.yaml
 ```
 
-Danach ist die Oberfläche unter <http://127.0.0.1:8000> erreichbar. Ohne `--config` wird die Datei aus `ANKI_STUDIO_CONFIG` gelesen; ohne beides gelten die Standardwerte. Es läuft immer genau ein Serverprozess.
+`config.yaml` ist die Konfiguration des Generators (Profile, Standardwerte, `pdf_conversion`); API-Schlüssel der Profile kommen in `.env`. Danach ist die Oberfläche unter <http://127.0.0.1:8000> erreichbar. Ohne `--config` wird die Datei aus `ANKI_STUDIO_CONFIG` gelesen; ohne beides gelten die Standardwerte. Es läuft immer genau ein Serverprozess.
 
 ## Anmeldung
 
@@ -57,6 +60,19 @@ Die Session hält 14 Tage; das Cookie ist `HttpOnly` und `SameSite=Strict`. Nach
 | `host` | `127.0.0.1` | Adresse, auf der der Server lauscht; im Container `0.0.0.0` |
 | `port` | `8000` | Port der Oberfläche (1–65535) |
 | `allowed_hosts` | `localhost`, `127.0.0.1` | Namen und IP-Adressen, unter denen der Browser Anki Studio aufruft, ohne Port und ohne Platzhalter |
+| `data_dir` | `data` | Ordner für Jobs (und später die Sammlung); relativ zur `studio.yaml`; im Container `/var/lib/anki-studio` |
+| `job_retention_days` | `14` | Abgeschlossene Jobs werden nach so vielen Tagen gelöscht (1–3650) |
+| `generator_config` | `config.yaml` | YAML des Generators; relativ zur `studio.yaml`; im Container `/etc/anki-studio/config.yaml` |
+
+## Generieren und Jobs
+
+**Generieren** (`/generate`) zeigt alle Optionen von `anki-flashcards generate`. Felder, die leer bleiben, übernimmt der Generator aus seiner YAML; die Platzhalter zeigen die wirksamen Werte, berechnet vom Generator selbst. Selten genutzte Optionen sind eingeklappt, die Optionen des strukturierten PDF-Modus erscheinen nur in diesem Modus. Ziel ist eine neue APKG oder eine hochgeladene APKG (höchstens 512 MiB, nur mit einem Dokument), die erweitert wird; die Sammlung als Ziel folgt mit Phase 3.
+
+Geht Dokumentinhalt an einen Provider (`pdf_mode: native` oder Bild-Backend `profile` im strukturierten Modus), startet der Job nur mit ausdrücklicher Bestätigung (AS-003); der Server prüft das beim Absenden und beim Start des Jobs erneut.
+
+Jede Datei wird ein eigener **Job**. Es läuft immer nur ein Job, weitere warten. Ein Job-Ordner `<data_dir>/jobs/<id>/` enthält `job.json` (Zustand), `events.jsonl` (Ereignisse des Generators), `upload/` (das Dokument), bei Bedarf `target/` (die APKG zum Erweitern), `cards.json` (die erzeugten Karten) und im strukturierten Modus `source.md` (der aufbereitete Text; er wird immer im Job-Ordner gespeichert). Die Job-Seite zeigt Status, Optionen und Verlauf und lädt sich bis zum Ende alle drei Sekunden neu; wartende und laufende Jobs lassen sich abbrechen. Nach einem Neustart gelten wartende und laufende Jobs als abgebrochen.
+
+Uploads werden vor dem Speichern geprüft: nur die Dokumenttypen des Generators, je höchstens 100 MiB, höchstens zehn Dateien; Anfragen ohne Längenangabe oder über der Grenze lehnt der Server ab, bevor er sie liest.
 
 ## Vorschau im Container
 
@@ -71,6 +87,7 @@ Das Skript ist idempotent und erledigt Folgendes:
 - installiert bei Bedarf `git` (apt) und uv 0.13.7 (mit Prüfsumme) nach `/usr/local/bin`,
 - holt `main` aus GitHub als Git-Checkout nach `/opt/anki-studio`,
 - installiert die Abhängigkeiten mit `uv sync --locked --no-dev` und dem System-Python 3.13 (Cache in `/var/cache/anki-studio/uv`),
+- ergänzt in `studio.yaml` fehlende Einträge für `data_dir` (`/var/lib/anki-studio`) und `generator_config` (`/etc/anki-studio/config.yaml`) und legt eine Generator-YAML ohne Profile an, falls keine existiert; Profile und API-Schlüssel trägt der Projektinhaber selbst ein,
 - legt `/etc/anki-studio/studio.yaml` (Host `0.0.0.0`, Port 8000) und `/etc/anki-studio/env` (0600) an, falls sie fehlen, und ergänzt fehlende Einträge: `allowed_hosts` mit Hostname und Adressen des Containers sowie einen zufälligen `ANKI_STUDIO_SESSION_SECRET`; vorhandene Werte bleiben unverändert,
 - startet den systemd-Dienst `anki-studio-preview` neu und prüft `/healthz`.
 
@@ -104,7 +121,9 @@ Alle Dateien liegen unter [src/anki_studio/static/vendor/](./src/anki_studio/sta
 
 ## Bekannte Grenzen
 
-- Noch keine fachliche Funktion: Generieren, Prüfen, Sync und Deployment folgen in den Phasen 2 bis 4.
+- Erzeugte Karten lassen sich noch nicht prüfen, herunterladen oder schreiben (folgt mit AS-005/AS-006); Sync und Deployment folgen in den Phasen 3 und 4.
+- Der strukturierte PDF-Modus braucht das Extra `pdf` mit PyTorch aus dem `cu126`-Index; Anki Studio installiert es noch nicht (AS-041). Ohne Docling bricht ein solcher Job mit einer Meldung des Generators ab.
+- `tenacity` ist eine direkte Abhängigkeit, weil LiteLLM es für die Wiederholversuche des Generators braucht, aber weder LiteLLM noch der Generator 0.2.0 es deklarieren.
 - Die Verbindung ist unverschlüsseltes HTTP; Betrieb nur im LAN und über NetBird. Das Cookie trägt deshalb kein `Secure`-Attribut.
 - Die Verzögerung nach falschen Passwörtern bremst nur einzelne Versuche; parallele Versuche werden nicht gezählt oder gesperrt.
 - Die Vorschau im Container ersetzt nicht die Installation nach AS-040: kein eigener Systembenutzer, kein Update-Skript mit Versionswahl, keine Backups.

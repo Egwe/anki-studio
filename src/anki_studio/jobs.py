@@ -23,7 +23,7 @@ from typing import Any, BinaryIO
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from anki_studio.uploads import UploadError, check_upload, clean_filename, store_upload
+from anki_studio.uploads import UploadError, UploadKind, check_upload, clean_filename, store_upload
 
 JOB_ID = re.compile(r"[0-9a-f]{32}")
 JOB_FILE = "job.json"
@@ -162,6 +162,49 @@ class JobStore:
         )
         self._write(job)
         return job
+
+    def add_file(
+        self,
+        job_id: str,
+        subfolder: str,
+        source: BinaryIO,
+        filename: str | None,
+        size: int | None,
+        kind: UploadKind,
+    ) -> str:
+        """Store an additional upload, for example an APKG to extend.
+
+        Args:
+            job_id: Identifier of an existing job.
+            subfolder: Folder name inside the job folder, such as ``target``.
+            source: Readable stream of the uploaded file.
+            filename: File name sent by the browser.
+            size: Reported size in bytes, or None.
+            kind: Accepted suffixes and size limit.
+
+        Returns:
+            The cleaned file name inside ``subfolder``.
+
+        Raises:
+            UploadError: If the type is not allowed or the file is too large.
+            OSError: If the file cannot be written.
+        """
+        name = clean_filename(filename)
+        folder = self.job_dir(job_id) / subfolder
+        folder.mkdir(exist_ok=True)
+        store_upload(source, name, folder, size, kind)
+        return name
+
+    def delete(self, job_id: str) -> None:
+        """Remove a job folder completely.
+
+        Args:
+            job_id: Identifier of the job.
+
+        Returns:
+            None; a missing folder is ignored.
+        """
+        shutil.rmtree(self.job_dir(job_id), ignore_errors=True)
 
     def get(self, job_id: str) -> Job | None:
         """Read one job.

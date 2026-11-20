@@ -17,6 +17,7 @@ dependencies = [
     "pydantic>=2.10,<3",
     "python-multipart>=0.0.18,<1",
     "PyYAML>=6,<7",
+    "tenacity>=8.2,<10",
     "uvicorn>=0.30,<1",
 ]
 
