@@ -127,11 +127,13 @@ Ein Passwort; nur sein Hash steht in der Umgebungsdatei. Session-Cookie `HttpOnl
 API-Schlüssel der Provider, Sync-Zugangsdaten und Login-Hash nur in der Umgebungsdatei. Die YAML enthält wie im Generator nur Variablennamen (`api_key_env`). Keine Secrets in Logs, Job-Dateien, Fehlermeldungen oder der Oberfläche.
 *Umgesetzt:* Login-Hash und Session-Schlüssel kommen nur aus der Umgebung; Fehlermeldungen nennen die Variable, nie den Wert; `repr` blendet die Werte aus (`tests/test_credentials.py`). *Offen:* API-Schlüssel (mit AS-001/AS-009) und Sync-Zugangsdaten (mit AS-020).
 
-**AS-032 – Jobs · muss · offen**
+**AS-032 – Jobs · muss · teilweise**
 Ein Job läuft zur Zeit (eine GPU, ein Benutzer); weitere warten in einer Warteschlange. Jeder Job hat einen Ordner mit Upload, Ereignisprotokoll, Karten-JSON und Ergebnis. Nach einem Neustart sind abgeschlossene Jobs weiter sichtbar; laufende gelten als abgebrochen. Alte Jobs werden nach einer einstellbaren Frist gelöscht.
+*Umgesetzt:* Dienste `jobs.JobStore` (Ordner `<data_dir>/jobs/<id>` mit `job.json`, `events.jsonl`, `upload/`) und `worker.JobWorker` (ein Thread, Warteschlange, Abbruch, Wiederanlauf: wartende und laufende Jobs gelten nach einem Neustart als abgebrochen, Löschfrist `job_retention_days`), belegt durch `tests/test_jobs.py` und `tests/test_worker.py`. *Offen:* Einbindung in die Oberfläche mit der Generierung (P4), Karten-JSON und Ergebnis im Job-Ordner.
 
-**AS-033 – Uploads · muss · offen**
+**AS-033 – Uploads · muss · teilweise**
 Größengrenze vor dem Speichern prüfen, Dateinamen nie ungeprüft als Pfad verwenden, Uploads nur im Job-Ordner ablegen.
+*Umgesetzt:* `uploads.py` bereinigt Dateinamen, lässt nur die Dokumenttypen des Generators zu, prüft die gemeldete Größe vor dem Schreiben und zählt beim Kopieren erneut; der Job-Ordner entsteht erst nach der Prüfung (`tests/test_uploads.py`, `tests/test_jobs.py`). *Offen:* die Upload-Route mit Begrenzung der Anfragegröße (P4).
 
 **AS-034 – Tests · muss · teilweise**
 Reguläre Tests laufen ohne Netzwerk, ohne echten Sync-Server, ohne API-Schlüssel und ohne GPU. KI-Aufrufe werden wie im Generator simuliert (Patch-Ziel `anki_flashcards.pipeline.generate_cards` usw. oder `report`/`cancel`-Argumente). Für Sync-Tests eignet sich ein lokal gestarteter `python -m anki.syncserver` mit Testbenutzer auf `127.0.0.1` (Prototyp in Abschnitt 7.1 der Übergabe).
