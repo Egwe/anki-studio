@@ -35,6 +35,9 @@ class StudioSettings(BaseModel):
             directory) by ``load_settings``.
         job_retention_days: Finished jobs older than this many days are
             deleted, 1–3650.
+        generator_config: YAML file of the generator (profiles, defaults,
+            ``pdf_conversion``); relative paths are resolved like
+            ``data_dir``.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -44,6 +47,7 @@ class StudioSettings(BaseModel):
     allowed_hosts: tuple[str, ...] = Field(default=("localhost", "127.0.0.1"), min_length=1)
     data_dir: Path = Path("data")
     job_retention_days: int = Field(default=14, ge=1, le=3650)
+    generator_config: Path = Path("config.yaml")
 
     @field_validator("allowed_hosts")
     @classmethod
@@ -90,35 +94,39 @@ def load_settings(path: Path | None) -> StudioSettings:
         path: YAML file to read, or None to use the built-in defaults.
 
     Returns:
-        Validated, immutable settings with an absolute ``data_dir``.
+        Validated, immutable settings with absolute ``data_dir`` and
+        ``generator_config``.
 
     Raises:
         SettingsError: If the file cannot be read, is no YAML mapping, or
             contains unknown keys or invalid values.
     """
     if path is None:
-        return _with_absolute_data_dir(StudioSettings(), Path.cwd())
+        return _with_absolute_paths(StudioSettings(), Path.cwd())
     data = _read_mapping(path)
     try:
         settings = StudioSettings.model_validate(data)
     except ValidationError as error:
         raise SettingsError(f"Ungültige Einstellungen in {path}: {_describe(error)}") from error
-    return _with_absolute_data_dir(settings, path.absolute().parent)
+    return _with_absolute_paths(settings, path.absolute().parent)
 
 
-def _with_absolute_data_dir(settings: StudioSettings, base: Path) -> StudioSettings:
-    """Resolve a relative data folder against a base folder.
+def _with_absolute_paths(settings: StudioSettings, base: Path) -> StudioSettings:
+    """Resolve relative ``data_dir`` and ``generator_config`` against a folder.
 
     Args:
         settings: Validated settings.
         base: Folder of ``studio.yaml``, or the working directory.
 
     Returns:
-        The settings with an absolute ``data_dir``.
+        The settings with absolute paths.
     """
-    if settings.data_dir.is_absolute():
-        return settings
-    return settings.model_copy(update={"data_dir": base / settings.data_dir})
+    return settings.model_copy(
+        update={
+            "data_dir": base / settings.data_dir,
+            "generator_config": base / settings.generator_config,
+        }
+    )
 
 
 def _has_port(host: str) -> bool:
