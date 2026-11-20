@@ -106,6 +106,7 @@ mark { background: var(--mark); color: inherit; }
     <tr><td>gespeichert</td><td>Du hast den Schlüssel hier eingegeben; er liegt verschlüsselt auf dem Server. Ersetzen oder Löschen geht jederzeit.</td></tr>
     <tr><td>aus der Umgebungsdatei</td><td>Der Schlüssel steht in <code>/etc/anki-studio/env</code> auf dem Server und hat Vorrang; hier lässt er sich nicht ändern.</td></tr>
   </table>
+  <p><strong>Prüfen</strong> neben einem gespeicherten Schlüssel fragt den Provider nach seinen Modellen: Klappt das, funktioniert der Schlüssel, und die Liste zeigt die verfügbaren Modelle.</p>
   <p>Einen Schlüssel einfügen und <strong>Speichern</strong> wählen. Er gilt sofort, auch für den nächsten Job, und wird <strong>nie wieder angezeigt</strong>, auch nicht teilweise. Hast du ihn verloren, erzeugst du beim Provider einen neuen und ersetzt ihn hier.</p>
   <div class="note warn">Im Heimnetz geht der Schlüssel wie das Login-Passwort unverschlüsselt per HTTP zum Server; über NetBird läuft er im verschlüsselten Tunnel. Ein Backup des Containers enthält die verschlüsselten Schlüssel zusammen mit dem Schlüssel zum Entschlüsseln.</div>
 </section>
@@ -133,10 +134,10 @@ mark { background: var(--mark); color: inherit; }
 <section id="modell">
   <h2>Modell</h2>
   <p><strong>Profil:</strong> wählt ein Modellprofil aus der Generator-Konfiguration. Sie enthält immer ein Profil für jeden unterstützten Provider: Ollama (Text und Bild), OpenAI (auch native PDF), Anthropic, Gemini, Mistral, DeepSeek, OpenRouter, Groq, xAI, Moonshot und einen eigenen OpenAI-kompatiblen Server. Die Liste zeigt je Profil Modell und PDF-Modus und den Hinweis „Schlüssel fehlt“, solange für den Provider kein API-Schlüssel hinterlegt ist. „Standard“ nimmt das Standardprofil der Konfiguration.</p>
+  <p><strong>Modell:</strong> leer lassen nimmt das Modell des Profils. <strong>Modelle laden</strong> fragt den Provider des gewählten Profils, welche Modelle es gibt, und zeigt sie zur Auswahl; die Auswahl landet im Feld. Dazu braucht der Provider einen hinterlegten Schlüssel (außer Ollama und OpenRouter); es geht nur der Schlüssel an den Provider, kein Dokument. Ein Modellname im Format <code>provider/modell</code> lässt sich auch direkt eintippen, etwa <code>ollama/llama3.2</code> oder <code>openai/gpt-4o-mini</code>.</p>
   <p>Eingeklappt lassen sich für diesen Lauf überschreiben:</p>
   <table>
     <tr><th>Feld</th><th>Bedeutung</th></tr>
-    <tr><td>Modell</td><td>Provider und Modell im Format <code>provider/modell</code>, etwa <code>ollama/llama3.2</code> oder <code>openai/gpt-4o-mini</code>.</td></tr>
     <tr><td>API-Basis</td><td>Endpunkt des Providers, etwa die Adresse eines eigenen Ollama-Servers.</td></tr>
     <tr><td>Timeout</td><td>Sekunden je Anfrage, 1 bis 3600.</td></tr>
   </table>

@@ -88,8 +88,9 @@ Seite mit Endpunkt, angemeldetem Benutzer, Zeitpunkt und Ergebnis des letzten Sy
 Schlicht und aufgeräumt, gut lesbar, Dark Mode, auf Desktop und Handy bedienbar. Keine externen Ressourcen zur Laufzeit.
 *Umgesetzt:* Grundlayout auf Pico CSS mit Dark Mode nach Systemeinstellung, in Desktop-Breite, 390 px Breite und dunkel im Browser geprüft. Alle Frontend-Dateien werden mitgeliefert; eine Content Security Policy erlaubt nur Anki Studio selbst als Quelle (`tests/test_app.py`). *Offen:* alle weiteren Seiten.
 
-**AS-014 – Modelle des Providers auswählen · soll · offen**
+**AS-014 – Modelle des Providers auswählen · soll · umgesetzt**
 Ist für einen Provider ein Schlüssel hinterlegt oder braucht er keinen (etwa Ollama), lädt Anki Studio auf ausdrückliche Aktion die Liste der verfügbaren Modelle beim Provider und bietet sie zur Auswahl an: im Generierungsformular und beim Bearbeiten eines Profils. Dabei geht nur der Schlüssel an den Provider, kein Dokumentinhalt. Fehler (Schlüssel ungültig, Provider nicht erreichbar) erscheinen verständlich; die freie Eingabe eines Modellnamens bleibt möglich.
+*Umsetzung:* `model_catalog.py` mit Tabelle je Provider, Route `/models` (htmx-Fragmente) im Generierungsformular („Modelle laden“) und auf der Seite Zugangsdaten („Prüfen“); belegt durch `tests/test_model_catalog.py`, `tests/test_web_models.py` und einen Chrome-Test mit Klick gegen einen simulierten Ollama-Server. Die Auswahl beim Bearbeiten eines Profils folgt mit dem Konfigurationseditor (AS-009, P7).
 
 **AS-015 – Vorlage mit allen Providern · muss · umgesetzt**
 Die Generator-Konfiguration enthält immer ein Profil für jeden unterstützten Provider, auch ohne hinterlegten Schlüssel: Ollama (Text und Bild), OpenAI (auch native PDF), Anthropic, Google Gemini, Mistral, DeepSeek, OpenRouter, Groq, xAI, Moonshot und ein eigener OpenAI-kompatibler Server. Fehlt die Datei, legt Anki Studio sie aus einer mitgelieferten Vorlage an; fehlende Standardprofile ergänzt es beim Start, vorhandene Profile bleiben unverändert. Die Datei liegt im Datenordner (`<data_dir>/generator.yaml`), `pdf_conversion.models_dir` ist dort absolut. Die Vorlage im Repository enthält keine Adressen aus dem Heimnetz.
@@ -283,8 +284,8 @@ Jedes Paket ist ein Branch mit kleinen Commits, wird nach grünen Prüfungen mit
 | P4 | `feature/generate` | Formular, Runner, Job-Seiten, Handbücher | AS-001–AS-004 | erledigt |
 | P4b | `feature/provider-template` | Vorlage mit allen Providern, Generator-YAML im Datenordner, Konfiguration des Projektinhabers in die Vorschau | AS-015, AS-009 (Teil) | erledigt |
 | P4c | `feature/secret-store` | API-Schlüssel verschlüsselt über die Oberfläche | AS-035, AS-031 | erledigt |
-| P4d | `feature/model-list` | Modelle vom Provider laden und auswählen | AS-014 | als Nächstes |
-| P5 | `feature/live-progress` | Live-Fortschritt per SSE | AS-004 | offen |
+| P4d | `feature/model-list` | Modelle vom Provider laden und auswählen | AS-014 | erledigt |
+| P5 | `feature/live-progress` | Live-Fortschritt per SSE | AS-004 | als Nächstes |
 | P6 | `feature/card-review` | Karten prüfen, bearbeiten, abwählen; APKG schreiben; Downloads | AS-005, AS-006 | offen |
 | P7 | `feature/config-editor` | Konfiguration anzeigen (Herkunft) und Profile und Standardwerte bearbeiten | AS-009, AS-016 | offen |
 | G1 | Generator-Repo | Generator 0.2.1: `tenacity`, Batch-Größe Formeln, genauere GPU-Prüfung; danach Anki Studio auf `v0.2.1` | – | freigegeben, offen |
