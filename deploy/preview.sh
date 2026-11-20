@@ -34,7 +34,7 @@ ensure_git() {
   command -v git >/dev/null && return
   log "git installieren"
   apt-get update -qq
-  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends git ca-certificates
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends git ca-certificates >/dev/null
 }
 
 ensure_uv() {
@@ -110,7 +110,7 @@ UNIT_FILE
 restart_and_check() {
   log "Dienst $UNIT neu starten"
   systemctl restart "$UNIT"
-  if ! curl -fsS --retry 20 --retry-connrefused --retry-delay 1 -o /dev/null "http://127.0.0.1:$PORT/healthz"; then
+  if ! curl -fs --retry 20 --retry-connrefused --retry-delay 1 -o /dev/null "http://127.0.0.1:$PORT/healthz"; then
     journalctl -u "$UNIT" -n 30 --no-pager >&2
     echo "Anki Studio antwortet nicht." >&2
     exit 1
