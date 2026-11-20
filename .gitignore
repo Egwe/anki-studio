@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+
+# Test and lint caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secrets and local configuration (only *.example files are committed)
+.env
+.env.*
+!.env.example
+config.yaml
+studio.yaml
+.claude/settings.local.json
+
+# Anki collections, packages and media
+*.anki2
+*.anki2-*
+*.anki21
+*.anki21b
+*.colpkg
+*.apkg
+collection.media/
+collection.media.db*
+
+# Generated card JSON
+*.cards.json
+cards.json
+
+# Runtime data: data directory, jobs, uploads, downloaded models
+data/
+jobs/
+uploads/
+models/
+input/
+output/
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
