@@ -36,6 +36,24 @@ Danach ist die Oberfläche unter <http://127.0.0.1:8000> erreichbar. Ohne `--con
 | `host` | `127.0.0.1` | Adresse, auf der der Server lauscht; im Container `0.0.0.0` |
 | `port` | `8000` | Port der Oberfläche (1–65535) |
 
+## Vorschau im Container
+
+Bis zur regulären Installation (AS-040, Phase 4) läuft im LXC „anki-studio“ eine Vorschau des aktuellen Stands von `main`. Nach einem Push auf `main` aktualisiert sie dieser Aufruf vom Entwicklungsrechner:
+
+```bash
+ssh ct-anki-studio 'bash -s' < deploy/preview.sh
+```
+
+Das Skript ist idempotent und erledigt Folgendes:
+
+- installiert bei Bedarf `git` (apt) und uv 0.13.7 (mit Prüfsumme) nach `/usr/local/bin`,
+- holt `main` aus GitHub als Git-Checkout nach `/opt/anki-studio`,
+- installiert die Abhängigkeiten mit `uv sync --locked --no-dev` und dem System-Python 3.13 (Cache in `/var/cache/anki-studio/uv`),
+- legt `/etc/anki-studio/studio.yaml` (Host `0.0.0.0`, Port 8000) und eine leere `/etc/anki-studio/env` (0600) an, falls sie fehlen; vorhandene Dateien bleiben unverändert,
+- startet den systemd-Dienst `anki-studio-preview` neu und prüft `/healthz`.
+
+Der Dienst läuft ohne Root-Rechte mit einem dynamischen systemd-Benutzer; Daten landen in `/var/lib/anki-studio`. Die Oberfläche ist dann im LAN unter `http://<Container-Adresse>:8000` erreichbar. Im Container wird kein Code bearbeitet (AGENTS.md Abschnitt 8).
+
 ## Tests und Prüfungen
 
 ```bash
@@ -66,3 +84,4 @@ Alle Dateien liegen unter [src/anki_studio/static/vendor/](./src/anki_studio/sta
 
 - Noch keine fachliche Funktion: Generieren, Prüfen, Sync und Deployment folgen in den Phasen 2 bis 4.
 - Noch kein Login (AS-030 folgt im nächsten Paket). Den Server bis dahin nur lokal oder im eigenen LAN betreiben.
+- Die Vorschau im Container ersetzt nicht die Installation nach AS-040: kein eigener Systembenutzer, kein Update-Skript mit Versionswahl, keine Backups.
