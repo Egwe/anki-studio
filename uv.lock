@@ -241,6 +241,7 @@ dependencies = [
     { name = "anki-flashcard-generator" },
     { name = "cryptography" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "itsdangerous" },
     { name = "jinja2" },
     { name = "pydantic" },
@@ -252,7 +253,6 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "httpx" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -263,6 +263,7 @@ requires-dist = [
     { name = "anki-flashcard-generator", git = "https://github.com/Egwe/anki-flashcard-generator?rev=v0.2.0" },
     { name = "cryptography", specifier = ">=44,<47" },
     { name = "fastapi", specifier = ">=0.115,<1" },
+    { name = "httpx", specifier = ">=0.27,<1" },
     { name = "itsdangerous", specifier = ">=2.2,<3" },
     { name = "jinja2", specifier = ">=3.1,<4" },
     { name = "pydantic", specifier = ">=2.10,<3" },
@@ -274,7 +275,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "httpx", specifier = ">=0.27,<1" },
     { name = "pytest", specifier = ">=8,<10" },
     { name = "ruff", specifier = ">=0.8,<1" },
 ]
