@@ -44,17 +44,21 @@ Die Entscheidungen zu Basis, Rolle, Generator-Einbindung, Backend, Frontend, Liv
 
 ### 4.1 Oberfläche und Funktionen
 
-**AS-001 – Generieren · muss · offen**
+**AS-001 – Generieren · muss · umgesetzt**
 Mehrere Dateien hochladen (PDF, DOCX, HTML, Markdown, Text; je höchstens 100 MiB wie im Generator). Pro Datei ein Job. Alle Optionen von `anki-flashcards generate` sind wählbar: Profil, Modell, Sprache, Limit, zusätzliche Anweisungen, Chunk-Größe, Timeout, API-Basis, PDF-Modus mit den Optionen des strukturierten Modus (Formeln, OCR erzwingen, nicht lesbare Elemente zulassen, CPU zulassen, Bild-Backend, Bild-Profil, aufbereiteten Text speichern), Unterdecks. Vorbelegung aus der YAML-Konfiguration; selten genutzte Optionen eingeklappt. Optionen des strukturierten Modus nur sichtbar, wenn dieser Modus gewählt ist.
+*Umsetzung:* `/generate` mit allen Optionen; Platzhalter und Vorbelegung berechnet der Generator selbst (`resolve_generate_settings`); `forms.GenerateForm` prüft Typen und Bereiche; je Datei ein Job (`tests/test_forms.py`, `tests/test_web_generate.py`, Browser-Test). *Abweichung, Bestätigung durch den Projektinhaber offen:* „Aufbereiteten Text speichern“ ist kein Schalter; im strukturierten Modus wird der Text immer als `source.md` im Job-Ordner gespeichert, weil die Bibliothek ein `source_text_dir` aus der YAML sonst nicht abschalten ließe und der Job-Ordner privat ist und mit dem Job gelöscht wird.
 
-**AS-002 – Ziel wählen · muss · offen**
+**AS-002 – Ziel wählen · muss · teilweise**
 Ziel ist entweder ein Deck der synchronisierten Sammlung (Auswahl aus vorhandenen Decks oder neuer Name, `::` für Unterdecks), eine neue APKG-Datei zum Download oder eine hochgeladene APKG zum Erweitern.
+*Umgesetzt:* neue APKG oder hochgeladene APKG (höchstens 512 MiB, nur mit einem Dokument) als Ziel des Jobs; Unterdeck-Kontext aus der APKG. *Offen:* Schreiben und Download nach der Prüfung (AS-005/AS-006), Sammlung als Ziel (Phase 3).
 
-**AS-003 – Datenübertragung bestätigen · muss · offen**
+**AS-003 – Datenübertragung bestätigen · muss · umgesetzt**
 Bei `pdf_mode: native` und beim Bild-Backend `profile` muss der Benutzer vor dem Start ausdrücklich bestätigen, dass das Dokument beziehungsweise Bildausschnitte an den Provider gehen. Ohne Bestätigung startet der Job nicht. Während des Laufs kommen dieselben Ankündigungen als `Notice` mit `level == "transfer"` und werden hervorgehoben.
+*Umsetzung:* `generation.transfer_notice` erkennt `native` und das Bild-Backend `profile` im strukturierten Modus anhand der wirksamen Einstellungen (auch wenn das Profil den Modus vorgibt); Formular und Runner verlangen die Bestätigung; die Job-Seite hebt `transfer`-Hinweise hervor (`tests/test_generation.py`, `tests/test_web_generate.py`).
 
-**AS-004 – Live-Fortschritt · muss · offen**
+**AS-004 – Live-Fortschritt · muss · teilweise**
 Job-Seite mit Live-Fortschritt aus den Generator-Ereignissen: Phase, Schritte, Abschnitte, Anzahl einzigartiger Karten, Hinweise und Warnungen, Statistik der Aufbereitung. Ein Job lässt sich abbrechen (R-172 des Generators).
+*Umgesetzt:* Job-Seite mit Phase, Schritten, Abschnitten, Kartenzahl, Hinweisen, Warnungen und Statistik aus `events.jsonl`, Abbrechen für wartende und laufende Jobs. *Offen:* Live-Übertragung per SSE; bis dahin lädt sich die Seite alle drei Sekunden neu.
 
 **AS-005 – Karten prüfen · muss · offen**
 Nach der Generierung erscheinen die Karten in einer Tabelle: Frage, Antwort, Unterdeck, Tags. Einzelne Karten lassen sich bearbeiten, löschen oder abwählen. Erst danach wird geschrieben. Bearbeitete Karten durchlaufen dieselbe Pydantic-Validierung des Generators (`Card`).
@@ -129,11 +133,11 @@ API-Schlüssel der Provider, Sync-Zugangsdaten und Login-Hash nur in der Umgebun
 
 **AS-032 – Jobs · muss · teilweise**
 Ein Job läuft zur Zeit (eine GPU, ein Benutzer); weitere warten in einer Warteschlange. Jeder Job hat einen Ordner mit Upload, Ereignisprotokoll, Karten-JSON und Ergebnis. Nach einem Neustart sind abgeschlossene Jobs weiter sichtbar; laufende gelten als abgebrochen. Alte Jobs werden nach einer einstellbaren Frist gelöscht.
-*Umgesetzt:* Dienste `jobs.JobStore` (Ordner `<data_dir>/jobs/<id>` mit `job.json`, `events.jsonl`, `upload/`) und `worker.JobWorker` (ein Thread, Warteschlange, Abbruch, Wiederanlauf: wartende und laufende Jobs gelten nach einem Neustart als abgebrochen, Löschfrist `job_retention_days`), belegt durch `tests/test_jobs.py` und `tests/test_worker.py`. *Offen:* Einbindung in die Oberfläche mit der Generierung (P4), Karten-JSON und Ergebnis im Job-Ordner.
+*Umgesetzt:* Dienste `jobs.JobStore` (Ordner `<data_dir>/jobs/<id>` mit `job.json`, `events.jsonl`, `upload/`) und `worker.JobWorker` (ein Thread, Warteschlange, Abbruch, Wiederanlauf: wartende und laufende Jobs gelten nach einem Neustart als abgebrochen, Löschfrist `job_retention_days`), belegt durch `tests/test_jobs.py` und `tests/test_worker.py`. Seit P4 startet die Anwendung den Worker; `cards.json` liegt im Job-Ordner. *Offen:* das Ergebnis des Schreibens im Job-Ordner (AS-006).
 
-**AS-033 – Uploads · muss · teilweise**
+**AS-033 – Uploads · muss · umgesetzt**
 Größengrenze vor dem Speichern prüfen, Dateinamen nie ungeprüft als Pfad verwenden, Uploads nur im Job-Ordner ablegen.
-*Umgesetzt:* `uploads.py` bereinigt Dateinamen, lässt nur die Dokumenttypen des Generators zu, prüft die gemeldete Größe vor dem Schreiben und zählt beim Kopieren erneut; der Job-Ordner entsteht erst nach der Prüfung (`tests/test_uploads.py`, `tests/test_jobs.py`). *Offen:* die Upload-Route mit Begrenzung der Anfragegröße (P4).
+*Umgesetzt:* `uploads.py` bereinigt Dateinamen, lässt nur die Dokumenttypen des Generators zu, prüft die gemeldete Größe vor dem Schreiben und zählt beim Kopieren erneut; der Job-Ordner entsteht erst nach der Prüfung (`tests/test_uploads.py`, `tests/test_jobs.py`). Die Route `/generate` prüft alle Dateien vor dem Anlegen eines Jobs; `limits.BodyLimitMiddleware` lehnt POST-Anfragen ohne Längenangabe (411) oder über der Grenze (413) ab, bevor der Körper gelesen wird (`tests/test_limits.py`).
 
 **AS-034 – Tests · muss · teilweise**
 Reguläre Tests laufen ohne Netzwerk, ohne echten Sync-Server, ohne API-Schlüssel und ohne GPU. KI-Aufrufe werden wie im Generator simuliert (Patch-Ziel `anki_flashcards.pipeline.generate_cards` usw. oder `report`/`cancel`-Argumente). Für Sync-Tests eignet sich ein lokal gestarteter `python -m anki.syncserver` mit Testbenutzer auf `127.0.0.1` (Prototyp in Abschnitt 7.1 der Übergabe).
@@ -233,5 +237,7 @@ Seit dem 20.11.2026 läuft im Container eine Vorschau des Stands von `main` als 
 | Stabile GUIDs des Generators | Wird eine generierte Notiz in ein anderes Deck verschoben und dieselbe Frage im ursprünglichen Deck erneut erzeugt, entsteht eine zweite Notiz mit gleicher GUID. Für Sync unkritisch, bei späteren APKG-Importen zu beachten. |
 | Relative Pfade in der YAML | `pdf_conversion.models_dir` absolut setzen; `input_dir`, `output_dir`, `source_text_dir` und `generation.json_output` nicht verwenden, Pfade je Job ausdrücklich übergeben |
 | Prozessweite Umgebungsvariablen | `model_storage.configure_model_storage()` setzt Cache-Variablen für den ganzen Prozess; unkritisch bei einem Modellordner pro Prozess |
+| `tenacity` fehlt in den Abhängigkeiten | LiteLLM braucht es für `num_retries` des Generators, aber weder LiteLLM 1.110 noch der Generator 0.2.0 deklarieren es; ohne es scheitert jeder KI-Aufruf. Anki Studio führt es als direkte Abhängigkeit. Vorschlag: im Generator deklarieren (Version 0.2.1), nach Absprache. |
+| Aufbereiteter Text immer im Job-Ordner | Abweichung von AS-001, siehe dort; Entscheidung des Projektinhabers offen |
 | Lizenz | Das `anki`-Paket ist AGPL-3.0; für den privaten Betrieb unkritisch, vor einer Veröffentlichung von Anki Studio klären |
 | Unverschlüsseltes HTTP zum Sync-Server | Nur LAN beziehungsweise NetBird; nicht ins Internet öffnen |
