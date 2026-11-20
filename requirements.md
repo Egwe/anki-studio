@@ -77,8 +77,9 @@ Docling- und Bildmodelle herunterladen (entspricht `models download`), mit Forts
 **AS-011 – Sync-Status · muss · offen**
 Seite mit Endpunkt, angemeldetem Benutzer, Zeitpunkt und Ergebnis des letzten Syncs, Knopf „Jetzt synchronisieren“.
 
-**AS-012 – Gestaltung · muss · offen**
+**AS-012 – Gestaltung · muss · teilweise**
 Schlicht und aufgeräumt, gut lesbar, Dark Mode, auf Desktop und Handy bedienbar. Keine externen Ressourcen zur Laufzeit.
+*Umgesetzt:* Grundlayout auf Pico CSS mit Dark Mode nach Systemeinstellung, in Desktop-Breite, 390 px Breite und dunkel im Browser geprüft. Alle Frontend-Dateien werden mitgeliefert; eine Content Security Policy erlaubt nur Anki Studio selbst als Quelle (`tests/test_app.py`). *Offen:* alle weiteren Seiten.
 
 **AS-013 – Karten in der Sammlung durchsuchen und bearbeiten · kann · offen**
 Suche über `col.find_notes`, Bearbeiten und Löschen generierter Notizen. Zurückgestellt auf Phase 5.
@@ -130,8 +131,9 @@ Ein Job läuft zur Zeit (eine GPU, ein Benutzer); weitere warten in einer Wartes
 **AS-033 – Uploads · muss · offen**
 Größengrenze vor dem Speichern prüfen, Dateinamen nie ungeprüft als Pfad verwenden, Uploads nur im Job-Ordner ablegen.
 
-**AS-034 – Tests · muss · offen**
+**AS-034 – Tests · muss · teilweise**
 Reguläre Tests laufen ohne Netzwerk, ohne echten Sync-Server, ohne API-Schlüssel und ohne GPU. KI-Aufrufe werden wie im Generator simuliert (Patch-Ziel `anki_flashcards.pipeline.generate_cards` usw. oder `report`/`cancel`-Argumente). Für Sync-Tests eignet sich ein lokal gestarteter `python -m anki.syncserver` mit Testbenutzer auf `127.0.0.1` (Prototyp in Abschnitt 7.1 der Übergabe).
+*Umgesetzt:* Testgerüst mit pytest und FastAPI-`TestClient`, ohne Netzwerk, GPU, Schlüssel und Sync-Server. *Offen:* simulierte KI-Läufe und Sync-Tests mit den jeweiligen Funktionen.
 
 ### 4.4 Deployment (R-201 des Generators)
 
