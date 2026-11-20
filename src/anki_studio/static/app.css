@@ -1,0 +1,38 @@
+/* Small additions to Pico CSS. Pico switches to dark mode with the system setting. */
+
+.brand {
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+footer.container {
+  color: var(--pico-muted-color);
+  padding-block: 1.5rem;
+}
+
+.components {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1.5rem;
+  margin: 0;
+}
+
+.components dt {
+  font-weight: 600;
+}
+
+.components dd {
+  margin: 0;
+  font-family: var(--pico-font-family-monospace);
+}
+
+/* htmx loading indicators; htmx's own inline styles are disabled for the CSP. */
+.htmx-indicator {
+  opacity: 0;
+  transition: opacity 200ms ease-in;
+}
+
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+  opacity: 1;
+}
