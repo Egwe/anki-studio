@@ -24,9 +24,11 @@ Der Status bezieht sich auf den Programmcode, nicht darauf, dass eine Anforderun
 
 Anki Studio ist eine schlichte Web-Oberfläche für den [Anki Flashcard Generator](https://github.com/Egwe/anki-flashcard-generator), betrieben im Heimnetz. Sie bietet alle Funktionen der CLI im Browser, schreibt geprüfte Karten als weiterer Client des eigenen Anki-Sync-Servers direkt in die Sammlung und bietet APKG- und JSON-Dateien als Alternative zum Download an (Übergabe Abschnitt 1).
 
-Nicht Ziel sind Lernen im Browser, Zugriff aus dem Internet, mehrere Benutzer und das Bearbeiten von API-Schlüsseln in der Oberfläche.
+Nicht Ziel sind Lernen im Browser, Zugriff aus dem Internet und mehrere Benutzer.
 
-Die Entscheidungen zu Basis, Rolle, Generator-Einbindung, Backend, Frontend, Live-Fortschritt, Zugriff, Secrets, Deployment und Name stehen in Abschnitt 2 der Übergabe und gelten unverändert.
+Die Entscheidungen zu Basis, Rolle, Generator-Einbindung, Backend, Frontend, Live-Fortschritt, Zugriff, Deployment und Name stehen in Abschnitt 2 der Übergabe und gelten unverändert.
+
+**Änderung vom 21.11.2026 (Entscheidung des Projektinhabers):** Anki Studio soll vollständig über die Oberfläche bedienbar sein, ohne Arbeit im Container (AS-016). Dazu gehören die Generator-Konfiguration mit allen Providern (AS-015, AS-009), die Eingabe von API-Schlüsseln (AS-035) und die Auswahl der Modelle aus der Liste des Providers (AS-014). Das ersetzt für Provider-Schlüssel die Entscheidung der Übergabe „Secrets nur in der Umgebungsdatei, nicht in der Oberfläche bearbeitbar“. Login-Hash, Session-Schlüssel und der Schlüssel für die Verschlüsselung bleiben in der Umgebungsdatei.
 
 ## 3. Phasen und Stand
 
@@ -46,7 +48,7 @@ Die Entscheidungen zu Basis, Rolle, Generator-Einbindung, Backend, Frontend, Liv
 
 **AS-001 – Generieren · muss · umgesetzt**
 Mehrere Dateien hochladen (PDF, DOCX, HTML, Markdown, Text; je höchstens 100 MiB wie im Generator). Pro Datei ein Job. Alle Optionen von `anki-flashcards generate` sind wählbar: Profil, Modell, Sprache, Limit, zusätzliche Anweisungen, Chunk-Größe, Timeout, API-Basis, PDF-Modus mit den Optionen des strukturierten Modus (Formeln, OCR erzwingen, nicht lesbare Elemente zulassen, CPU zulassen, Bild-Backend, Bild-Profil, aufbereiteten Text speichern), Unterdecks. Vorbelegung aus der YAML-Konfiguration; selten genutzte Optionen eingeklappt. Optionen des strukturierten Modus nur sichtbar, wenn dieser Modus gewählt ist.
-*Umsetzung:* `/generate` mit allen Optionen; Platzhalter und Vorbelegung berechnet der Generator selbst (`resolve_generate_settings`); `forms.GenerateForm` prüft Typen und Bereiche; je Datei ein Job (`tests/test_forms.py`, `tests/test_web_generate.py`, Browser-Test). *Abweichung, Bestätigung durch den Projektinhaber offen:* „Aufbereiteten Text speichern“ ist kein Schalter; im strukturierten Modus wird der Text immer als `source.md` im Job-Ordner gespeichert, weil die Bibliothek ein `source_text_dir` aus der YAML sonst nicht abschalten ließe und der Job-Ordner privat ist und mit dem Job gelöscht wird.
+*Umsetzung:* `/generate` mit allen Optionen; Platzhalter und Vorbelegung berechnet der Generator selbst (`resolve_generate_settings`); `forms.GenerateForm` prüft Typen und Bereiche; je Datei ein Job (`tests/test_forms.py`, `tests/test_web_generate.py`, Browser-Test). *Abweichung, vom Projektinhaber am 21.11.2026 akzeptiert:* „Aufbereiteten Text speichern“ ist kein Schalter; im strukturierten Modus wird der Text immer als `source.md` im Job-Ordner gespeichert, weil die Bibliothek ein `source_text_dir` aus der YAML sonst nicht abschalten ließe und der Job-Ordner privat ist und mit dem Job gelöscht wird.
 
 **AS-002 – Ziel wählen · muss · teilweise**
 Ziel ist entweder ein Deck der synchronisierten Sammlung (Auswahl aus vorhandenen Decks oder neuer Name, `::` für Unterdecks), eine neue APKG-Datei zum Download oder eine hochgeladene APKG zum Erweitern.
@@ -74,6 +76,7 @@ Karten-JSON hochladen und als APKG ausgeben oder in die Sammlung schreiben (ents
 
 **AS-009 – Konfiguration · muss · offen**
 Wirksame Werte mit Herkunft anzeigen (entspricht `config show`). Profile und Standardwerte der YAML bearbeiten, validiert über das Schema des Generators und atomar gespeichert. API-Schlüssel erscheinen nur als „gesetzt“ oder „fehlt“.
+*Ergänzung 21.11.2026:* Die Generator-YAML liegt im Datenordner, damit Anki Studio sie schreiben darf (AS-015); ihre Bearbeitung über die Oberfläche ersetzt das Bearbeiten im Container (AS-016).
 
 **AS-010 – Modelle · muss · offen**
 Docling- und Bildmodelle herunterladen (entspricht `models download`), mit Fortschritt; anzeigen, ob eine GPU erkannt wird.
@@ -84,6 +87,15 @@ Seite mit Endpunkt, angemeldetem Benutzer, Zeitpunkt und Ergebnis des letzten Sy
 **AS-012 – Gestaltung · muss · teilweise**
 Schlicht und aufgeräumt, gut lesbar, Dark Mode, auf Desktop und Handy bedienbar. Keine externen Ressourcen zur Laufzeit.
 *Umgesetzt:* Grundlayout auf Pico CSS mit Dark Mode nach Systemeinstellung, in Desktop-Breite, 390 px Breite und dunkel im Browser geprüft. Alle Frontend-Dateien werden mitgeliefert; eine Content Security Policy erlaubt nur Anki Studio selbst als Quelle (`tests/test_app.py`). *Offen:* alle weiteren Seiten.
+
+**AS-014 – Modelle des Providers auswählen · soll · offen**
+Ist für einen Provider ein Schlüssel hinterlegt oder braucht er keinen (etwa Ollama), lädt Anki Studio auf ausdrückliche Aktion die Liste der verfügbaren Modelle beim Provider und bietet sie zur Auswahl an: im Generierungsformular und beim Bearbeiten eines Profils. Dabei geht nur der Schlüssel an den Provider, kein Dokumentinhalt. Fehler (Schlüssel ungültig, Provider nicht erreichbar) erscheinen verständlich; die freie Eingabe eines Modellnamens bleibt möglich.
+
+**AS-015 – Vorlage mit allen Providern · muss · offen**
+Die Generator-Konfiguration enthält immer ein Profil für jeden unterstützten Provider, auch ohne hinterlegten Schlüssel: Ollama (Text und Bild), OpenAI (auch native PDF), Anthropic, Google Gemini, Mistral, DeepSeek, OpenRouter, Groq, xAI, Moonshot und ein eigener OpenAI-kompatibler Server. Fehlt die Datei, legt Anki Studio sie aus einer mitgelieferten Vorlage an; fehlende Standardprofile ergänzt es beim Start, vorhandene Profile bleiben unverändert. Die Datei liegt im Datenordner (`<data_dir>/generator.yaml`), `pdf_conversion.models_dir` ist dort absolut. Die Vorlage im Repository enthält keine Adressen aus dem Heimnetz.
+
+**AS-016 – Bedienung ohne Container-Zugriff · muss · offen**
+Alles, was im täglichen Betrieb eingestellt wird, geht über die Oberfläche: Generator-Konfiguration und Profile (AS-009, AS-015), API-Schlüssel (AS-035), Modellwahl (AS-014), später Sync-Zugang und Login-Passwort. Shell-Zugriff auf den Container bleibt für Installation, Updates und Notfälle.
 
 **AS-013 – Karten in der Sammlung durchsuchen und bearbeiten · kann · offen**
 Suche über `col.find_notes`, Bearbeiten und Löschen generierter Notizen. Zurückgestellt auf Phase 5.
@@ -128,8 +140,8 @@ Ein Passwort; nur sein Hash steht in der Umgebungsdatei. Session-Cookie `HttpOnl
 *Umsetzung:* scrypt-Hash aus der Standardbibliothek in `ANKI_STUDIO_PASSWORD_HASH`, erzeugt mit `anki-studio hash-password`; signiertes Session-Cookie `anki_studio_session` (`HttpOnly`, `SameSite=Strict`, 14 Tage); alle Seiten außer Anmeldung, `/healthz` und statischen Dateien verlangen die Anmeldung; `allowed_hosts` in `studio.yaml`, fremde Hosts erhalten 400. Belegt durch `tests/test_auth.py`, `tests/test_hosts.py`, `tests/test_passwords.py` und einen Browser-Test (hell, dunkel, schmal).
 
 **AS-031 – Secrets · muss · teilweise**
-API-Schlüssel der Provider, Sync-Zugangsdaten und Login-Hash nur in der Umgebungsdatei. Die YAML enthält wie im Generator nur Variablennamen (`api_key_env`). Keine Secrets in Logs, Job-Dateien, Fehlermeldungen oder der Oberfläche.
-*Umgesetzt:* Login-Hash und Session-Schlüssel kommen nur aus der Umgebung; Fehlermeldungen nennen die Variable, nie den Wert; `repr` blendet die Werte aus (`tests/test_credentials.py`). *Offen:* API-Schlüssel (mit AS-001/AS-009) und Sync-Zugangsdaten (mit AS-020).
+Login-Hash, Session-Schlüssel, Schlüssel der Verschlüsselung und Sync-Zugangsdaten nur in der Umgebungsdatei. API-Schlüssel der Provider in der Umgebungsdatei oder, über die Oberfläche eingegeben, verschlüsselt im Datenordner (AS-035; Änderung vom 21.11.2026, ursprünglich nur Umgebungsdatei). Die YAML enthält wie im Generator nur Variablennamen (`api_key_env`). Keine Secrets in Logs, Job-Dateien, Fehlermeldungen oder der Oberfläche.
+*Umgesetzt:* Login-Hash und Session-Schlüssel kommen nur aus der Umgebung; Fehlermeldungen nennen die Variable, nie den Wert; `repr` blendet die Werte aus (`tests/test_credentials.py`). *Offen:* API-Schlüssel (AS-035) und Sync-Zugangsdaten (mit AS-020).
 
 **AS-032 – Jobs · muss · teilweise**
 Ein Job läuft zur Zeit (eine GPU, ein Benutzer); weitere warten in einer Warteschlange. Jeder Job hat einen Ordner mit Upload, Ereignisprotokoll, Karten-JSON und Ergebnis. Nach einem Neustart sind abgeschlossene Jobs weiter sichtbar; laufende gelten als abgebrochen. Alte Jobs werden nach einer einstellbaren Frist gelöscht.
@@ -139,6 +151,15 @@ Ein Job läuft zur Zeit (eine GPU, ein Benutzer); weitere warten in einer Wartes
 Größengrenze vor dem Speichern prüfen, Dateinamen nie ungeprüft als Pfad verwenden, Uploads nur im Job-Ordner ablegen.
 *Umgesetzt:* `uploads.py` bereinigt Dateinamen, lässt nur die Dokumenttypen des Generators zu, prüft die gemeldete Größe vor dem Schreiben und zählt beim Kopieren erneut; der Job-Ordner entsteht erst nach der Prüfung (`tests/test_uploads.py`, `tests/test_jobs.py`). Die Route `/generate` prüft alle Dateien vor dem Anlegen eines Jobs; `limits.BodyLimitMiddleware` lehnt POST-Anfragen ohne Längenangabe (411) oder über der Grenze (413) ab, bevor der Körper gelesen wird (`tests/test_limits.py`).
 
+**AS-035 – API-Schlüssel über die Oberfläche · muss · offen**
+API-Schlüssel der Provider lassen sich in der Oberfläche setzen, ersetzen und löschen. Sicherheitskonzept:
+- *Nur schreibend:* Die Oberfläche zeigt je Variable nur Herkunft und Status („aus der Umgebungsdatei“, „gespeichert am …“, „fehlt“), nie den Wert, auch nicht teilweise.
+- *Verschlüsselt:* Gespeicherte Schlüssel liegen als Fernet-Token (AES-128-CBC mit HMAC-SHA256, Bibliothek `cryptography`) in `<data_dir>/secrets.enc`, Rechte 0600, atomar ersetzt. Der Schlüssel dafür, `ANKI_STUDIO_SECRET_KEY`, steht nur in der Umgebungsdatei und wird vom Installations- beziehungsweise Vorschau-Skript erzeugt. Fehlt er, ist Speichern nicht möglich; es gibt keinen Klartext-Ersatz.
+- *Begrenzte Namen:* Nur Variablen aus Großbuchstaben, Ziffern und Unterstrich mit der Endung `_API_KEY`, `_TOKEN` oder `_KEY`, nie `ANKI_STUDIO_*`. So lässt sich über die Oberfläche keine andere Umgebungsvariable setzen (etwa `PATH` oder `LD_PRELOAD`).
+- *Vorrang:* Werte aus der Umgebungsdatei gelten und sind in der Oberfläche nicht änderbar. Gespeicherte Werte übernimmt Anki Studio beim Start und nach jeder Änderung in die Umgebung des eigenen Prozesses, aus der Generator (`api_key_env`) und LiteLLM lesen.
+- *Keine Spuren:* keine Werte in Logs, Job-Dateien, Ereignissen, Fehlermeldungen oder HTML; protokolliert wird nur „Schlüssel X geändert“.
+- *Grenzen, ausdrücklich dokumentiert:* Im LAN läuft die Eingabe wie das Login-Passwort über unverschlüsseltes HTTP (über NetBird ist der Tunnel verschlüsselt). Ein Backup mit Datenordner und Umgebungsdatei enthält Schlüssel und verschlüsselte Datei zusammen; die Verschlüsselung schützt Kopien des Datenordners ohne Umgebungsdatei, etwa ausgelagerte Job-Ordner. HTTPS bleibt eine spätere Option.
+
 **AS-034 – Tests · muss · teilweise**
 Reguläre Tests laufen ohne Netzwerk, ohne echten Sync-Server, ohne API-Schlüssel und ohne GPU. KI-Aufrufe werden wie im Generator simuliert (Patch-Ziel `anki_flashcards.pipeline.generate_cards` usw. oder `report`/`cancel`-Argumente). Für Sync-Tests eignet sich ein lokal gestarteter `python -m anki.syncserver` mit Testbenutzer auf `127.0.0.1` (Prototyp in Abschnitt 7.1 der Übergabe).
 *Umgesetzt:* Testgerüst mit pytest und FastAPI-`TestClient`, ohne Netzwerk, GPU, Schlüssel und Sync-Server. *Offen:* simulierte KI-Läufe und Sync-Tests mit den jeweiligen Funktionen.
@@ -147,6 +168,7 @@ Reguläre Tests laufen ohne Netzwerk, ohne echten Sync-Server, ohne API-Schlüss
 
 **AS-040 – Installation · muss · offen**
 Im LXC „anki-studio“: eigener Systembenutzer statt root; Programm mit uv in `/opt/anki-studio`; Daten in `/var/lib/anki-studio`; Konfiguration `/etc/anki-studio/config.yaml` (Generator-YAML) und `/etc/anki-studio/studio.yaml` (Endpunkt, Datenpfade, Port); Secrets in `/etc/anki-studio/env` (0600) als `EnvironmentFile`; systemd-Unit mit uvicorn. Ein Installations- und Update-Skript im Repo (`deploy/`).
+*Änderung 21.11.2026:* Die Generator-YAML liegt im Datenordner (`/var/lib/anki-studio/generator.yaml`), weil sie über die Oberfläche bearbeitet wird (AS-015, AS-016); `/etc/anki-studio` enthält nur `studio.yaml` und `env`.
 
 **AS-041 – GPU · soll · offen**
 Strukturierter Modus mit der durchgereichten GPU, sofern der GPU-Test (Abschnitt 5.3) sie als nutzbar bestätigt. Sonst dokumentieren, welche Ausweichwege gelten.
@@ -224,6 +246,8 @@ Lauf 2 überschnitt sich 14 Sekunden mit der ersten Vorschau-Installation; das �
 
 Seit dem 20.11.2026 läuft im Container eine Vorschau des Stands von `main` als systemd-Dienst `anki-studio-preview` auf Port 8000, eingerichtet und aktualisiert mit `deploy/preview.sh` (README, Abschnitt „Vorschau im Container“; Regeln in AGENTS.md Abschnitt 8). Sie ersetzt nicht die Installation nach AS-040.
 
+Zugriff von unterwegs: NetBird führt über einen Routing-Peer ins Heimnetz; die Oberfläche wird auch dann unter der LAN-Adresse des Containers und Port 8000 aufgerufen. Weitere Hostnamen in `allowed_hosts` sind dafür nicht nötig (Auskunft des Projektinhabers vom 21.11.2026).
+
 ## 6. Offene Punkte und Risiken
 
 | Punkt | Umgang |
@@ -232,12 +256,38 @@ Seit dem 20.11.2026 läuft im Container eine Vorschau des Stands von `main` als 
 | Sync gegen den echten Server | Prototyp-Ablauf mit eigenem Testbenutzer wiederholen und das Ergebnis in AnkiDroid prüfen (Phase 0); die echte Sammlung bleibt unberührt |
 | Erster Import des Notiztyps erzwingt Komplett-Sync | Lokal widerlegt (Übergabe Abschnitt 7.1); gegen den echten Server bestätigen |
 | GPU K1200 mit aktuellem PyTorch | Nutzbar mit `cu126` (Abschnitt 5.3); vor einem PyTorch- oder Treiber-Update erneut prüfen |
-| Formeln auf 4 GiB VRAM | Batch-Größe des Formelmodells im Generator einstellbar machen (Abschnitt 5.3); Entscheidung des Projektinhabers offen |
-| GPU-Erkennung meldet `cuda` trotz fehlendem `sm_50` | Mit `cu126` kein Problem; bleibt ein Risiko, falls ein Build ohne `sm_50` installiert wird. Eine genauere Prüfung im Generator wäre möglich (Abschnitt 5.2). |
+| Formeln auf 4 GiB VRAM | Batch-Größe des Formelmodells im Generator einstellbar machen (Abschnitt 5.3); vom Projektinhaber am 21.11.2026 für Generator 0.2.1 freigegeben |
+| GPU-Erkennung meldet `cuda` trotz fehlendem `sm_50` | Mit `cu126` kein Problem; bleibt ein Risiko, falls ein Build ohne `sm_50` installiert wird. Genauere Prüfung im Generator 0.2.1 (freigegeben am 21.11.2026). |
 | Stabile GUIDs des Generators | Wird eine generierte Notiz in ein anderes Deck verschoben und dieselbe Frage im ursprünglichen Deck erneut erzeugt, entsteht eine zweite Notiz mit gleicher GUID. Für Sync unkritisch, bei späteren APKG-Importen zu beachten. |
 | Relative Pfade in der YAML | `pdf_conversion.models_dir` absolut setzen; `input_dir`, `output_dir`, `source_text_dir` und `generation.json_output` nicht verwenden, Pfade je Job ausdrücklich übergeben |
 | Prozessweite Umgebungsvariablen | `model_storage.configure_model_storage()` setzt Cache-Variablen für den ganzen Prozess; unkritisch bei einem Modellordner pro Prozess |
-| `tenacity` fehlt in den Abhängigkeiten | LiteLLM braucht es für `num_retries` des Generators, aber weder LiteLLM 1.110 noch der Generator 0.2.0 deklarieren es; ohne es scheitert jeder KI-Aufruf. Anki Studio führt es als direkte Abhängigkeit. Vorschlag: im Generator deklarieren (Version 0.2.1), nach Absprache. |
-| Aufbereiteter Text immer im Job-Ordner | Abweichung von AS-001, siehe dort; Entscheidung des Projektinhabers offen |
+| `tenacity` fehlt in den Abhängigkeiten | LiteLLM braucht es für `num_retries` des Generators, aber weder LiteLLM 1.110 noch der Generator 0.2.0 deklarieren es; ohne es scheitert jeder KI-Aufruf. Anki Studio führt es als direkte Abhängigkeit. Im Generator 0.2.1 deklarieren (freigegeben am 21.11.2026); danach entfällt die direkte Abhängigkeit hier. |
+| Aufbereiteter Text immer im Job-Ordner | Abweichung von AS-001, vom Projektinhaber am 21.11.2026 akzeptiert |
 | Lizenz | Das `anki`-Paket ist AGPL-3.0; für den privaten Betrieb unkritisch, vor einer Veröffentlichung von Anki Studio klären |
 | Unverschlüsseltes HTTP zum Sync-Server | Nur LAN beziehungsweise NetBird; nicht ins Internet öffnen |
+
+## 7. Paketplan und Arbeitsstand
+
+Jedes Paket ist ein Branch mit kleinen Commits, wird nach grünen Prüfungen mit `--no-ff` nach `main` gemergt, sofort gepusht und danach mit `deploy/preview.sh` in die Vorschau gebracht (AGENTS.md Abschnitte 3 und 8). Diese Tabelle wird bei jedem Merge aktualisiert, damit jede weitere Person oder KI den Stand sofort findet.
+
+| Paket | Branch | Inhalt | IDs | Stand |
+|---|---|---|---|---|
+| P0 | – | Repository, Übergabe, Requirements, Bestandsaufnahme, GPU-Test | – | erledigt |
+| P1 | `feature/project-skeleton` | Gerüst, Einstellungen, mitgelieferte Frontend-Dateien, Startseite, CSP | AS-012, AS-034 | erledigt |
+| P1b | `feature/container-preview` | Vorschau im Container | – | erledigt |
+| P2 | `feature/login` | Login, Session, Host-Prüfung | AS-030, AS-031 | erledigt |
+| P3 | `feature/job-queue` | Uploads, Job-Ordner, Worker | AS-032, AS-033 | erledigt |
+| P4 | `feature/generate` | Formular, Runner, Job-Seiten, Handbücher | AS-001–AS-004 | erledigt |
+| P4b | `feature/provider-template` | Vorlage mit allen Providern, Generator-YAML im Datenordner, Konfiguration des Projektinhabers in die Vorschau | AS-015, AS-009 (Teil) | als Nächstes |
+| P4c | `feature/secret-store` | API-Schlüssel verschlüsselt über die Oberfläche | AS-035, AS-031 | offen |
+| P4d | `feature/model-list` | Modelle vom Provider laden und auswählen | AS-014 | offen |
+| P5 | `feature/live-progress` | Live-Fortschritt per SSE | AS-004 | offen |
+| P6 | `feature/card-review` | Karten prüfen, bearbeiten, abwählen; APKG schreiben; Downloads | AS-005, AS-006 | offen |
+| P7 | `feature/config-editor` | Konfiguration anzeigen (Herkunft) und Profile und Standardwerte bearbeiten | AS-009, AS-016 | offen |
+| G1 | Generator-Repo | Generator 0.2.1: `tenacity`, Batch-Größe Formeln, genauere GPU-Prüfung; danach Anki Studio auf `v0.2.1` | – | freigegeben, offen |
+| P8 | `feature/structured-mode` | Extra `pdf` mit PyTorch `cu126`, Modelle laden, GPU-Anzeige | AS-041, AS-010 | offen |
+| P9 | `feature/decks-export` | Decks einer APKG, Export Karten-JSON → APKG | AS-007, AS-008 (APKG-Teile) | offen |
+| Phase 3 | `feature/sync-…` | Sync-Client, Sammlung als Ziel, Sync-Status; braucht einen Testbenutzer des Projektinhabers | AS-020–AS-025, AS-002, AS-006, AS-007, AS-008, AS-011 | offen |
+| Phase 4 | `feature/deploy-…` | Installation und Update nach AS-040, Backup | AS-040, AS-042 | offen |
+
+**Übernahme durch eine andere Person oder KI:** `AGENTS.md` lesen, dann `git log --oneline --first-parent main` für die erledigten Pakete und diese Tabelle für das nächste. Prüfungen: `uv sync`, `ruff check`, `ruff format --check`, `pytest` (README). Die Vorschau aktualisiert `ssh ct-anki-studio 'bash -s' < deploy/preview.sh`.
