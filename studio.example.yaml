@@ -1,0 +1,10 @@
+# Einstellungen von Anki Studio (nicht die Generator-Konfiguration).
+# Lokal: cp studio.example.yaml studio.yaml
+# Im Container: /etc/anki-studio/studio.yaml
+# Secrets gehören nie in diese Datei, sondern in die Umgebungsdatei.
+
+# Adresse, auf der die Oberfläche lauscht. Lokal 127.0.0.1, im Container 0.0.0.0.
+host: 127.0.0.1
+
+# Port der Oberfläche.
+port: 8000
