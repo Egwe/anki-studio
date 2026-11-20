@@ -215,8 +215,8 @@ wheels = [
 
 [[package]]
 name = "anki-flashcard-generator"
-version = "0.2.0"
-source = { git = "https://github.com/Egwe/anki-flashcard-generator?rev=v0.2.0#539838baf4f46b3ec41465d90b99e7b82ab18a19" }
+version = "0.2.1"
+source = { git = "https://github.com/Egwe/anki-flashcard-generator?rev=v0.2.1#c2ff4f8fe0d38565e1791101da99026bf6f37f8b" }
 dependencies = [
     { name = "anki" },
     { name = "beautifulsoup4" },
@@ -228,6 +228,7 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "pyyaml" },
     { name = "rich" },
+    { name = "tenacity" },
     { name = "typer" },
     { name = "zstandard" },
 ]
@@ -247,7 +248,6 @@ dependencies = [
     { name = "pydantic" },
     { name = "python-multipart" },
     { name = "pyyaml" },
-    { name = "tenacity" },
     { name = "uvicorn" },
 ]
 
@@ -260,7 +260,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "anki", specifier = "==26.9.4" },
-    { name = "anki-flashcard-generator", git = "https://github.com/Egwe/anki-flashcard-generator?rev=v0.2.0" },
+    { name = "anki-flashcard-generator", git = "https://github.com/Egwe/anki-flashcard-generator?rev=v0.2.1" },
     { name = "cryptography", specifier = ">=44,<47" },
     { name = "fastapi", specifier = ">=0.115,<1" },
     { name = "httpx", specifier = ">=0.27,<1" },
@@ -269,7 +269,6 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.10,<3" },
     { name = "python-multipart", specifier = ">=0.0.18,<1" },
     { name = "pyyaml", specifier = ">=6,<7" },
-    { name = "tenacity", specifier = ">=8.2,<10" },
     { name = "uvicorn", specifier = ">=0.30,<1" },
 ]
 
