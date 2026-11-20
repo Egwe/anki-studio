@@ -3,6 +3,7 @@
 .brand {
   font-weight: 700;
   font-size: 1.15rem;
+  white-space: nowrap;
 }
 
 footer.container {
@@ -49,4 +50,57 @@ footer.container {
 .htmx-request .htmx-indicator,
 .htmx-request.htmx-indicator {
   opacity: 1;
+}
+
+.alert {
+  border-left: 0.3rem solid var(--pico-del-color);
+}
+
+.transfer {
+  border-left: 0.3rem solid #d97706;
+}
+
+.field-error {
+  color: var(--pico-del-color);
+}
+
+fieldset {
+  margin-bottom: 1.5rem;
+}
+
+.status {
+  display: inline-block;
+  padding: 0.05rem 0.55rem;
+  border-radius: 1rem;
+  font-size: 0.85em;
+  background: var(--pico-muted-border-color);
+}
+
+.status-running { background: #2563eb; color: #fff; }
+.status-done { background: #15803d; color: #fff; }
+.status-failed { background: #b91c1c; color: #fff; }
+.status-cancelled { background: #6b7280; color: #fff; }
+
+.events {
+  padding-left: 1.2rem;
+  margin: 0;
+}
+
+.events li {
+  list-style: square;
+  margin-bottom: 0.2rem;
+}
+
+.events .notice-transfer {
+  font-weight: 600;
+  color: #b45309;
+}
+
+.events .notice-warning {
+  color: #b45309;
+}
+
+.events .progress-line,
+.events .status-line {
+  color: var(--pico-muted-color);
 }

@@ -4,6 +4,10 @@
   <h1>Anki Studio</h1>
   <p>Karteikarten aus Dokumenten erzeugen, prüfen und auf alle Geräte bringen.</p>
 </hgroup>
+<p>
+  <a href="{{ url_for('generate_page') }}" role="button">Karten generieren</a>
+  <a href="{{ url_for('job_list') }}" role="button" class="secondary outline">Jobs ansehen</a>
+</p>
 <article>
   <header><strong>Installierte Komponenten</strong></header>
   <dl class="components">
@@ -11,6 +15,6 @@
     <dt>Anki Flashcard Generator</dt><dd>{{ versions.generator }}</dd>
     <dt>Anki (pylib)</dt><dd>{{ versions.anki }}</dd>
   </dl>
-  <footer><small>Generieren, Live-Fortschritt und Kartenprüfung folgen in den nächsten Ausbaustufen.</small></footer>
+  <footer><small>Kartenprüfung, Sync mit der Sammlung und die übrigen Seiten folgen in den nächsten Ausbaustufen.</small></footer>
 </article>
 {% endblock %}
