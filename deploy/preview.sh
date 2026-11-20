@@ -14,6 +14,7 @@ readonly REPO_URL="https://github.com/Egwe/anki-studio.git"
 readonly BRANCH="main"
 readonly APP_DIR="/opt/anki-studio"
 readonly CONFIG_DIR="/etc/anki-studio"
+readonly DATA_DIR="/var/lib/anki-studio"
 readonly UV_CACHE="/var/cache/anki-studio/uv"
 readonly UNIT="anki-studio-preview"
 readonly UV_VERSION="0.13.7"
@@ -77,9 +78,15 @@ host_list() {
   done
 }
 
-ensure_config() {
-  local studio="$CONFIG_DIR/studio.yaml" env_file="$CONFIG_DIR/env"
-  install -d -m 0755 "$CONFIG_DIR"
+add_key_if_missing() {
+  local file=$1 key=$2 value=$3
+  grep -q "^$key:" "$file" && return
+  log "$key in $file ergänzen"
+  printf '%s: %s\n' "$key" "$value" >> "$file"
+}
+
+ensure_studio_yaml() {
+  local studio="$CONFIG_DIR/studio.yaml"
   if [[ ! -e "$studio" ]]; then
     log "$studio anlegen"
     printf 'host: 0.0.0.0\nport: %s\n' "$PORT" > "$studio"
@@ -88,6 +95,12 @@ ensure_config() {
     log "allowed_hosts mit Namen und Adressen des Containers in $studio ergänzen"
     { printf 'allowed_hosts:\n'; host_list; } >> "$studio"
   fi
+  add_key_if_missing "$studio" data_dir "$DATA_DIR"
+  add_key_if_missing "$studio" generator_config "$CONFIG_DIR/config.yaml"
+}
+
+ensure_env_file() {
+  local env_file="$CONFIG_DIR/env"
   if [[ ! -e "$env_file" ]]; then
     log "$env_file anlegen (0600)"
     install -m 0600 /dev/null "$env_file"
@@ -100,6 +113,26 @@ ensure_config() {
   if ! grep -q '^ANKI_STUDIO_PASSWORD_HASH=.' "$env_file"; then
     log "Noch kein Login-Passwort gesetzt; siehe README, Abschnitt Anmeldung."
   fi
+}
+
+ensure_generator_config() {
+  local config="$CONFIG_DIR/config.yaml"
+  [[ -e "$config" ]] && return
+  log "$config anlegen (ohne Profile)"
+  cat > "$config" <<GENERATOR_YAML
+# Konfiguration des Anki Flashcard Generators für Anki Studio.
+# Profile wie in config.example.yaml des Generators unter "models:" ergänzen.
+# API-Schlüssel gehören nur in $CONFIG_DIR/env (api_key_env nennt die Variable).
+pdf_conversion:
+  models_dir: $DATA_DIR/models
+GENERATOR_YAML
+}
+
+ensure_config() {
+  install -d -m 0755 "$CONFIG_DIR"
+  ensure_studio_yaml
+  ensure_env_file
+  ensure_generator_config
 }
 
 install_unit() {
