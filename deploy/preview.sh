@@ -6,7 +6,7 @@
 #
 # Das Skript ist idempotent. Es installiert bei Bedarf git und uv, holt den Stand von main
 # aus GitHub nach /opt/anki-studio, installiert die Abhängigkeiten aus uv.lock, legt eine
-# fehlende Konfiguration an (vorhandene Dateien bleiben unverändert) und startet den Dienst
+# fehlende Konfiguration an (vorhandene Werte bleiben unverändert) und startet den Dienst
 # anki-studio-preview neu. Der Dienst läuft ohne Root-Rechte mit einem dynamischen Benutzer.
 set -euo pipefail
 
@@ -69,15 +69,36 @@ sync_environment() {
   (cd "$APP_DIR" && UV_CACHE_DIR="$UV_CACHE" UV_PYTHON_DOWNLOADS=never uv sync --quiet --locked --no-dev)
 }
 
+host_list() {
+  local addresses name
+  read -ra addresses <<< "$(hostname -I)"
+  for name in localhost 127.0.0.1 "$(hostname)" "${addresses[@]}"; do
+    printf '  - %s\n' "$name"
+  done
+}
+
 ensure_config() {
+  local studio="$CONFIG_DIR/studio.yaml" env_file="$CONFIG_DIR/env"
   install -d -m 0755 "$CONFIG_DIR"
-  if [[ ! -e "$CONFIG_DIR/studio.yaml" ]]; then
-    log "$CONFIG_DIR/studio.yaml anlegen"
-    printf 'host: 0.0.0.0\nport: %s\n' "$PORT" > "$CONFIG_DIR/studio.yaml"
+  if [[ ! -e "$studio" ]]; then
+    log "$studio anlegen"
+    printf 'host: 0.0.0.0\nport: %s\n' "$PORT" > "$studio"
   fi
-  if [[ ! -e "$CONFIG_DIR/env" ]]; then
-    log "$CONFIG_DIR/env anlegen (0600, noch ohne Einträge)"
-    install -m 0600 /dev/null "$CONFIG_DIR/env"
+  if ! grep -q '^allowed_hosts:' "$studio"; then
+    log "allowed_hosts mit Namen und Adressen des Containers in $studio ergänzen"
+    { printf 'allowed_hosts:\n'; host_list; } >> "$studio"
+  fi
+  if [[ ! -e "$env_file" ]]; then
+    log "$env_file anlegen (0600)"
+    install -m 0600 /dev/null "$env_file"
+  fi
+  if ! grep -q '^ANKI_STUDIO_SESSION_SECRET=.' "$env_file"; then
+    log "zufälligen Session-Schlüssel in $env_file ergänzen"
+    printf 'ANKI_STUDIO_SESSION_SECRET=%s\n' \
+      "$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')" >> "$env_file"
+  fi
+  if ! grep -q '^ANKI_STUDIO_PASSWORD_HASH=.' "$env_file"; then
+    log "Noch kein Login-Passwort gesetzt; siehe README, Abschnitt Anmeldung."
   fi
 }
 

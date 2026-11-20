@@ -119,11 +119,13 @@ Medien-Sync (`sync_media`) erst, wenn Karten Bilder oder Audio enthalten (R-205 
 
 ### 4.3 Betrieb und Sicherheit
 
-**AS-030 – Login · muss · offen**
+**AS-030 – Login · muss · umgesetzt**
 Ein Passwort; nur sein Hash steht in der Umgebungsdatei. Session-Cookie `HttpOnly`, `SameSite=Strict`. Prüfung des `Host`-Headers gegen eine Liste erlaubter Namen.
+*Umsetzung:* scrypt-Hash aus der Standardbibliothek in `ANKI_STUDIO_PASSWORD_HASH`, erzeugt mit `anki-studio hash-password`; signiertes Session-Cookie `anki_studio_session` (`HttpOnly`, `SameSite=Strict`, 14 Tage); alle Seiten außer Anmeldung, `/healthz` und statischen Dateien verlangen die Anmeldung; `allowed_hosts` in `studio.yaml`, fremde Hosts erhalten 400. Belegt durch `tests/test_auth.py`, `tests/test_hosts.py`, `tests/test_passwords.py` und einen Browser-Test (hell, dunkel, schmal).
 
-**AS-031 – Secrets · muss · offen**
+**AS-031 – Secrets · muss · teilweise**
 API-Schlüssel der Provider, Sync-Zugangsdaten und Login-Hash nur in der Umgebungsdatei. Die YAML enthält wie im Generator nur Variablennamen (`api_key_env`). Keine Secrets in Logs, Job-Dateien, Fehlermeldungen oder der Oberfläche.
+*Umgesetzt:* Login-Hash und Session-Schlüssel kommen nur aus der Umgebung; Fehlermeldungen nennen die Variable, nie den Wert; `repr` blendet die Werte aus (`tests/test_credentials.py`). *Offen:* API-Schlüssel (mit AS-001/AS-009) und Sync-Zugangsdaten (mit AS-020).
 
 **AS-032 – Jobs · muss · offen**
 Ein Job läuft zur Zeit (eine GPU, ein Benutzer); weitere warten in einer Warteschlange. Jeder Job hat einen Ordner mit Upload, Ereignisprotokoll, Karten-JSON und Ergebnis. Nach einem Neustart sind abgeschlossene Jobs weiter sichtbar; laufende gelten als abgebrochen. Alte Jobs werden nach einer einstellbaren Frist gelöscht.

@@ -21,6 +21,13 @@
       </ul>
       <ul>
         {% block nav %}{% endblock %}
+        {% if request.session.get("authenticated") %}
+        <li>
+          <form method="post" action="{{ url_for('logout') }}" class="nav-form">
+            <button type="submit" class="secondary outline">Abmelden</button>
+          </form>
+        </li>
+        {% endif %}
       </ul>
     </nav>
   </header>

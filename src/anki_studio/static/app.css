@@ -10,6 +10,20 @@ footer.container {
   padding-block: 1.5rem;
 }
 
+.nav-form {
+  margin: 0;
+}
+
+.nav-form button {
+  margin: 0;
+  padding: 0.35rem 0.9rem;
+}
+
+.login {
+  max-width: 28rem;
+  margin-inline: auto;
+}
+
 .components {
   display: grid;
   grid-template-columns: max-content 1fr;

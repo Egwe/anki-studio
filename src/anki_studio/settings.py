@@ -10,9 +10,10 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 CONFIG_ENV = "ANKI_STUDIO_CONFIG"
+FORBIDDEN_HOST_CHARACTERS = frozenset("/*[]@ \t")
 
 
 class SettingsError(Exception):
@@ -26,12 +27,36 @@ class StudioSettings(BaseModel):
         host: Address uvicorn listens on, for example ``0.0.0.0`` in the
             container or ``127.0.0.1`` for local development.
         port: TCP port of the web interface, 1–65535.
+        allowed_hosts: Host names and IP addresses the browser may use to
+            reach Anki Studio, without port; compared case-insensitively.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     host: str = Field(default="127.0.0.1", min_length=1)
     port: int = Field(default=8000, ge=1, le=65535)
+    allowed_hosts: tuple[str, ...] = Field(default=("localhost", "127.0.0.1"), min_length=1)
+
+    @field_validator("allowed_hosts")
+    @classmethod
+    def _normalize_hosts(cls, hosts: tuple[str, ...]) -> tuple[str, ...]:
+        """Lower-case the host names and reject wildcards, ports, and paths.
+
+        Args:
+            hosts: Configured host names.
+
+        Returns:
+            The trimmed, lower-case host names.
+
+        Raises:
+            ValueError: If an entry is empty or contains ``/``, ``*``,
+                brackets, ``@``, or whitespace, or ends with a port.
+        """
+        normalized = tuple(host.strip().lower() for host in hosts)
+        for host in normalized:
+            if not host or FORBIDDEN_HOST_CHARACTERS & set(host) or _has_port(host):
+                raise ValueError(f"ungültiger Hostname {host!r}: nur Name oder IP-Adresse")
+        return normalized
 
 
 def settings_path(explicit: Path | None) -> Path | None:
@@ -70,6 +95,19 @@ def load_settings(path: Path | None) -> StudioSettings:
         return StudioSettings.model_validate(data)
     except ValidationError as error:
         raise SettingsError(f"Ungültige Einstellungen in {path}: {_describe(error)}") from error
+
+
+def _has_port(host: str) -> bool:
+    """Detect a ``name:port`` entry while allowing bare IPv6 addresses.
+
+    Args:
+        host: Lower-case host entry.
+
+    Returns:
+        True for exactly one colon followed by digits, such as ``name:8000``.
+    """
+    _, colon, port = host.partition(":")
+    return bool(colon) and ":" not in port and port.isdigit()
 
 
 def _read_mapping(path: Path) -> dict[str, Any]:

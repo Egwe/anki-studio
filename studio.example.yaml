@@ -8,3 +8,9 @@ host: 127.0.0.1
 
 # Port der Oberfläche.
 port: 8000
+
+# Namen und IP-Adressen, unter denen der Browser Anki Studio aufruft (ohne Port).
+# Andere Host-Header werden mit 400 abgelehnt (Schutz vor DNS-Rebinding).
+allowed_hosts:
+  - localhost
+  - 127.0.0.1
