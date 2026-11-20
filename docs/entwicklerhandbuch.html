@@ -130,6 +130,7 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
     <tr><td><code>jobs.py</code></td><td><code>JobStore</code>: Job-Ordner, <code>job.json</code>, <code>events.jsonl</code>, Wiederanlauf, Löschfrist</td><td><code>test_jobs.py</code></td></tr>
     <tr><td><code>worker.py</code></td><td><code>JobWorker</code>: Warteschlange, ein Thread, Abbruch, Status-Ereignisse</td><td><code>test_worker.py</code></td></tr>
     <tr><td><code>secret_store.py</code></td><td><code>SecretStore</code>: API-Schlüssel als Fernet-Token in <code>secrets.enc</code>, erlaubte Namen, Vorrang der Umgebungsdatei, Übernahme in <code>os.environ</code>, Status ohne Werte</td><td><code>test_secret_store.py</code>, <code>test_web_keys.py</code></td></tr>
+    <tr><td><code>model_catalog.py</code></td><td>Modellliste je Provider: Tabelle <code>PROVIDERS</code> (Basis-URL, Pfad, Authentifizierung, Parser), <code>list_models(profile, environ, transport)</code>; Route <code>routes/models.py</code> liefert htmx-Fragmente</td><td><code>test_model_catalog.py</code>, <code>test_web_models.py</code></td></tr>
     <tr><td><code>generator_config.py</code></td><td>Generator-YAML laden (nur expliziter Pfad), aus <code>resources/generator-template.yaml</code> anlegen oder um fehlende Standardprofile ergänzen, wirksame Standardwerte und Profilübersicht über den Generator</td><td><code>test_generator_config.py</code></td></tr>
     <tr><td><code>forms.py</code></td><td><code>GenerateForm</code>: Typen, Bereiche, Enums, nur gesetzte Werte; deutsche Fehlermeldungen</td><td><code>test_forms.py</code></td></tr>
     <tr><td><code>generation.py</code></td><td><code>GenerationRunner</code>: Einstellungen je Job, Übertragungsprüfung, <code>produce_cards</code>, <code>cards.json</code></td><td><code>test_generation.py</code></td></tr>
@@ -267,6 +268,7 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
     <li><strong>KI simulieren:</strong> <code>monkeypatch.setattr(anki_flashcards.pipeline, "generate_cards", fake)</code>; der Fake ruft <code>kwargs["progress"](…)</code> auf, damit Fortschrittsereignisse entstehen. Für <code>native</code>: <code>pipeline.generate_native_cards</code>.</li>
     <li><strong>Web:</strong> Fixtures <code>client</code> (anonym) und <code>auth_client</code> (angemeldet) in <code>tests/conftest.py</code>; beide als Kontextmanager, damit <code>lifespan</code> den Worker startet. <code>studio_settings</code> legt Datenordner und Generator-YAML in <code>tmp_path</code>.</li>
     <li><strong>Asynchrones warten:</strong> <code>wait_until(bedingung)</code> mit Zeitlimit statt fester Pausen.</li>
+    <li><strong>Provider-HTTP:</strong> <code>app.state.http_transport</code> auf einen <code>httpx.MockTransport</code> setzen; <code>model_catalog</code>-Tests übergeben ihn direkt.</li>
     <li><strong>APKG:</strong> echte Pakete mit <code>anki_flashcards.apkg.create_apkg</code> im Testordner.</li>
     <li>Die Login-Verzögerung setzt eine Autouse-Fixture auf 0.</li>
   </ul>

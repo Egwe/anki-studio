@@ -19,7 +19,7 @@ from anki_studio.headers import SecurityHeadersMiddleware
 from anki_studio.hosts import HostCheckMiddleware
 from anki_studio.jobs import JobStore
 from anki_studio.limits import BodyLimitMiddleware
-from anki_studio.routes import generate, jobs, keys, login, pages
+from anki_studio.routes import generate, jobs, keys, login, models, pages
 from anki_studio.secret_store import STORE_FILE, SecretStore, SecretStoreError
 from anki_studio.settings import StudioSettings
 from anki_studio.templating import STATIC_DIR, create_templates
@@ -118,8 +118,9 @@ def create_app(
 
     Returns:
         A configured application; ``app.state`` holds ``settings``,
-        ``credentials``, and ``templates``, and while running ``jobs`` and
-        ``worker``.
+        ``credentials``, ``templates``, and ``http_transport`` (None for the
+        network; tests set a mock), and while running ``jobs``, ``worker``,
+        and ``secrets``.
 
     Raises:
         CredentialsError: If ``credentials`` is None and the environment
@@ -138,8 +139,9 @@ def create_app(
     app.state.settings = settings
     app.state.credentials = credentials
     app.state.templates = create_templates()
+    app.state.http_transport = None
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-    for module in (login, pages, generate, jobs, keys):
+    for module in (login, pages, generate, jobs, keys, models):
         app.include_router(module.router)
     app.add_middleware(LoginRequiredMiddleware)
     app.add_middleware(

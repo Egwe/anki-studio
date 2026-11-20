@@ -1,0 +1,11 @@
+{# Fragment for the key page: does the key work, and which models exist? #}
+{% if error %}
+<small class="field-error">{{ error }}</small>
+{% else %}
+<details>
+  <summary>Schlüssel funktioniert: {{ result.models | length }} Modelle von {{ result.provider }}</summary>
+  <ul class="model-names">
+    {% for name in result.models %}<li><code>{{ name }}</code></li>{% endfor %}
+  </ul>
+</details>
+{% endif %}
