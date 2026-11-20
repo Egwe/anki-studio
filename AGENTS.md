@@ -135,7 +135,8 @@ Bei Klassen werden wesentliche Attribute beziehungsweise Konstruktorparameter do
 
 ## 7. Sicherheit, Secrets und Uploads
 
-- Secrets (API-Schlüssel, Sync-Zugangsdaten, Login-Hash, Session-Schlüssel) stehen nur in der Umgebung: im Betrieb `/etc/anki-studio/env` (0600) als `EnvironmentFile`, lokal in einer nicht committeten `.env`. `.env.example` enthält nur Platzhalter.
+- Secrets (Sync-Zugangsdaten, Login-Hash, Session-Schlüssel, Verschlüsselungsschlüssel `ANKI_STUDIO_SECRET_KEY`) stehen nur in der Umgebung: im Betrieb `/etc/anki-studio/env` (0600) als `EnvironmentFile`, lokal in einer nicht committeten `.env`. `.env.example` enthält nur Platzhalter.
+- API-Schlüssel der Provider dürfen zusätzlich über die Oberfläche eingegeben werden und liegen dann nur verschlüsselt im Datenordner; Regeln und Grenzen in AS-035 (Entscheidung des Projektinhabers vom 21.11.2026). Die Oberfläche ist für Schlüssel nur schreibend.
 - Secrets und der Sync-`hkey` erscheinen nie in YAML, Logs, Job-Dateien, Ereignisprotokollen, Fehlermeldungen, Templates, Tests oder Commits. Die Oberfläche zeigt nur „gesetzt“ oder „fehlt“.
 - Login ist Pflicht (AS-030): Session-Cookie `HttpOnly` und `SameSite=Strict`, Prüfung des `Host`-Headers gegen erlaubte Namen.
 - Uploads (AS-033): Größe vor dem Speichern prüfen, Dateinamen nie ungeprüft als Pfad verwenden, nur im Job-Ordner ablegen.
