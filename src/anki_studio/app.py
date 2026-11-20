@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import timedelta
 
+from anki_flashcards.errors import FlashcardError
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
@@ -13,6 +14,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from anki_studio.auth import SESSION_COOKIE, SESSION_MAX_AGE, LoginRequiredMiddleware
 from anki_studio.credentials import SESSION_SECRET_ENV, Credentials, load_credentials
 from anki_studio.generation import GenerationRunner
+from anki_studio.generator_config import ensure_generator_config
 from anki_studio.headers import SecurityHeadersMiddleware
 from anki_studio.hosts import HostCheckMiddleware
 from anki_studio.jobs import JobStore
@@ -40,8 +42,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         ``app.state.worker`` are available meanwhile.
     """
     settings: StudioSettings = app.state.settings
+    _ensure_generator_config(settings)
     store = JobStore(settings.data_dir / "jobs")
-    runner = GenerationRunner(store, settings.generator_config)
+    runner = GenerationRunner(store, settings.generator_path)
     worker = JobWorker(store, runner, timedelta(days=settings.job_retention_days))
     worker.start()
     app.state.jobs = store
@@ -50,6 +53,28 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         worker.stop()
+
+
+def _ensure_generator_config(settings: StudioSettings) -> None:
+    """Create the generator YAML or add missing standard profiles at start.
+
+    A broken or unwritable file does not stop the application; the
+    generation page then explains the problem.
+
+    Args:
+        settings: Application settings.
+
+    Returns:
+        None.
+    """
+    path = settings.generator_path
+    try:
+        added = ensure_generator_config(path, settings.data_dir / "models")
+    except (FlashcardError, OSError) as error:
+        logger.warning("Generator-Konfiguration %s nicht ergänzt: %s", path, error)
+        return
+    if added:
+        logger.info("Generator-Konfiguration %s: Profile ergänzt: %s", path, ", ".join(added))
 
 
 def create_app(

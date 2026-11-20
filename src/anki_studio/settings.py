@@ -37,7 +37,8 @@ class StudioSettings(BaseModel):
             deleted, 1–3650.
         generator_config: YAML file of the generator (profiles, defaults,
             ``pdf_conversion``); relative paths are resolved like
-            ``data_dir``.
+            ``data_dir``; None means ``<data_dir>/generator.yaml``, where
+            Anki Studio may write it (AS-015).
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -47,7 +48,16 @@ class StudioSettings(BaseModel):
     allowed_hosts: tuple[str, ...] = Field(default=("localhost", "127.0.0.1"), min_length=1)
     data_dir: Path = Path("data")
     job_retention_days: int = Field(default=14, ge=1, le=3650)
-    generator_config: Path = Path("config.yaml")
+    generator_config: Path | None = None
+
+    @property
+    def generator_path(self) -> Path:
+        """Return the generator YAML that Anki Studio uses.
+
+        Returns:
+            ``generator_config`` if set, otherwise ``<data_dir>/generator.yaml``.
+        """
+        return self.generator_config or self.data_dir / "generator.yaml"
 
     @field_validator("allowed_hosts")
     @classmethod
@@ -119,14 +129,12 @@ def _with_absolute_paths(settings: StudioSettings, base: Path) -> StudioSettings
         base: Folder of ``studio.yaml``, or the working directory.
 
     Returns:
-        The settings with absolute paths.
+        The settings with absolute paths; an unset ``generator_config``
+        stays unset (see ``generator_path``).
     """
-    return settings.model_copy(
-        update={
-            "data_dir": base / settings.data_dir,
-            "generator_config": base / settings.generator_config,
-        }
-    )
+    data_dir = base / settings.data_dir
+    generator_config = base / settings.generator_config if settings.generator_config else None
+    return settings.model_copy(update={"data_dir": data_dir, "generator_config": generator_config})
 
 
 def _has_port(host: str) -> bool:

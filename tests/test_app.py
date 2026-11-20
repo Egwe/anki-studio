@@ -2,11 +2,15 @@
 
 import re
 from importlib.metadata import version
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
+from anki_studio.generator_config import load_generator_config
 from anki_studio.headers import CONTENT_SECURITY_POLICY
+from anki_studio.settings import StudioSettings
+from tests.conftest import make_client
 
 VENDOR_FILES = (
     ("vendor/htmx-2.0.11.min.js", "javascript"),
@@ -123,3 +127,20 @@ def test_api_documentation_is_disabled(auth_client: TestClient, path: str) -> No
         path: Default documentation path of FastAPI.
     """
     assert auth_client.get(path).status_code == 404
+
+
+def test_start_creates_generator_config_in_data_dir(tmp_path: Path) -> None:
+    """Without a configured path the app writes generator.yaml with all providers.
+
+    Args:
+        tmp_path: Temporary test folder.
+    """
+    settings = StudioSettings(allowed_hosts=("testserver",), data_dir=tmp_path / "data")
+
+    with make_client(settings) as client:
+        page = client.get("/healthz")
+
+    assert page.status_code == 200
+    created = load_generator_config(tmp_path / "data" / "generator.yaml").config
+    assert "anthropic-default" in created.models
+    assert created.pdf_conversion.models_dir == tmp_path / "data" / "models"
