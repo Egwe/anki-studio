@@ -19,6 +19,7 @@ readonly UV_CACHE="/var/cache/anki-studio/uv"
 readonly UNIT="anki-studio-preview"
 readonly UV_VERSION="0.13.7"
 readonly PORT="8000"
+readonly OLD_GENERATOR_MARKER="# Konfiguration des Anki Flashcard Generators für Anki Studio."
 
 log() {
   printf '==> %s\n' "$*"
@@ -96,7 +97,6 @@ ensure_studio_yaml() {
     { printf 'allowed_hosts:\n'; host_list; } >> "$studio"
   fi
   add_key_if_missing "$studio" data_dir "$DATA_DIR"
-  add_key_if_missing "$studio" generator_config "$CONFIG_DIR/config.yaml"
 }
 
 ensure_env_file() {
@@ -115,24 +115,26 @@ ensure_env_file() {
   fi
 }
 
-ensure_generator_config() {
-  local config="$CONFIG_DIR/config.yaml"
-  [[ -e "$config" ]] && return
-  log "$config anlegen (ohne Profile)"
-  cat > "$config" <<GENERATOR_YAML
-# Konfiguration des Anki Flashcard Generators für Anki Studio.
-# Profile wie in config.example.yaml des Generators unter "models:" ergänzen.
-# API-Schlüssel gehören nur in $CONFIG_DIR/env (api_key_env nennt die Variable).
-pdf_conversion:
-  models_dir: $DATA_DIR/models
-GENERATOR_YAML
+remove_old_generator_config() {
+  # Until 21.11.2026 this script pointed generator_config to a minimal file in
+  # /etc, which the service cannot write. The app now keeps the generator YAML
+  # in the data folder (AS-015); only the script's own leftovers are removed.
+  local studio="$CONFIG_DIR/studio.yaml" old="$CONFIG_DIR/config.yaml"
+  if grep -qx "generator_config: $old" "$studio"; then
+    log "alten Eintrag generator_config aus $studio entfernen"
+    sed -i "\#^generator_config: $old\$#d" "$studio"
+  fi
+  if [[ -e "$old" ]] && head -n 1 "$old" | grep -qx "$OLD_GENERATOR_MARKER"; then
+    log "vom Skript angelegte $old entfernen"
+    rm -f "$old"
+  fi
 }
 
 ensure_config() {
   install -d -m 0755 "$CONFIG_DIR"
   ensure_studio_yaml
   ensure_env_file
-  ensure_generator_config
+  remove_old_generator_config
 }
 
 install_unit() {

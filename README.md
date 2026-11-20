@@ -24,13 +24,12 @@ uv sync
 
 ```bash
 cp studio.example.yaml studio.yaml
-cp ../anki-flashcard-generator/config.example.yaml config.yaml   # Generator-YAML, anpassen
 cp .env.example .env
 uv run anki-studio hash-password      # Zeile ANKI_STUDIO_PASSWORD_HASH=… in .env eintragen
 uv run --env-file .env anki-studio serve --config studio.yaml
 ```
 
-`config.yaml` ist die Konfiguration des Generators (Profile, Standardwerte, `pdf_conversion`); API-Schlüssel der Profile kommen in `.env`. Danach ist die Oberfläche unter <http://127.0.0.1:8000> erreichbar. Ohne `--config` wird die Datei aus `ANKI_STUDIO_CONFIG` gelesen; ohne beides gelten die Standardwerte. Es läuft immer genau ein Serverprozess.
+Beim ersten Start legt Anki Studio die Konfiguration des Generators als `data/generator.yaml` an, mit einem Profil für jeden unterstützten Provider (AS-015). API-Schlüssel der Profile kommen vorerst in `.env`. Danach ist die Oberfläche unter <http://127.0.0.1:8000> erreichbar. Ohne `--config` wird die Datei aus `ANKI_STUDIO_CONFIG` gelesen; ohne beides gelten die Standardwerte. Es läuft immer genau ein Serverprozess.
 
 ## Anmeldung
 
@@ -62,7 +61,11 @@ Die Session hält 14 Tage; das Cookie ist `HttpOnly` und `SameSite=Strict`. Nach
 | `allowed_hosts` | `localhost`, `127.0.0.1` | Namen und IP-Adressen, unter denen der Browser Anki Studio aufruft, ohne Port und ohne Platzhalter |
 | `data_dir` | `data` | Ordner für Jobs (und später die Sammlung); relativ zur `studio.yaml`; im Container `/var/lib/anki-studio` |
 | `job_retention_days` | `14` | Abgeschlossene Jobs werden nach so vielen Tagen gelöscht (1–3650) |
-| `generator_config` | `config.yaml` | YAML des Generators; relativ zur `studio.yaml`; im Container `/etc/anki-studio/config.yaml` |
+| `generator_config` | `<data_dir>/generator.yaml` | YAML des Generators; nur setzen, wenn sie woanders liegen soll (relativ zur `studio.yaml`) |
+
+### Generator-Konfiguration mit allen Providern
+
+Die Generator-YAML liegt im Datenordner, damit Anki Studio sie schreiben und später über die Oberfläche bearbeiten kann (AS-009, AS-015). Fehlt sie, entsteht sie aus der mitgelieferten Vorlage [src/anki_studio/resources/generator-template.yaml](./src/anki_studio/resources/generator-template.yaml) mit Profilen für Ollama (Text und Bild), OpenAI (auch native PDF), Anthropic, Gemini, Mistral, DeepSeek, OpenRouter, Groq, xAI, Moonshot und einen eigenen OpenAI-kompatiblen Server, Rechte 0600 und absolutem `models_dir`. Bei jedem Start ergänzt Anki Studio fehlende Standardprofile; vorhandene Profile und Werte bleiben unverändert. Gespeichert wird über `save_config` des Generators, dabei gehen Kommentare der Datei verloren. Die Vorlage enthält nur Variablennamen für Schlüssel und keine Adressen aus dem Heimnetz.
 
 ## Generieren und Jobs
 
@@ -87,7 +90,7 @@ Das Skript ist idempotent und erledigt Folgendes:
 - installiert bei Bedarf `git` (apt) und uv 0.13.7 (mit Prüfsumme) nach `/usr/local/bin`,
 - holt `main` aus GitHub als Git-Checkout nach `/opt/anki-studio`,
 - installiert die Abhängigkeiten mit `uv sync --locked --no-dev` und dem System-Python 3.13 (Cache in `/var/cache/anki-studio/uv`),
-- ergänzt in `studio.yaml` fehlende Einträge für `data_dir` (`/var/lib/anki-studio`) und `generator_config` (`/etc/anki-studio/config.yaml`) und legt eine Generator-YAML ohne Profile an, falls keine existiert; Profile und API-Schlüssel trägt der Projektinhaber selbst ein,
+- ergänzt in `studio.yaml` einen fehlenden Eintrag `data_dir` (`/var/lib/anki-studio`) und entfernt den Eintrag `generator_config` und die Minimaldatei in `/etc`, die frühere Versionen des Skripts angelegt haben; die Generator-YAML liegt seitdem in `/var/lib/anki-studio/generator.yaml` und wird von Anki Studio selbst gepflegt,
 - legt `/etc/anki-studio/studio.yaml` (Host `0.0.0.0`, Port 8000) und `/etc/anki-studio/env` (0600) an, falls sie fehlen, und ergänzt fehlende Einträge: `allowed_hosts` mit Hostname und Adressen des Containers sowie einen zufälligen `ANKI_STUDIO_SESSION_SECRET`; vorhandene Werte bleiben unverändert,
 - startet den systemd-Dienst `anki-studio-preview` neu und prüft `/healthz`.
 

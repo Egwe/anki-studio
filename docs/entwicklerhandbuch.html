@@ -129,7 +129,7 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
     <tr><td><code>uploads.py</code></td><td>Dateinamen bereinigen, <code>UploadKind</code> (DOCUMENT, APKG), Größe vor und beim Speichern prüfen</td><td><code>test_uploads.py</code></td></tr>
     <tr><td><code>jobs.py</code></td><td><code>JobStore</code>: Job-Ordner, <code>job.json</code>, <code>events.jsonl</code>, Wiederanlauf, Löschfrist</td><td><code>test_jobs.py</code></td></tr>
     <tr><td><code>worker.py</code></td><td><code>JobWorker</code>: Warteschlange, ein Thread, Abbruch, Status-Ereignisse</td><td><code>test_worker.py</code></td></tr>
-    <tr><td><code>generator_config.py</code></td><td>Generator-YAML laden (nur expliziter Pfad), wirksame Standardwerte und Profilübersicht über den Generator</td><td><code>test_generator_config.py</code></td></tr>
+    <tr><td><code>generator_config.py</code></td><td>Generator-YAML laden (nur expliziter Pfad), aus <code>resources/generator-template.yaml</code> anlegen oder um fehlende Standardprofile ergänzen, wirksame Standardwerte und Profilübersicht über den Generator</td><td><code>test_generator_config.py</code></td></tr>
     <tr><td><code>forms.py</code></td><td><code>GenerateForm</code>: Typen, Bereiche, Enums, nur gesetzte Werte; deutsche Fehlermeldungen</td><td><code>test_forms.py</code></td></tr>
     <tr><td><code>generation.py</code></td><td><code>GenerationRunner</code>: Einstellungen je Job, Übertragungsprüfung, <code>produce_cards</code>, <code>cards.json</code></td><td><code>test_generation.py</code></td></tr>
     <tr><td><code>templating.py</code></td><td>Jinja2-Umgebung mit Versionen und Statusnamen</td><td>indirekt</td></tr>
@@ -155,7 +155,7 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
   <table>
     <tr><th>Quelle</th><th>Inhalt</th><th>Ort im Container</th></tr>
     <tr><td><code>studio.yaml</code></td><td>Einstellungen der Web-Anwendung (<code>StudioSettings</code>, unbekannte Schlüssel verboten)</td><td><code>/etc/anki-studio/studio.yaml</code></td></tr>
-    <tr><td>Generator-YAML</td><td>Profile, Standardwerte, <code>pdf_conversion</code>; Schema des Generators</td><td><code>/etc/anki-studio/config.yaml</code></td></tr>
+    <tr><td>Generator-YAML</td><td>Profile, Standardwerte, <code>pdf_conversion</code>; Schema des Generators; beim Start aus der Vorlage angelegt oder um fehlende Standardprofile ergänzt (<code>ensure_generator_config</code>, AS-015)</td><td><code>/var/lib/anki-studio/generator.yaml</code> (<code>StudioSettings.generator_path</code>)</td></tr>
     <tr><td>Umgebung</td><td><code>ANKI_STUDIO_PASSWORD_HASH</code>, <code>ANKI_STUDIO_SESSION_SECRET</code>, API-Schlüssel der Profile</td><td><code>/etc/anki-studio/env</code> (0600, <code>EnvironmentFile</code>)</td></tr>
   </table>
   <p><code>anki-studio serve</code> liest die Datei aus <code>--config</code> oder <code>ANKI_STUDIO_CONFIG</code>, sonst gelten die Standardwerte. Ungültige Einstellungen oder Secrets beenden den Start mit Exit-Code 1 und einer Meldung ohne Secret-Werte. Lokal lädt <code>uv run --env-file .env</code> die Secrets; der Generator selbst lädt keine <code>.env</code>.</p>

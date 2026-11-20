@@ -91,8 +91,9 @@ Schlicht und aufgeräumt, gut lesbar, Dark Mode, auf Desktop und Handy bedienbar
 **AS-014 – Modelle des Providers auswählen · soll · offen**
 Ist für einen Provider ein Schlüssel hinterlegt oder braucht er keinen (etwa Ollama), lädt Anki Studio auf ausdrückliche Aktion die Liste der verfügbaren Modelle beim Provider und bietet sie zur Auswahl an: im Generierungsformular und beim Bearbeiten eines Profils. Dabei geht nur der Schlüssel an den Provider, kein Dokumentinhalt. Fehler (Schlüssel ungültig, Provider nicht erreichbar) erscheinen verständlich; die freie Eingabe eines Modellnamens bleibt möglich.
 
-**AS-015 – Vorlage mit allen Providern · muss · offen**
+**AS-015 – Vorlage mit allen Providern · muss · umgesetzt**
 Die Generator-Konfiguration enthält immer ein Profil für jeden unterstützten Provider, auch ohne hinterlegten Schlüssel: Ollama (Text und Bild), OpenAI (auch native PDF), Anthropic, Google Gemini, Mistral, DeepSeek, OpenRouter, Groq, xAI, Moonshot und ein eigener OpenAI-kompatibler Server. Fehlt die Datei, legt Anki Studio sie aus einer mitgelieferten Vorlage an; fehlende Standardprofile ergänzt es beim Start, vorhandene Profile bleiben unverändert. Die Datei liegt im Datenordner (`<data_dir>/generator.yaml`), `pdf_conversion.models_dir` ist dort absolut. Die Vorlage im Repository enthält keine Adressen aus dem Heimnetz.
+*Umsetzung:* `resources/generator-template.yaml`, `generator_config.ensure_generator_config` beim Start (`tests/test_generator_config.py`, `tests/test_app.py`). In der Vorschau liegt seit dem 21.11.2026 die Konfiguration des Projektinhabers als Ausgangspunkt (`input_dir`/`output_dir` entfernt, `models_dir` absolut, vertauschte Ausgabegrenzen der OpenAI-Profile korrigiert); die übrigen Standardprofile ergänzt Anki Studio.
 
 **AS-016 – Bedienung ohne Container-Zugriff · muss · offen**
 Alles, was im täglichen Betrieb eingestellt wird, geht über die Oberfläche: Generator-Konfiguration und Profile (AS-009, AS-015), API-Schlüssel (AS-035), Modellwahl (AS-014), später Sync-Zugang und Login-Passwort. Shell-Zugriff auf den Container bleibt für Installation, Updates und Notfälle.
@@ -278,8 +279,8 @@ Jedes Paket ist ein Branch mit kleinen Commits, wird nach grünen Prüfungen mit
 | P2 | `feature/login` | Login, Session, Host-Prüfung | AS-030, AS-031 | erledigt |
 | P3 | `feature/job-queue` | Uploads, Job-Ordner, Worker | AS-032, AS-033 | erledigt |
 | P4 | `feature/generate` | Formular, Runner, Job-Seiten, Handbücher | AS-001–AS-004 | erledigt |
-| P4b | `feature/provider-template` | Vorlage mit allen Providern, Generator-YAML im Datenordner, Konfiguration des Projektinhabers in die Vorschau | AS-015, AS-009 (Teil) | als Nächstes |
-| P4c | `feature/secret-store` | API-Schlüssel verschlüsselt über die Oberfläche | AS-035, AS-031 | offen |
+| P4b | `feature/provider-template` | Vorlage mit allen Providern, Generator-YAML im Datenordner, Konfiguration des Projektinhabers in die Vorschau | AS-015, AS-009 (Teil) | erledigt |
+| P4c | `feature/secret-store` | API-Schlüssel verschlüsselt über die Oberfläche | AS-035, AS-031 | als Nächstes |
 | P4d | `feature/model-list` | Modelle vom Provider laden und auswählen | AS-014 | offen |
 | P5 | `feature/live-progress` | Live-Fortschritt per SSE | AS-004 | offen |
 | P6 | `feature/card-review` | Karten prüfen, bearbeiten, abwählen; APKG schreiben; Downloads | AS-005, AS-006 | offen |
