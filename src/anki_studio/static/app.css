@@ -134,3 +134,11 @@ fieldset {
 .events .status-line {
   color: var(--pico-muted-color);
 }
+
+.job-progress progress {
+  margin-bottom: 0.25rem;
+}
+
+.job-progress:empty {
+  display: none;
+}
