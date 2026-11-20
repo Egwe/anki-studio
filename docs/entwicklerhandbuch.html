@@ -129,6 +129,7 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
     <tr><td><code>uploads.py</code></td><td>Dateinamen bereinigen, <code>UploadKind</code> (DOCUMENT, APKG), Größe vor und beim Speichern prüfen</td><td><code>test_uploads.py</code></td></tr>
     <tr><td><code>jobs.py</code></td><td><code>JobStore</code>: Job-Ordner, <code>job.json</code>, <code>events.jsonl</code>, Wiederanlauf, Löschfrist</td><td><code>test_jobs.py</code></td></tr>
     <tr><td><code>worker.py</code></td><td><code>JobWorker</code>: Warteschlange, ein Thread, Abbruch, Status-Ereignisse</td><td><code>test_worker.py</code></td></tr>
+    <tr><td><code>secret_store.py</code></td><td><code>SecretStore</code>: API-Schlüssel als Fernet-Token in <code>secrets.enc</code>, erlaubte Namen, Vorrang der Umgebungsdatei, Übernahme in <code>os.environ</code>, Status ohne Werte</td><td><code>test_secret_store.py</code>, <code>test_web_keys.py</code></td></tr>
     <tr><td><code>generator_config.py</code></td><td>Generator-YAML laden (nur expliziter Pfad), aus <code>resources/generator-template.yaml</code> anlegen oder um fehlende Standardprofile ergänzen, wirksame Standardwerte und Profilübersicht über den Generator</td><td><code>test_generator_config.py</code></td></tr>
     <tr><td><code>forms.py</code></td><td><code>GenerateForm</code>: Typen, Bereiche, Enums, nur gesetzte Werte; deutsche Fehlermeldungen</td><td><code>test_forms.py</code></td></tr>
     <tr><td><code>generation.py</code></td><td><code>GenerationRunner</code>: Einstellungen je Job, Übertragungsprüfung, <code>produce_cards</code>, <code>cards.json</code></td><td><code>test_generation.py</code></td></tr>
@@ -156,7 +157,8 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
     <tr><th>Quelle</th><th>Inhalt</th><th>Ort im Container</th></tr>
     <tr><td><code>studio.yaml</code></td><td>Einstellungen der Web-Anwendung (<code>StudioSettings</code>, unbekannte Schlüssel verboten)</td><td><code>/etc/anki-studio/studio.yaml</code></td></tr>
     <tr><td>Generator-YAML</td><td>Profile, Standardwerte, <code>pdf_conversion</code>; Schema des Generators; beim Start aus der Vorlage angelegt oder um fehlende Standardprofile ergänzt (<code>ensure_generator_config</code>, AS-015)</td><td><code>/var/lib/anki-studio/generator.yaml</code> (<code>StudioSettings.generator_path</code>)</td></tr>
-    <tr><td>Umgebung</td><td><code>ANKI_STUDIO_PASSWORD_HASH</code>, <code>ANKI_STUDIO_SESSION_SECRET</code>, API-Schlüssel der Profile</td><td><code>/etc/anki-studio/env</code> (0600, <code>EnvironmentFile</code>)</td></tr>
+    <tr><td>Umgebung</td><td><code>ANKI_STUDIO_PASSWORD_HASH</code>, <code>ANKI_STUDIO_SESSION_SECRET</code>, <code>ANKI_STUDIO_SECRET_KEY</code>, optional API-Schlüssel</td><td><code>/etc/anki-studio/env</code> (0600, <code>EnvironmentFile</code>)</td></tr>
+    <tr><td>Schlüsselspeicher</td><td>in der Oberfläche eingegebene API-Schlüssel, Fernet-verschlüsselt</td><td><code>/var/lib/anki-studio/secrets.enc</code> (0600)</td></tr>
   </table>
   <p><code>anki-studio serve</code> liest die Datei aus <code>--config</code> oder <code>ANKI_STUDIO_CONFIG</code>, sonst gelten die Standardwerte. Ungültige Einstellungen oder Secrets beenden den Start mit Exit-Code 1 und einer Meldung ohne Secret-Werte. Lokal lädt <code>uv run --env-file .env</code> die Secrets; der Generator selbst lädt keine <code>.env</code>.</p>
 </section>
@@ -247,7 +249,8 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
     <li><strong>Login:</strong> scrypt (n=2<sup>15</sup>, r=8, p=1, rund 90 ms), Vergleich mit <code>hmac.compare_digest</code>, eine Sekunde Verzögerung nach Fehlversuchen, neue Session nach Erfolg.</li>
     <li><strong>CSP:</strong> <code>default-src 'self'</code>; <code>script-src 'self' 'unsafe-eval'</code> (Alpine braucht <code>new Function</code>); keine Inline-Skripte, keine Inline-Styles (htmx-Indikatorstyles sind per <code>htmx-config</code> abgeschaltet und stehen in <code>app.css</code>).</li>
     <li><strong>Uploads:</strong> Dateinamen ohne Pfadanteile, nur bekannte Endungen, Größe vor dem Speichern und beim Kopieren in eine <code>.part</code>-Datei geprüft; Job-IDs per Regex, bevor sie Pfade werden.</li>
-    <li><strong>Secrets:</strong> nur in der Umgebung; <code>Credentials</code> blendet Werte in <code>repr</code> aus; Meldungen nennen nur Variablennamen; die Oberfläche zeigt nur „gesetzt“ oder „fehlt“.</li>
+    <li><strong>Secrets:</strong> Login-Hash, Session- und Verschlüsselungsschlüssel nur in der Umgebung; <code>Credentials</code> blendet Werte in <code>repr</code> aus; Meldungen nennen nur Variablennamen.</li>
+    <li><strong>API-Schlüssel (AS-035):</strong> <code>SecretStore</code> verschlüsselt mit Fernet (Schlüssel aus <code>ANKI_STUDIO_SECRET_KEY</code>), schreibt atomar mit 0600, erlaubt nur <code>…_API_KEY</code>/<code>…_TOKEN</code>/<code>…_KEY</code> außerhalb von <code>ANKI_STUDIO_*</code>, lässt Werte aus der Umgebungsdatei unangetastet (<code>fixed</code>, beim Start erfasst) und setzt gespeicherte Werte in <code>os.environ</code>. Seiten und Logs enthalten nur Namen; Tests prüfen das für Seite, Log und Datei. In Tests stellt eine Autouse-Fixture <code>os.environ</code> wieder her.</li>
     <li><strong>Datenübertragung:</strong> <code>transfer_notice</code> erkennt <code>native</code> und Bild-Profile; Route und Runner verlangen die Bestätigung.</li>
   </ul>
 </section>
