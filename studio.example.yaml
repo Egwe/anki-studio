@@ -23,5 +23,6 @@ data_dir: data
 job_retention_days: 14
 
 # YAML-Konfiguration des Generators (Profile, Standardwerte, pdf_conversion).
-# Relativ zu dieser Datei; im Container /etc/anki-studio/config.yaml.
-generator_config: config.yaml
+# Standard: generator.yaml im data_dir; Anki Studio legt sie mit allen
+# Providern an und darf sie dort bearbeiten. Nur bei Bedarf setzen:
+# generator_config: /pfad/zur/generator.yaml

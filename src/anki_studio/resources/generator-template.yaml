@@ -1,0 +1,122 @@
+# Konfiguration des Anki Flashcard Generators für Anki Studio (AS-015).
+#
+# Anki Studio legt diese Datei aus seiner Vorlage an und ergänzt fehlende
+# Standardprofile beim Start; vorhandene Profile bleiben unverändert.
+# API-Schlüssel stehen nie hier: api_key_env nennt nur die Umgebungsvariable,
+# den Wert trägst du in Anki Studio unter „Zugangsdaten“ ein.
+# Die Modellnamen sind Beispiele; welche Modelle es gibt, weiß der Provider.
+
+schema_version: 1
+default_profile: ollama-local
+
+generation:
+  limit: 50
+  language: Deutsch
+  instructions: ""
+  chunk_size: 24000
+  subdecks: false
+
+pdf_conversion:
+  models_dir: __MODELS_DIR__
+  ocr_languages: [de, en]
+  force_ocr: false
+  formulas: true
+  allow_unreadable: false
+  allow_cpu: false
+  pictures:
+    backend: local
+    model: HuggingFaceTB/SmolVLM-256M-Instruct
+
+models:
+  # Ollama auf einem eigenen Server; api_base auf dessen Adresse setzen.
+  ollama-local:
+    model: ollama_chat/llama3.2
+    api_base: http://localhost:11434
+    timeout: 300
+    options:
+      temperature: 0.2
+  ollama-vision:
+    model: ollama_chat/qwen2.5vl:7b
+    api_base: http://localhost:11434
+    timeout: 300
+    image_input: true
+    options:
+      temperature: 0.1
+
+  # OpenAI. Im nativen PDF-Modus gehen die Optionen an die Responses API:
+  # max_output_tokens statt max_tokens.
+  openai-default:
+    model: openai/gpt-4o-mini
+    api_base: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY
+    options:
+      temperature: 0.2
+      max_tokens: 8192
+  openai-native-pdf:
+    model: openai/gpt-4o-mini
+    api_base: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY
+    pdf_mode: native
+    options:
+      temperature: 0.2
+      max_output_tokens: 8192
+
+  anthropic-default:
+    model: anthropic/claude-sonnet-4-5
+    api_base: https://api.anthropic.com
+    api_key_env: ANTHROPIC_API_KEY
+    options:
+      temperature: 0.2
+      max_tokens: 8192
+
+  gemini-default:
+    model: gemini/gemini-2.5-flash
+    api_key_env: GEMINI_API_KEY
+    options:
+      temperature: 0.2
+
+  mistral-default:
+    model: mistral/mistral-small-latest
+    api_key_env: MISTRAL_API_KEY
+    options:
+      temperature: 0.2
+
+  deepseek-default:
+    model: deepseek/deepseek-chat
+    api_key_env: DEEPSEEK_API_KEY
+    options:
+      temperature: 0.2
+
+  openrouter-default:
+    model: openrouter/openai/gpt-4o-mini
+    api_key_env: OPENROUTER_API_KEY
+    options:
+      temperature: 0.2
+
+  groq-default:
+    model: groq/llama-3.3-70b-versatile
+    api_key_env: GROQ_API_KEY
+    options:
+      temperature: 0.2
+
+  xai-default:
+    model: xai/grok-3-mini
+    api_key_env: XAI_API_KEY
+    options:
+      temperature: 0.2
+
+  moonshot-default:
+    model: moonshot/moonshot-v1-8k
+    api_base: https://api.moonshot.ai/v1
+    api_key_env: MOONSHOT_API_KEY
+    options:
+      temperature: 0.3
+      max_tokens: 4096
+
+  # Eigener OpenAI-kompatibler Server (vLLM, LM Studio, LocalAI …).
+  custom-openai-compatible:
+    model: openai/dein-modellname
+    api_base: http://localhost:8000/v1
+    api_key_env: CUSTOM_LLM_API_KEY
+    options:
+      temperature: 0.2

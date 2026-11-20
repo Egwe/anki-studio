@@ -114,7 +114,7 @@ def _submission_errors(
     """
     errors = _document_errors(documents) | _target_errors(form, documents, package)
     try:
-        generator = load_generator_config(request.app.state.settings.generator_config)
+        generator = load_generator_config(request.app.state.settings.generator_path)
     except FlashcardError as error:
         return errors | {"form": f"Generator-Konfiguration nicht nutzbar: {error}"}
     return errors | _settings_errors(generator, form)
@@ -236,9 +236,7 @@ def _render(
     """
     context: dict[str, Any] = {"values": values, "errors": errors, "max_documents": MAX_DOCUMENTS}
     try:
-        context |= _config_context(
-            load_generator_config(request.app.state.settings.generator_config)
-        )
+        context |= _config_context(load_generator_config(request.app.state.settings.generator_path))
     except FlashcardError as error:
         context["config_error"] = str(error)
     return request.app.state.templates.TemplateResponse(
