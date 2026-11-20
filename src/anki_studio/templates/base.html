@@ -26,9 +26,17 @@
         <li><a href="{{ url_for('generate_page') }}">Generieren</a></li>
         <li><a href="{{ url_for('job_list') }}">Jobs</a></li>
         <li>
-          <form method="post" action="{{ url_for('logout') }}" class="nav-form">
-            <button type="submit" class="secondary outline">Abmelden</button>
-          </form>
+          <details class="dropdown">
+            <summary>Einstellungen</summary>
+            <ul dir="rtl">
+              <li><a href="{{ url_for('keys_page') }}">Zugangsdaten</a></li>
+              <li>
+                <form method="post" action="{{ url_for('logout') }}" class="nav-form">
+                  <button type="submit" class="secondary outline">Abmelden</button>
+                </form>
+              </li>
+            </ul>
+          </details>
         </li>
         {% endif %}
       </ul>

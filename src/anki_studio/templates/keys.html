@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Zugangsdaten – Anki Studio{% endblock %}
+{% block content %}
+<hgroup>
+  <h1>Zugangsdaten</h1>
+  <p>API-Schlüssel der Provider. Ein eingegebener Schlüssel wird verschlüsselt gespeichert und nie wieder angezeigt; ersetzen oder löschen geht jederzeit.</p>
+</hgroup>
+
+{% if notice %}<article class="success" role="status">{{ notice }}</article>{% endif %}
+{% if not available %}
+<article class="alert">
+  <strong>Speichern ist nicht möglich.</strong>
+  <p><code>ANKI_STUDIO_SECRET_KEY</code> fehlt in der Umgebungsdatei. Das Vorschau- beziehungsweise Installationsskript legt ihn an.</p>
+</article>
+{% endif %}
+{% if store_error %}<article class="alert">{{ store_error }}</article>{% endif %}
+{% if config_error %}<article class="alert">Generator-Konfiguration nicht nutzbar: {{ config_error }}</article>{% endif %}
+
+{% for row in rows %}
+<article id="{{ row.name }}" class="key-row">
+  <header>
+    <code>{{ row.name }}</code>
+    {% if row.source.value == "environment" %}<span class="status status-done">aus der Umgebungsdatei</span>
+    {% elif row.source.value == "stored" %}<span class="status status-done">gespeichert</span>
+    {% else %}<span class="status">fehlt</span>{% endif %}
+  </header>
+  <p><small>
+    {% if profiles.get(row.name) %}Profile: {{ profiles[row.name] | join(", ") }}{% else %}Von keinem Profil verwendet.{% endif %}
+    {% if row.updated_at %} · zuletzt geändert {{ row.updated_at.strftime("%d.%m.%Y %H:%M") }} UTC{% endif %}
+  </small></p>
+  {% if row.source.value == "environment" %}
+  <p><small>Steht in <code>/etc/anki-studio/env</code> und hat dort Vorrang; hier nicht änderbar.</small></p>
+  {% else %}
+  <form method="post" action="{{ url_for('set_key', name=row.name) }}" autocomplete="off">
+    <fieldset role="group">
+      <input type="password" name="value" required autocomplete="new-password" spellcheck="false"
+             placeholder="{{ 'neuen Schlüssel eingeben' if row.source.value == 'stored' else 'Schlüssel eingeben' }}"
+             aria-label="Schlüssel für {{ row.name }}" {% if not available %}disabled{% endif %}
+             {% if errors[row.name] %}aria-invalid="true"{% endif %}>
+      <button type="submit" {% if not available %}disabled{% endif %}>{{ "Ersetzen" if row.source.value == "stored" else "Speichern" }}</button>
+    </fieldset>
+  </form>
+  {% if row.source.value == "stored" %}
+  <form method="post" action="{{ url_for('delete_key', name=row.name) }}">
+    <button type="submit" class="secondary outline">Löschen</button>
+  </form>
+  {% endif %}
+  {% endif %}
+  {% if errors[row.name] %}<small class="field-error">{{ errors[row.name] }}</small>{% endif %}
+</article>
+{% else %}
+<p>Kein Profil verwendet einen API-Schlüssel.</p>
+{% endfor %}
+
+{% for name, message in errors.items() if name not in (rows | map(attribute="name") | list) %}
+<article class="alert">{{ message }}</article>
+{% endfor %}
+
+<p><small>Die Eingabe läuft im Heimnetz wie das Login-Passwort über HTTP; über NetBird ist der Tunnel verschlüsselt. Gespeicherte Schlüssel liegen verschlüsselt in <code>secrets.enc</code> im Datenordner.</small></p>
+{% endblock %}

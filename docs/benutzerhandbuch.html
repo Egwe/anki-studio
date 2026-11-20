@@ -58,6 +58,7 @@ mark { background: var(--mark); color: inherit; }
   <a href="#ueberblick">Überblick</a>
   <a href="#anmelden">Anmelden und Abmelden</a>
   <a href="#startseite">Startseite</a>
+  <a href="#zugangsdaten">Zugangsdaten</a>
   <a href="#generieren">Karten generieren</a>
   <a href="#ziel">Ziel und Deck</a>
   <a href="#modell">Modell</a>
@@ -80,7 +81,7 @@ mark { background: var(--mark); color: inherit; }
 
 <section id="anmelden">
   <h2>Anmelden und Abmelden</h2>
-  <p>Jede Seite außer der Anmeldung verlangt das Passwort. Nach der Anmeldung bleibst du 14 Tage angemeldet, solange der Server nicht mit neuem Session-Schlüssel startet. <strong>Abmelden</strong> oben rechts beendet die Sitzung sofort.</p>
+  <p>Jede Seite außer der Anmeldung verlangt das Passwort. Nach der Anmeldung bleibst du 14 Tage angemeldet, solange der Server nicht mit neuem Session-Schlüssel startet. <strong>Einstellungen → Abmelden</strong> oben rechts beendet die Sitzung sofort.</p>
   <p>Nach einem falschen Passwort antwortet der Server erst nach einer Sekunde. Ist noch kein Passwort eingerichtet, erklärt die Anmeldeseite die Einrichtung, und niemand kann sich anmelden.</p>
   <h3>Passwort setzen oder ändern</h3>
   <p>Vom eigenen Rechner aus setzt dieser Befehl das Passwort im Container und startet die Vorschau neu. Er fragt das Passwort zweimal ab (mindestens 8 Zeichen); gespeichert wird nur ein Hash.</p>
@@ -94,6 +95,19 @@ mark { background: var(--mark); color: inherit; }
 <section id="startseite">
   <h2>Startseite</h2>
   <p>Die Startseite führt zu <strong>Karten generieren</strong> und zu den <strong>Jobs</strong> und zeigt die installierten Versionen von Anki Studio, Generator und Anki. Die Anki-Version muss zu der des Sync-Servers passen. Die Navigation oben bietet dieselben Ziele auf jeder Seite.</p>
+</section>
+
+<section id="zugangsdaten">
+  <h2>Zugangsdaten</h2>
+  <p>Unter <strong>Einstellungen → Zugangsdaten</strong> trägst du die API-Schlüssel der Provider ein. Die Seite listet jede Variable, die ein Profil verwendet (etwa <code>OPENAI_API_KEY</code> für <code>openai-default</code> und <code>openai-native-pdf</code>), mit ihrem Status:</p>
+  <table>
+    <tr><th>Status</th><th>Bedeutung</th></tr>
+    <tr><td>fehlt</td><td>Kein Schlüssel; Profile dieses Providers funktionieren noch nicht. Im Formular steht „Schlüssel fehlt“.</td></tr>
+    <tr><td>gespeichert</td><td>Du hast den Schlüssel hier eingegeben; er liegt verschlüsselt auf dem Server. Ersetzen oder Löschen geht jederzeit.</td></tr>
+    <tr><td>aus der Umgebungsdatei</td><td>Der Schlüssel steht in <code>/etc/anki-studio/env</code> auf dem Server und hat Vorrang; hier lässt er sich nicht ändern.</td></tr>
+  </table>
+  <p>Einen Schlüssel einfügen und <strong>Speichern</strong> wählen. Er gilt sofort, auch für den nächsten Job, und wird <strong>nie wieder angezeigt</strong>, auch nicht teilweise. Hast du ihn verloren, erzeugst du beim Provider einen neuen und ersetzt ihn hier.</p>
+  <div class="note warn">Im Heimnetz geht der Schlüssel wie das Login-Passwort unverschlüsselt per HTTP zum Server; über NetBird läuft er im verschlüsselten Tunnel. Ein Backup des Containers enthält die verschlüsselten Schlüssel zusammen mit dem Schlüssel zum Entschlüsseln.</div>
 </section>
 
 <section id="generieren">
@@ -183,7 +197,8 @@ mark { background: var(--mark); color: inherit; }
   <table>
     <tr><th>Meldung</th><th>Lösung</th></tr>
     <tr><td>Die Generator-Konfiguration ist nicht nutzbar</td><td>Die Datei aus <code>generator_config</code> fehlt oder ist ungültig. Im Container <code>/etc/anki-studio/config.yaml</code> prüfen.</td></tr>
-    <tr><td>Schlüssel fehlt (beim Profil)</td><td>Die in <code>api_key_env</code> genannte Variable in <code>/etc/anki-studio/env</code> eintragen und den Dienst neu starten.</td></tr>
+    <tr><td>Schlüssel fehlt (beim Profil)</td><td>Unter <a href="#zugangsdaten">Zugangsdaten</a> den Schlüssel des Providers eintragen.</td></tr>
+    <tr><td>Speichern ist nicht möglich (Zugangsdaten)</td><td><code>ANKI_STUDIO_SECRET_KEY</code> fehlt auf dem Server; das Vorschau-Skript legt ihn an.</td></tr>
     <tr><td>… Connection refused</td><td>Der Provider ist nicht erreichbar, etwa ein Ollama-Server; Adresse (API-Basis) und Dienst prüfen.</td></tr>
     <tr><td>Dateityp wird nicht unterstützt</td><td>Nur PDF, DOCX, HTML, Markdown und Text; zum Erweitern nur <code>.apkg</code>.</td></tr>
     <tr><td>… ist größer als 100 MiB</td><td>Dokument verkleinern oder aufteilen.</td></tr>

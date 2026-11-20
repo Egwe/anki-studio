@@ -142,7 +142,7 @@ Ein Passwort; nur sein Hash steht in der Umgebungsdatei. Session-Cookie `HttpOnl
 
 **AS-031 – Secrets · muss · teilweise**
 Login-Hash, Session-Schlüssel, Schlüssel der Verschlüsselung und Sync-Zugangsdaten nur in der Umgebungsdatei. API-Schlüssel der Provider in der Umgebungsdatei oder, über die Oberfläche eingegeben, verschlüsselt im Datenordner (AS-035; Änderung vom 21.11.2026, ursprünglich nur Umgebungsdatei). Die YAML enthält wie im Generator nur Variablennamen (`api_key_env`). Keine Secrets in Logs, Job-Dateien, Fehlermeldungen oder der Oberfläche.
-*Umgesetzt:* Login-Hash und Session-Schlüssel kommen nur aus der Umgebung; Fehlermeldungen nennen die Variable, nie den Wert; `repr` blendet die Werte aus (`tests/test_credentials.py`). *Offen:* API-Schlüssel (AS-035) und Sync-Zugangsdaten (mit AS-020).
+*Umgesetzt:* Login-Hash, Session- und Verschlüsselungsschlüssel kommen nur aus der Umgebung; Fehlermeldungen nennen die Variable, nie den Wert; `repr` blendet die Werte aus (`tests/test_credentials.py`); API-Schlüssel nach AS-035. *Offen:* Sync-Zugangsdaten (mit AS-020).
 
 **AS-032 – Jobs · muss · teilweise**
 Ein Job läuft zur Zeit (eine GPU, ein Benutzer); weitere warten in einer Warteschlange. Jeder Job hat einen Ordner mit Upload, Ereignisprotokoll, Karten-JSON und Ergebnis. Nach einem Neustart sind abgeschlossene Jobs weiter sichtbar; laufende gelten als abgebrochen. Alte Jobs werden nach einer einstellbaren Frist gelöscht.
@@ -152,7 +152,7 @@ Ein Job läuft zur Zeit (eine GPU, ein Benutzer); weitere warten in einer Wartes
 Größengrenze vor dem Speichern prüfen, Dateinamen nie ungeprüft als Pfad verwenden, Uploads nur im Job-Ordner ablegen.
 *Umgesetzt:* `uploads.py` bereinigt Dateinamen, lässt nur die Dokumenttypen des Generators zu, prüft die gemeldete Größe vor dem Schreiben und zählt beim Kopieren erneut; der Job-Ordner entsteht erst nach der Prüfung (`tests/test_uploads.py`, `tests/test_jobs.py`). Die Route `/generate` prüft alle Dateien vor dem Anlegen eines Jobs; `limits.BodyLimitMiddleware` lehnt POST-Anfragen ohne Längenangabe (411) oder über der Grenze (413) ab, bevor der Körper gelesen wird (`tests/test_limits.py`).
 
-**AS-035 – API-Schlüssel über die Oberfläche · muss · offen**
+**AS-035 – API-Schlüssel über die Oberfläche · muss · umgesetzt**
 API-Schlüssel der Provider lassen sich in der Oberfläche setzen, ersetzen und löschen. Sicherheitskonzept:
 - *Nur schreibend:* Die Oberfläche zeigt je Variable nur Herkunft und Status („aus der Umgebungsdatei“, „gespeichert am …“, „fehlt“), nie den Wert, auch nicht teilweise.
 - *Verschlüsselt:* Gespeicherte Schlüssel liegen als Fernet-Token (AES-128-CBC mit HMAC-SHA256, Bibliothek `cryptography`) in `<data_dir>/secrets.enc`, Rechte 0600, atomar ersetzt. Der Schlüssel dafür, `ANKI_STUDIO_SECRET_KEY`, steht nur in der Umgebungsdatei und wird vom Installations- beziehungsweise Vorschau-Skript erzeugt. Fehlt er, ist Speichern nicht möglich; es gibt keinen Klartext-Ersatz.
@@ -160,6 +160,8 @@ API-Schlüssel der Provider lassen sich in der Oberfläche setzen, ersetzen und 
 - *Vorrang:* Werte aus der Umgebungsdatei gelten und sind in der Oberfläche nicht änderbar. Gespeicherte Werte übernimmt Anki Studio beim Start und nach jeder Änderung in die Umgebung des eigenen Prozesses, aus der Generator (`api_key_env`) und LiteLLM lesen.
 - *Keine Spuren:* keine Werte in Logs, Job-Dateien, Ereignissen, Fehlermeldungen oder HTML; protokolliert wird nur „Schlüssel X geändert“.
 - *Grenzen, ausdrücklich dokumentiert:* Im LAN läuft die Eingabe wie das Login-Passwort über unverschlüsseltes HTTP (über NetBird ist der Tunnel verschlüsselt). Ein Backup mit Datenordner und Umgebungsdatei enthält Schlüssel und verschlüsselte Datei zusammen; die Verschlüsselung schützt Kopien des Datenordners ohne Umgebungsdatei, etwa ausgelagerte Job-Ordner. HTTPS bleibt eine spätere Option.
+
+*Umsetzung:* `secret_store.SecretStore`, Seite „Einstellungen → Zugangsdaten“ (`routes/keys.py`), `ANKI_STUDIO_SECRET_KEY` in `credentials.py` und `deploy/preview.sh`; belegt durch `tests/test_secret_store.py`, `tests/test_web_keys.py` (Wert nie in Seite, Log oder Datei), `tests/test_credentials.py` und einen Browser-Test (hell, dunkel, 390 px).
 
 **AS-034 – Tests · muss · teilweise**
 Reguläre Tests laufen ohne Netzwerk, ohne echten Sync-Server, ohne API-Schlüssel und ohne GPU. KI-Aufrufe werden wie im Generator simuliert (Patch-Ziel `anki_flashcards.pipeline.generate_cards` usw. oder `report`/`cancel`-Argumente). Für Sync-Tests eignet sich ein lokal gestarteter `python -m anki.syncserver` mit Testbenutzer auf `127.0.0.1` (Prototyp in Abschnitt 7.1 der Übergabe).
@@ -280,8 +282,8 @@ Jedes Paket ist ein Branch mit kleinen Commits, wird nach grünen Prüfungen mit
 | P3 | `feature/job-queue` | Uploads, Job-Ordner, Worker | AS-032, AS-033 | erledigt |
 | P4 | `feature/generate` | Formular, Runner, Job-Seiten, Handbücher | AS-001–AS-004 | erledigt |
 | P4b | `feature/provider-template` | Vorlage mit allen Providern, Generator-YAML im Datenordner, Konfiguration des Projektinhabers in die Vorschau | AS-015, AS-009 (Teil) | erledigt |
-| P4c | `feature/secret-store` | API-Schlüssel verschlüsselt über die Oberfläche | AS-035, AS-031 | als Nächstes |
-| P4d | `feature/model-list` | Modelle vom Provider laden und auswählen | AS-014 | offen |
+| P4c | `feature/secret-store` | API-Schlüssel verschlüsselt über die Oberfläche | AS-035, AS-031 | erledigt |
+| P4d | `feature/model-list` | Modelle vom Provider laden und auswählen | AS-014 | als Nächstes |
 | P5 | `feature/live-progress` | Live-Fortschritt per SSE | AS-004 | offen |
 | P6 | `feature/card-review` | Karten prüfen, bearbeiten, abwählen; APKG schreiben; Downloads | AS-005, AS-006 | offen |
 | P7 | `feature/config-editor` | Konfiguration anzeigen (Herkunft) und Profile und Standardwerte bearbeiten | AS-009, AS-016 | offen |

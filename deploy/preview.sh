@@ -110,6 +110,12 @@ ensure_env_file() {
     printf 'ANKI_STUDIO_SESSION_SECRET=%s\n' \
       "$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')" >> "$env_file"
   fi
+  if ! grep -q '^ANKI_STUDIO_SECRET_KEY=.' "$env_file"; then
+    log "Schlüssel für gespeicherte API-Schlüssel in $env_file ergänzen"
+    printf 'ANKI_STUDIO_SECRET_KEY=%s\n' \
+      "$(python3 -c 'import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())')" \
+      >> "$env_file"
+  fi
   if ! grep -q '^ANKI_STUDIO_PASSWORD_HASH=.' "$env_file"; then
     log "Noch kein Login-Passwort gesetzt; siehe README, Abschnitt Anmeldung."
   fi

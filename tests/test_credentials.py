@@ -4,9 +4,11 @@ import pytest
 
 from anki_studio.credentials import (
     PASSWORD_HASH_ENV,
+    SECRET_KEY_ENV,
     SESSION_SECRET_ENV,
     CredentialsError,
     load_credentials,
+    new_secret_key,
 )
 from anki_studio.passwords import hash_password
 
@@ -55,3 +57,26 @@ def test_repr_hides_secrets() -> None:
 
     assert encoded not in text
     assert SECRET not in text
+
+
+def test_reads_valid_secret_key() -> None:
+    """A Fernet key is taken over and hidden from ``repr``."""
+    key = new_secret_key()
+
+    credentials = load_credentials({SECRET_KEY_ENV: key, SESSION_SECRET_ENV: SECRET})
+
+    assert credentials.secret_key == key
+    assert key not in repr(credentials)
+
+
+def test_missing_secret_key_is_allowed() -> None:
+    """Without the key the app starts; API keys just cannot be stored."""
+    assert load_credentials({SESSION_SECRET_ENV: SECRET}).secret_key is None
+
+
+def test_invalid_secret_key_is_rejected_without_value() -> None:
+    """A malformed key stops the start; the message hides the value."""
+    with pytest.raises(CredentialsError, match=SECRET_KEY_ENV) as error:
+        load_credentials({SECRET_KEY_ENV: "kein-fernet-schluessel"})
+
+    assert "kein-fernet-schluessel" not in str(error.value)

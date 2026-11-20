@@ -19,7 +19,8 @@ from anki_studio.headers import SecurityHeadersMiddleware
 from anki_studio.hosts import HostCheckMiddleware
 from anki_studio.jobs import JobStore
 from anki_studio.limits import BodyLimitMiddleware
-from anki_studio.routes import generate, jobs, login, pages
+from anki_studio.routes import generate, jobs, keys, login, pages
+from anki_studio.secret_store import STORE_FILE, SecretStore, SecretStoreError
 from anki_studio.settings import StudioSettings
 from anki_studio.templating import STATIC_DIR, create_templates
 from anki_studio.worker import JobWorker
@@ -43,6 +44,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     settings: StudioSettings = app.state.settings
     _ensure_generator_config(settings)
+    _open_secret_store(app)
     store = JobStore(settings.data_dir / "jobs")
     runner = GenerationRunner(store, settings.generator_path)
     worker = JobWorker(store, runner, timedelta(days=settings.job_retention_days))
@@ -75,6 +77,30 @@ def _ensure_generator_config(settings: StudioSettings) -> None:
         return
     if added:
         logger.info("Generator-Konfiguration %s: Profile ergänzt: %s", path, ", ".join(added))
+
+
+def _open_secret_store(app: FastAPI) -> None:
+    """Open the encrypted key store and apply its keys to the environment.
+
+    A file that cannot be decrypted does not stop the application; the key
+    page shows the problem (AS-035).
+
+    Args:
+        app: The application; sets ``app.state.secrets`` and
+            ``app.state.secrets_error``.
+
+    Returns:
+        None.
+    """
+    settings: StudioSettings = app.state.settings
+    store = SecretStore(settings.data_dir / STORE_FILE, app.state.credentials.secret_key)
+    app.state.secrets = store
+    app.state.secrets_error = None
+    try:
+        store.apply()
+    except SecretStoreError as error:
+        logger.warning("Gespeicherte API-Schlüssel nicht geladen: %s", error)
+        app.state.secrets_error = str(error)
 
 
 def create_app(
@@ -113,7 +139,7 @@ def create_app(
     app.state.credentials = credentials
     app.state.templates = create_templates()
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-    for module in (login, pages, generate, jobs):
+    for module in (login, pages, generate, jobs, keys):
         app.include_router(module.router)
     app.add_middleware(LoginRequiredMiddleware)
     app.add_middleware(
