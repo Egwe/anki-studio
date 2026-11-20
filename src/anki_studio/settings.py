@@ -1,8 +1,9 @@
 """Load the settings of Anki Studio itself from ``studio.yaml``.
 
-These settings describe the web application (listening address, later data
-paths and the sync endpoint). Card generation settings stay in the
-generator's own YAML file; secrets only come from the environment.
+These settings describe the web application (listening address, allowed
+host names, data folder, job retention; later the sync endpoint). Card
+generation settings stay in the generator's own YAML file; secrets only
+come from the environment.
 """
 
 import os
@@ -29,6 +30,11 @@ class StudioSettings(BaseModel):
         port: TCP port of the web interface, 1–65535.
         allowed_hosts: Host names and IP addresses the browser may use to
             reach Anki Studio, without port; compared case-insensitively.
+        data_dir: Folder for jobs and later the collection; a relative path
+            is resolved next to ``studio.yaml`` (without file: the working
+            directory) by ``load_settings``.
+        job_retention_days: Finished jobs older than this many days are
+            deleted, 1–3650.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -36,6 +42,8 @@ class StudioSettings(BaseModel):
     host: str = Field(default="127.0.0.1", min_length=1)
     port: int = Field(default=8000, ge=1, le=65535)
     allowed_hosts: tuple[str, ...] = Field(default=("localhost", "127.0.0.1"), min_length=1)
+    data_dir: Path = Path("data")
+    job_retention_days: int = Field(default=14, ge=1, le=3650)
 
     @field_validator("allowed_hosts")
     @classmethod
@@ -82,19 +90,35 @@ def load_settings(path: Path | None) -> StudioSettings:
         path: YAML file to read, or None to use the built-in defaults.
 
     Returns:
-        Validated, immutable settings.
+        Validated, immutable settings with an absolute ``data_dir``.
 
     Raises:
         SettingsError: If the file cannot be read, is no YAML mapping, or
             contains unknown keys or invalid values.
     """
     if path is None:
-        return StudioSettings()
+        return _with_absolute_data_dir(StudioSettings(), Path.cwd())
     data = _read_mapping(path)
     try:
-        return StudioSettings.model_validate(data)
+        settings = StudioSettings.model_validate(data)
     except ValidationError as error:
         raise SettingsError(f"Ungültige Einstellungen in {path}: {_describe(error)}") from error
+    return _with_absolute_data_dir(settings, path.absolute().parent)
+
+
+def _with_absolute_data_dir(settings: StudioSettings, base: Path) -> StudioSettings:
+    """Resolve a relative data folder against a base folder.
+
+    Args:
+        settings: Validated settings.
+        base: Folder of ``studio.yaml``, or the working directory.
+
+    Returns:
+        The settings with an absolute ``data_dir``.
+    """
+    if settings.data_dir.is_absolute():
+        return settings
+    return settings.model_copy(update={"data_dir": base / settings.data_dir})
 
 
 def _has_port(host: str) -> bool:
