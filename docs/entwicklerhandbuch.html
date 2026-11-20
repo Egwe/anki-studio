@@ -106,7 +106,7 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
         <text x="570" y="228" text-anchor="middle">worker (JobWorker, ein Thread)</text>
         <text x="570" y="246" text-anchor="middle">generation (GenerationRunner)</text>
         <rect class="box accent" x="10" y="280" width="740" height="40" rx="6"/>
-        <text x="380" y="305" text-anchor="middle">anki_flashcards 0.2.0: settings · pipeline · models · apkg · errors</text>
+        <text x="380" y="305" text-anchor="middle">anki_flashcards 0.2.1: settings · pipeline · models · apkg · errors</text>
       </g>
     </svg>
     <figcaption>Abhängigkeiten zeigen nach unten. Routen kennen Dienste; Dienste kennen weder Request noch Templates.</figcaption>
@@ -166,7 +166,7 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
 
 <section id="generator">
   <h2>Einbindung des Generators</h2>
-  <p>Abhängigkeit über den Git-Tag <code>v0.2.0</code>. Verwendet werden nur öffentliche Namen:</p>
+  <p>Abhängigkeit über den Git-Tag <code>v0.2.1</code>. Verwendet werden nur öffentliche Namen:</p>
   <table>
     <tr><th>Aufruf</th><th>Zweck in Anki Studio</th></tr>
     <tr><td><code>settings.load_selected_config(path)</code></td><td>YAML immer mit explizitem Pfad laden, nie <code>ANKI_CONFIG</code> oder <code>./config.yaml</code></td></tr>
@@ -285,9 +285,9 @@ ssh ct-anki-studio 'journalctl -u anki-studio-preview -n 50 --no-pager'</code></
 <section id="besonderheiten">
   <h2>Besonderheiten</h2>
   <ul>
-    <li><code>tenacity</code> ist direkte Abhängigkeit: LiteLLM braucht es für die <code>num_retries</code> des Generators, deklariert es aber nicht; der Generator 0.2.0 auch nicht.</li>
+    <li><code>tenacity</code> braucht LiteLLM für die <code>num_retries</code> des Generators; LiteLLM deklariert es nicht, der Generator seit 0.2.1 schon. <code>tests/test_dependencies.py</code> sichert den Import ab.</li>
     <li>Die Klasse <code>JobStore</code> heißt ihre Listenmethode <code>list_jobs</code>, weil eine Methode <code>list</code> im Klassenkörper die späteren Annotationen <code>list[…]</code> überdecken würde.</li>
-    <li>Die Quadro K1200 braucht PyTorch aus dem <code>cu126</code>-Index; die Formelerkennung von Docling passt mit Batch-Größe 5 nicht in 4 GiB VRAM (requirements.md, Abschnitt 5.3).</li>
+    <li>Die Quadro K1200 braucht PyTorch aus dem <code>cu126</code>-Index; die Formelerkennung braucht dort <code>pdf_conversion.formula_batch_size: 1</code> (Generator 0.2.1, requirements.md Abschnitt 5.3).</li>
   </ul>
 </section>
 

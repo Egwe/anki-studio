@@ -18,7 +18,7 @@ Voraussetzung ist [uv](https://docs.astral.sh/uv/). Die Python-Version steht in 
 uv sync
 ```
 
-`uv sync` installiert die Abhängigkeiten aus `uv.lock` in `.venv`, darunter `anki==26.09.4` (genau die Version des Sync-Servers) und den Generator vom Git-Tag `v0.2.0`.
+`uv sync` installiert die Abhängigkeiten aus `uv.lock` in `.venv`, darunter `anki==26.09.4` (genau die Version des Sync-Servers) und den Generator vom Git-Tag `v0.2.1`.
 
 ## Lokal starten
 
@@ -136,7 +136,6 @@ Alle Dateien liegen unter [src/anki_studio/static/vendor/](./src/anki_studio/sta
 
 - Erzeugte Karten lassen sich noch nicht prüfen, herunterladen oder schreiben (folgt mit AS-005/AS-006); Sync und Deployment folgen in den Phasen 3 und 4.
 - Der strukturierte PDF-Modus braucht das Extra `pdf` mit PyTorch aus dem `cu126`-Index; Anki Studio installiert es noch nicht (AS-041). Ohne Docling bricht ein solcher Job mit einer Meldung des Generators ab.
-- `tenacity` ist eine direkte Abhängigkeit, weil LiteLLM es für die Wiederholversuche des Generators braucht, aber weder LiteLLM noch der Generator 0.2.0 es deklarieren.
 - Die Verbindung ist unverschlüsseltes HTTP; Betrieb nur im LAN und über NetBird. Das Cookie trägt deshalb kein `Secure`-Attribut, und auch API-Schlüssel gehen im LAN unverschlüsselt zum Server (über NetBird im verschlüsselten Tunnel).
 - Ein Backup mit Datenordner und Umgebungsdatei enthält die verschlüsselten Schlüssel zusammen mit dem Entschlüsselungsschlüssel.
 - Die Verzögerung nach falschen Passwörtern bremst nur einzelne Versuche; parallele Versuche werden nicht gezählt oder gesperrt.

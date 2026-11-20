@@ -260,12 +260,13 @@ Zugriff von unterwegs: NetBird führt über einen Routing-Peer ins Heimnetz; die
 | Sync gegen den echten Server | Prototyp-Ablauf mit eigenem Testbenutzer wiederholen und das Ergebnis in AnkiDroid prüfen (Phase 0); die echte Sammlung bleibt unberührt |
 | Erster Import des Notiztyps erzwingt Komplett-Sync | Lokal widerlegt (Übergabe Abschnitt 7.1); gegen den echten Server bestätigen |
 | GPU K1200 mit aktuellem PyTorch | Nutzbar mit `cu126` (Abschnitt 5.3); vor einem PyTorch- oder Treiber-Update erneut prüfen |
-| Formeln auf 4 GiB VRAM | Batch-Größe des Formelmodells im Generator einstellbar machen (Abschnitt 5.3); vom Projektinhaber am 21.11.2026 für Generator 0.2.1 freigegeben |
-| GPU-Erkennung meldet `cuda` trotz fehlendem `sm_50` | Mit `cu126` kein Problem; bleibt ein Risiko, falls ein Build ohne `sm_50` installiert wird. Genauere Prüfung im Generator 0.2.1 (freigegeben am 21.11.2026). |
+| Formeln auf 4 GiB VRAM | Generator 0.2.1: `pdf_conversion.formula_batch_size` (R-159 des Generators); für die K1200 mit AS-041 auf `1` setzen |
+| GPU-Erkennung meldet `cuda` trotz fehlendem `sm_50` | Erledigt: Generator 0.2.1 prüft die Architektur gegen den PyTorch-Build (R-160 des Generators) und nennt eine nicht unterstützte GPU ausdrücklich. |
 | Stabile GUIDs des Generators | Wird eine generierte Notiz in ein anderes Deck verschoben und dieselbe Frage im ursprünglichen Deck erneut erzeugt, entsteht eine zweite Notiz mit gleicher GUID. Für Sync unkritisch, bei späteren APKG-Importen zu beachten. |
 | Relative Pfade in der YAML | `pdf_conversion.models_dir` absolut setzen; `input_dir`, `output_dir`, `source_text_dir` und `generation.json_output` nicht verwenden, Pfade je Job ausdrücklich übergeben |
 | Prozessweite Umgebungsvariablen | `model_storage.configure_model_storage()` setzt Cache-Variablen für den ganzen Prozess; unkritisch bei einem Modellordner pro Prozess |
-| `tenacity` fehlt in den Abhängigkeiten | LiteLLM braucht es für `num_retries` des Generators, aber weder LiteLLM 1.110 noch der Generator 0.2.0 deklarieren es; ohne es scheitert jeder KI-Aufruf. Anki Studio führt es als direkte Abhängigkeit. Im Generator 0.2.1 deklarieren (freigegeben am 21.11.2026); danach entfällt die direkte Abhängigkeit hier. |
+| `tenacity` fehlt in den Abhängigkeiten | Erledigt: Generator 0.2.1 deklariert es; die direkte Abhängigkeit hier ist entfernt, `tests/test_dependencies.py` sichert den Import. |
+| Mehrwort-Tags kleiner Modelle | Erledigt: In einem echten Lauf im Container (gemma3:4b über Ollama) verwarf der Generator 0.2.0 den ganzen Abschnitt wegen Tags wie „Ohmsches Gesetz“; Generator 0.2.1 zieht sie zu `Ohmsches_Gesetz` zusammen (R-177 des Generators). |
 | Aufbereiteter Text immer im Job-Ordner | Abweichung von AS-001, vom Projektinhaber am 21.11.2026 akzeptiert |
 | Lizenz | Das `anki`-Paket ist AGPL-3.0; für den privaten Betrieb unkritisch, vor einer Veröffentlichung von Anki Studio klären |
 | Unverschlüsseltes HTTP zum Sync-Server | Nur LAN beziehungsweise NetBird; nicht ins Internet öffnen |
@@ -288,7 +289,7 @@ Jedes Paket ist ein Branch mit kleinen Commits, wird nach grünen Prüfungen mit
 | P5 | `feature/live-progress` | Live-Fortschritt per SSE | AS-004 | als Nächstes |
 | P6 | `feature/card-review` | Karten prüfen, bearbeiten, abwählen; APKG schreiben; Downloads | AS-005, AS-006 | offen |
 | P7 | `feature/config-editor` | Konfiguration anzeigen (Herkunft) und Profile und Standardwerte bearbeiten | AS-009, AS-016 | offen |
-| G1 | Generator-Repo | Generator 0.2.1: `tenacity`, Batch-Größe Formeln, genauere GPU-Prüfung; danach Anki Studio auf `v0.2.1` | – | freigegeben, offen |
+| G1 | Generator-Repo | Generator 0.2.1: `tenacity`, Mehrwort-Tags, Batch-Größe Formeln, genauere GPU-Prüfung; Anki Studio auf `v0.2.1` | – | erledigt (vorgezogen) |
 | P8 | `feature/structured-mode` | Extra `pdf` mit PyTorch `cu126`, Modelle laden, GPU-Anzeige | AS-041, AS-010 | offen |
 | P9 | `feature/decks-export` | Decks einer APKG, Export Karten-JSON → APKG | AS-007, AS-008 (APKG-Teile) | offen |
 | Phase 3 | `feature/sync-…` | Sync-Client, Sammlung als Ziel, Sync-Status; braucht einen Testbenutzer des Projektinhabers | AS-020–AS-025, AS-002, AS-006, AS-007, AS-008, AS-011 | offen |
