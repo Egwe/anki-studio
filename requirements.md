@@ -58,9 +58,9 @@ Ziel ist entweder ein Deck der synchronisierten Sammlung (Auswahl aus vorhandene
 Bei `pdf_mode: native` und beim Bild-Backend `profile` muss der Benutzer vor dem Start ausdrücklich bestätigen, dass das Dokument beziehungsweise Bildausschnitte an den Provider gehen. Ohne Bestätigung startet der Job nicht. Während des Laufs kommen dieselben Ankündigungen als `Notice` mit `level == "transfer"` und werden hervorgehoben.
 *Umsetzung:* `generation.transfer_notice` erkennt `native` und das Bild-Backend `profile` im strukturierten Modus anhand der wirksamen Einstellungen (auch wenn das Profil den Modus vorgibt); Formular und Runner verlangen die Bestätigung; die Job-Seite hebt `transfer`-Hinweise hervor (`tests/test_generation.py`, `tests/test_web_generate.py`).
 
-**AS-004 – Live-Fortschritt · muss · teilweise**
+**AS-004 – Live-Fortschritt · muss · umgesetzt**
 Job-Seite mit Live-Fortschritt aus den Generator-Ereignissen: Phase, Schritte, Abschnitte, Anzahl einzigartiger Karten, Hinweise und Warnungen, Statistik der Aufbereitung. Ein Job lässt sich abbrechen (R-172 des Generators).
-*Umgesetzt:* Job-Seite mit Phase, Schritten, Abschnitten, Kartenzahl, Hinweisen, Warnungen und Statistik aus `events.jsonl`, Abbrechen für wartende und laufende Jobs. *Offen:* Live-Übertragung per SSE; bis dahin lädt sich die Seite alle drei Sekunden neu.
+*Umsetzung:* Job-Seite mit Phase, Schritten, Abschnitten, Kartenzahl, Hinweisen, Warnungen und Statistik aus `events.jsonl`; Live-Übertragung per Server-Sent Events (`/jobs/<id>/events`, htmx-SSE-Erweiterung) mit Fortsetzung nach Verbindungsabbruch; Abbrechen für wartende und laufende Jobs. Belegt durch `tests/test_live.py`, `tests/test_worker.py` und einen Chrome-Test mit simuliertem Ollama (zehn Abschnitte, Fortschritt live, Abschluss ohne Neuladen).
 
 **AS-005 – Karten prüfen · muss · offen**
 Nach der Generierung erscheinen die Karten in einer Tabelle: Frage, Antwort, Unterdeck, Tags. Einzelne Karten lassen sich bearbeiten, löschen oder abwählen. Erst danach wird geschrieben. Bearbeitete Karten durchlaufen dieselbe Pydantic-Validierung des Generators (`Card`).
@@ -246,7 +246,11 @@ Lauf 2 überschnitt sich 14 Sekunden mit der ersten Vorschau-Installation; das �
 - Mit Formeln ist der VRAM fast voll (3,8 GiB von 4 GiB). Ein zweiter GPU-Prozess hätte keinen Platz; das passt zu einem Job zur Zeit (AS-032).
 - Docling meldete, dass es den Kernel-Cache unter `models/cache/torch/kernels` nicht anlegen konnte. Das schaltet nur diesen Cache ab und hatte keine sichtbare Auswirkung.
 
-### 5.4 Vorschau-Betrieb
+### 5.4 Ende-zu-Ende-Test im Container (21.11.2026)
+
+Ein echter Lauf mit der Pipeline des Generators in der Umgebung der Vorschau gegen den Ollama-Server des Projektinhabers, mit dem lokalen Modell `gemma3:4b` (bewusst kein Cloud-Modell) und einem kurzen, unverfänglichen Text: Mit Generator 0.2.0 scheiterte der Abschnitt an Mehrwort-Tags; mit 0.2.1 entstanden 2 Karten in 12,5 s mit den Tags `Ohmsches_Gesetz`, `Spannung`, `Widerstand`. Der Ollama-Server ist vom Container aus erreichbar und bietet 11 Modelle an.
+
+### 5.5 Vorschau-Betrieb
 
 Seit dem 20.11.2026 läuft im Container eine Vorschau des Stands von `main` als systemd-Dienst `anki-studio-preview` auf Port 8000, eingerichtet und aktualisiert mit `deploy/preview.sh` (README, Abschnitt „Vorschau im Container“; Regeln in AGENTS.md Abschnitt 8). Sie ersetzt nicht die Installation nach AS-040.
 
@@ -286,8 +290,8 @@ Jedes Paket ist ein Branch mit kleinen Commits, wird nach grünen Prüfungen mit
 | P4b | `feature/provider-template` | Vorlage mit allen Providern, Generator-YAML im Datenordner, Konfiguration des Projektinhabers in die Vorschau | AS-015, AS-009 (Teil) | erledigt |
 | P4c | `feature/secret-store` | API-Schlüssel verschlüsselt über die Oberfläche | AS-035, AS-031 | erledigt |
 | P4d | `feature/model-list` | Modelle vom Provider laden und auswählen | AS-014 | erledigt |
-| P5 | `feature/live-progress` | Live-Fortschritt per SSE | AS-004 | als Nächstes |
-| P6 | `feature/card-review` | Karten prüfen, bearbeiten, abwählen; APKG schreiben; Downloads | AS-005, AS-006 | offen |
+| P5 | `feature/live-progress` | Live-Fortschritt per SSE | AS-004 | erledigt |
+| P6 | `feature/card-review` | Karten prüfen, bearbeiten, abwählen; APKG schreiben; Downloads | AS-005, AS-006 | als Nächstes |
 | P7 | `feature/config-editor` | Konfiguration anzeigen (Herkunft) und Profile und Standardwerte bearbeiten | AS-009, AS-016 | offen |
 | G1 | Generator-Repo | Generator 0.2.1: `tenacity`, Mehrwort-Tags, Batch-Größe Formeln, genauere GPU-Prüfung; Anki Studio auf `v0.2.1` | – | erledigt (vorgezogen) |
 | P8 | `feature/structured-mode` | Extra `pdf` mit PyTorch `cu126`, Modelle laden, GPU-Anzeige | AS-041, AS-010 | offen |
