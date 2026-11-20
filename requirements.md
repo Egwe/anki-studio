@@ -33,7 +33,7 @@ Die Entscheidungen zu Basis, Rolle, Generator-Einbindung, Backend, Frontend, Liv
 | Phase | Inhalt | Ort | Stand |
 |---|---|---|---|
 | 0 | Sync-Prototyp | lokal und gegen den echten Server | lokal erledigt (Übergabe Abschnitt 7.1); gegen den echten Server mit Testbenutzer offen |
-| 0b | Container-Bestandsaufnahme und GPU-Test | Container | Bestandsaufnahme erledigt (Abschnitt 5); GPU-Test offen |
+| 0b | Container-Bestandsaufnahme und GPU-Test | Container | **erledigt** (Abschnitt 5) |
 | 1 | Vorbereitung des Generators: R-170 bis R-176, Version 0.2.0 | Generator-Repo | **erledigt**: Generator 0.2.0, Git-Tag `v0.2.0`; R-170 bis R-176 dort umgesetzt (Übergabe Abschnitt 12) |
 | 2 | Web-MVP: Login, Generieren, Live-Fortschritt, Prüfen, APKG- und JSON-Download | anki-studio | offen |
 | 3 | Sync: Anmeldung, lokale Sammlung, Deckauswahl, Schreiben und Synchronisieren | anki-studio | offen |
@@ -142,6 +142,7 @@ Im LXC „anki-studio“: eigener Systembenutzer statt root; Programm mit uv in 
 
 **AS-041 – GPU · soll · offen**
 Strukturierter Modus mit der durchgereichten GPU, sofern der GPU-Test (Abschnitt 5.3) sie als nutzbar bestätigt. Sonst dokumentieren, welche Ausweichwege gelten.
+*Stand:* Der GPU-Test bestätigt die K1200 mit PyTorch `cu126` als nutzbar; Formeln brauchen eine kleinere Batch-Größe (Abschnitt 5.3). *Offen:* Installation des Extras `pdf` mit PyTorch aus dem `cu126`-Index in Anki Studio.
 
 **AS-042 – Backup · soll · offen**
 vzdump beider Container. Maßgeblich sind die Daten des Sync-Servers; die Sammlung von Anki Studio ist eine Kopie und lässt sich neu herunterladen.
@@ -158,13 +159,13 @@ Zugang mit `ssh ct-anki-studio`. Erhoben mit `os-release`, `uname`, `lscpu`, `fr
 | Punkt | Befund |
 |---|---|
 | System | Debian 13.7 (trixie), unprivilegierter LXC (UID 0 im Container → 100000 auf dem Host), Proxmox-Kernel 7.0.14-25-pve |
-| CPU | 1 vCPU (Host: Intel Xeon W-2145, 16 Threads) |
-| Arbeitsspeicher | 2 GiB, 512 MiB Swap |
-| Platte | Root-Dateisystem 9,8 GB, davon 6,8 GB frei |
+| CPU | 1 vCPU (Host: Intel Xeon W-2145, 16 Threads); **nach Anpassung am 20.11.2026: 4 vCPU** |
+| Arbeitsspeicher | 2 GiB, 512 MiB Swap; **nach Anpassung: 8 GiB** |
+| Platte | Root-Dateisystem 9,8 GB, davon 6,8 GB frei; **nach Anpassung: 32 GB** |
 | GPU | NVIDIA Quadro K1200: Maxwell, Compute Capability 5.0 (`sm_50`), 4096 MiB, im Leerlauf 0 MiB belegt |
 | Treiber | 580.173.02. Kernelmodul auf dem Host und Userspace im Container haben dieselbe Version. Der Userspace stammt aus dem NVIDIA-`.run`-Installer mit `--no-kernel-module`, nicht aus Debian-Paketen. `nvidia-smi` funktioniert und meldet CUDA 13.0 als höchste vom Treiber unterstützte Version. |
 | Geräte | `/dev/nvidia2`, `/dev/nvidiactl`, `/dev/nvidia-uvm`, `/dev/nvidia-uvm-tools` durchgereicht; `libcuda.so.1` und `libnvidia-ml.so.1` vorhanden; kein `/dev/dri` |
-| Python und Werkzeuge | System-Python 3.13.5; nicht installiert: uv, pip, git, gcc; `curl` vorhanden |
+| Python und Werkzeuge | System-Python 3.13.5; nicht installiert: uv, pip, git, gcc; `curl` vorhanden. git und uv kommen seit dem 20.11.2026 mit der Vorschau (Abschnitt 5.4). |
 | Dienste | nur Grunddienste: ssh, cron, dbus, journald, logind, networkd, postfix (nur lokal); keine fehlgeschlagenen Units. Offener Port nach außen: 22 (SSH nur mit Schlüssel, `PasswordAuthentication no`). |
 | Benutzer | nur `root` und `nobody`; Gruppen `video` und `render` vorhanden, ohne Mitglieder |
 | Verzeichnisse | `/opt` leer; `/var/lib/anki-studio` und `/etc/anki-studio` existieren nicht |
@@ -179,20 +180,52 @@ Zugang mit `ssh ct-anki-studio`. Erhoben mit `os-release`, `uname`, `lscpu`, `fr
 - **Ressourcen:** 2 GiB Arbeitsspeicher reichen für den strukturierten Modus voraussichtlich nicht; der Generator hat auf der CPU 2,5–3 GB während der Aufbereitung gemessen. PyTorch mit CUDA-Bibliotheken belegt in der virtuellen Umgebung ein Vielfaches der 2,2 GB der CPU-Variante, die Modelle weitere rund 1,9 GB. 6,8 GB freier Platz reichen dafür nicht. 1 vCPU bremst Installation, PDF-Parsing und OCR. Die Ressourcen des Containers ändert der Projektinhaber auf dem Proxmox-Host.
 - **Ohne strukturierten Modus** (`local`, `native`) genügen die vorhandenen Ressourcen für Anki Studio voraussichtlich.
 
-### 5.3 GPU-Test
+### 5.3 GPU-Test (20.11.2026)
 
-Offen. Ablauf, Messwerte und Ergebnis werden hier dokumentiert, sobald der Projektinhaber die nötigen Installationen im Container freigegeben hat.
+Vom Projektinhaber freigegeben und nach der Anpassung der Ressourcen ausgeführt. Alles lag in einem Testordner unter `/root`, der danach vollständig gelöscht wurde, einschließlich des Testdokuments; weder Pakete noch Caches sind zurückgeblieben.
+
+**Stufe A – PyTorch allein**
+
+| Punkt | Ergebnis |
+|---|---|
+| Build | `torch 2.14.1+cu126` und `torchvision 0.29.1+cu126` aus dem `cu126`-Index, System-Python 3.13, uv 0.13.7 |
+| `sm_50` | enthalten: `torch.cuda.get_arch_list()` liefert `sm_50`, `sm_60`, `sm_70`, `sm_75`, `sm_80`, `sm_86`, `sm_90` |
+| Echte Rechnungen | Matrixmultiplikation fp32 und fp16, cuDNN-Faltung und `torchvision.ops.nms` laufen auf der K1200 ohne Fehler |
+| Größe | virtuelle Umgebung 6,3 GB, mit Docling 7,2 GB; Installation ohne Cache knapp 3 Minuten |
+
+**Stufe B – Docling über den Generator 0.2.0**
+
+Aufruf über die öffentliche Schnittstelle `pipeline.produce_cards`, die Kartenerzeugung durch eine Attrappe ersetzt; gemessen wird also nur die Aufbereitung. Testdokument ist dieselbe 15-seitige Vorlesung (EL1, V03), die auf der CPU nach über 50 Minuten noch nicht fertig war (README des Generators). Docling 2.151.1; der Download aller Modelle (1,9 GB) dauerte 96 Sekunden.
+
+| Lauf | Einstellungen | Dauer | VRAM-Spitze | RAM-Spitze | Ergebnis |
+|---|---|---|---|---|---|
+| 1 | Formeln aus, Bild-Backend `none` | 40,6 s | 1,5 GiB | 2,4 GiB | 15 Seiten, OCR auf allen Seiten |
+| 2 | Formeln an, Bild-Backend `local` | 181,5 s | 3,5 GiB | 3,1 GiB | 18 Abbildungen beschrieben (rund 5 s je Abbildung); **30 von 32 Formelblöcken unlesbar**, weil das Formelmodell je Batch 1,5–2,1 GiB zusätzlich anfordert (CUDA out of memory) |
+| 3 | wie Lauf 2, aber Formelmodell mit Batch-Größe 1 und Bild-Backend `none` (Experiment) | 284,1 s | 3,8 GiB | 2,6 GiB | **alle 32 Formelblöcke als LaTeX**, nichts unlesbar |
+
+Lauf 2 überschnitt sich 14 Sekunden mit der ersten Vorschau-Installation; das ändert die Größenordnung nicht. Die inhaltliche Qualität der Bildbeschreibungen wurde nicht bewertet.
+
+**Bewertung**
+
+- Die K1200 ist für den strukturierten Modus nutzbar. Zu verwenden ist PyTorch aus dem `cu126`-Index; `cu128` und `cu130` scheiden aus (Abschnitt 5.2).
+- Formeln scheitern mit der festen Batch-Größe 5 des Docling-Formelmodells am VRAM. Der Generator 0.2.0 bietet dafür keine Einstellung, und Anki Studio darf Docling oder den Generator nicht selbst patchen (AGENTS.md Abschnitt 5). Lösung wäre eine Option im Generator, etwa eine Batch-Größe für das Formelmodell; das ist ein eigenes Paket im Generator-Repo nach Absprache. Bis dahin sind Formeln auf der K1200 nur mit `formulas: false` verlässlich; mit `formulas: true` bricht der Generator korrekt mit einer Liste unlesbarer Formeln ab.
+- Mit Formeln ist der VRAM fast voll (3,8 GiB von 4 GiB). Ein zweiter GPU-Prozess hätte keinen Platz; das passt zu einem Job zur Zeit (AS-032).
+- Docling meldete, dass es den Kernel-Cache unter `models/cache/torch/kernels` nicht anlegen konnte. Das schaltet nur diesen Cache ab und hatte keine sichtbare Auswirkung.
+
+### 5.4 Vorschau-Betrieb
+
+Seit dem 20.11.2026 läuft im Container eine Vorschau des Stands von `main` als systemd-Dienst `anki-studio-preview` auf Port 8000, eingerichtet und aktualisiert mit `deploy/preview.sh` (README, Abschnitt „Vorschau im Container“; Regeln in AGENTS.md Abschnitt 8). Sie ersetzt nicht die Installation nach AS-040.
 
 ## 6. Offene Punkte und Risiken
 
 | Punkt | Umgang |
 |---|---|
-| `anki`-Version des Sync-Servers | Voraussichtlich 26.09.4; vom Projektinhaber zu bestätigen, dann in `pyproject.toml` genau pinnen und nur gemeinsam mit einem Server-Update anheben |
+| `anki`-Version des Sync-Servers | Vom Projektinhaber bestätigt: 26.09.4, in `pyproject.toml` genau gepinnt; nur gemeinsam mit einem Server-Update anheben |
 | Sync gegen den echten Server | Prototyp-Ablauf mit eigenem Testbenutzer wiederholen und das Ergebnis in AnkiDroid prüfen (Phase 0); die echte Sammlung bleibt unberührt |
 | Erster Import des Notiztyps erzwingt Komplett-Sync | Lokal widerlegt (Übergabe Abschnitt 7.1); gegen den echten Server bestätigen |
-| GPU K1200 mit aktuellem PyTorch | GPU-Test (Abschnitt 5.3); bis dahin gelten die Ausweichwege `local` und `native` |
-| GPU-Erkennung meldet `cuda` trotz fehlendem `sm_50` | Abschnitt 5.2; im GPU-Test belegen und danach über eine Änderung im Generator entscheiden |
-| Ressourcen des Containers | Abschnitt 5.2; Anpassung durch den Projektinhaber vor dem GPU-Test mit Docling |
+| GPU K1200 mit aktuellem PyTorch | Nutzbar mit `cu126` (Abschnitt 5.3); vor einem PyTorch- oder Treiber-Update erneut prüfen |
+| Formeln auf 4 GiB VRAM | Batch-Größe des Formelmodells im Generator einstellbar machen (Abschnitt 5.3); Entscheidung des Projektinhabers offen |
+| GPU-Erkennung meldet `cuda` trotz fehlendem `sm_50` | Mit `cu126` kein Problem; bleibt ein Risiko, falls ein Build ohne `sm_50` installiert wird. Eine genauere Prüfung im Generator wäre möglich (Abschnitt 5.2). |
 | Stabile GUIDs des Generators | Wird eine generierte Notiz in ein anderes Deck verschoben und dieselbe Frage im ursprünglichen Deck erneut erzeugt, entsteht eine zweite Notiz mit gleicher GUID. Für Sync unkritisch, bei späteren APKG-Importen zu beachten. |
 | Relative Pfade in der YAML | `pdf_conversion.models_dir` absolut setzen; `input_dir`, `output_dir`, `source_text_dir` und `generation.json_output` nicht verwenden, Pfade je Job ausdrücklich übergeben |
 | Prozessweite Umgebungsvariablen | `model_storage.configure_model_storage()` setzt Cache-Variablen für den ganzen Prozess; unkritisch bei einem Modellordner pro Prozess |
