@@ -63,12 +63,20 @@
       {% endfor %}
     </select>
     {{ error(errors, "profile") }}
-    <details>
-      <summary>Modell, Endpunkt und Timeout überschreiben</summary>
-      <label for="model">Modell</label>
-      <input id="model" name="model" value="{{ values.model or '' }}" placeholder="{{ defaults.ai.model or 'provider/modell' }}"
+    <label for="model">Modell</label>
+    <fieldset role="group">
+      <input id="model" name="model" x-ref="model" value="{{ values.model or '' }}"
+             placeholder="{{ defaults.ai.model or 'provider/modell' }}"
              {% if errors.model %}aria-invalid="true"{% endif %}>
-      {{ error(errors, "model") }}
+      <button type="button" class="secondary nowrap"
+              hx-get="{{ url_for('model_list') }}" hx-include="#profile"
+              hx-target="#model-list" hx-swap="outerHTML">Modelle laden</button>
+    </fieldset>
+    <small>Leer: Modell des Profils. „Modelle laden“ fragt den Provider des gewählten Profils, welche Modelle es gibt; dabei geht nur der API-Schlüssel dorthin.</small>
+    {{ error(errors, "model") }}
+    <div id="model-list"></div>
+    <details>
+      <summary>Endpunkt und Timeout überschreiben</summary>
       <label for="api_base">API-Basis</label>
       <input id="api_base" name="api_base" value="{{ values.api_base or '' }}" placeholder="{{ defaults.ai.api_base or 'Standard des Providers' }}">
       {{ error(errors, "api_base") }}

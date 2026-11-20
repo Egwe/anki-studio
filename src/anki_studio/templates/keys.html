@@ -46,6 +46,14 @@
   </form>
   {% endif %}
   {% endif %}
+  {% if row.source.value != "missing" and profiles.get(row.name) %}
+  <div class="key-check">
+    <button type="button" class="secondary outline"
+            hx-get="{{ url_for('model_list') }}?profile={{ profiles[row.name][0] | urlencode }}&amp;view=keys"
+            hx-target="#check-{{ row.name }}">Prüfen</button>
+    <div id="check-{{ row.name }}"></div>
+  </div>
+  {% endif %}
   {% if errors[row.name] %}<small class="field-error">{{ errors[row.name] }}</small>{% endif %}
 </article>
 {% else %}

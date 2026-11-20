@@ -1,0 +1,15 @@
+{# Fragment for the generation form: choose a model of the provider. #}
+<div id="model-list">
+  {% if error %}
+  <small class="field-error">{{ error }}</small>
+  {% else %}
+  <label for="model-choice">{{ result.models | length }} Modelle von {{ result.provider }}</label>
+  <select id="model-choice" x-on:change="$refs.model.value = $event.target.value">
+    <option value="">Modell wählen …</option>
+    {% for name in result.models %}
+    <option value="{{ name }}">{{ name }}</option>
+    {% endfor %}
+  </select>
+  <small>Die Auswahl landet im Feld „Modell“ und gilt für diesen Lauf.</small>
+  {% endif %}
+</div>

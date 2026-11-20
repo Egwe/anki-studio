@@ -76,6 +76,20 @@ header.container nav ul {
   flex-wrap: wrap;
 }
 
+.nowrap {
+  white-space: nowrap;
+}
+
+.key-check {
+  margin-top: 0.5rem;
+}
+
+.model-names {
+  max-height: 16rem;
+  overflow-y: auto;
+  font-size: 0.9em;
+}
+
 .field-error {
   color: var(--pico-del-color);
 }
