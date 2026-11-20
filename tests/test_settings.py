@@ -30,9 +30,19 @@ def write(tmp_path: Path, text: str) -> Path:
     return path
 
 
-def test_defaults_without_file() -> None:
-    """Without a settings file the built-in defaults apply."""
-    assert load_settings(None) == StudioSettings(host="127.0.0.1", port=8000)
+def test_defaults_without_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Without a settings file the built-in defaults apply.
+
+    Args:
+        monkeypatch: Pytest fixture to change the working directory.
+        tmp_path: Temporary working directory.
+    """
+    monkeypatch.chdir(tmp_path)
+
+    settings = load_settings(None)
+
+    assert (settings.host, settings.port, settings.job_retention_days) == ("127.0.0.1", 8000, 14)
+    assert settings.data_dir == tmp_path / "data"
 
 
 def test_reads_values(tmp_path: Path) -> None:
@@ -43,8 +53,48 @@ def test_reads_values(tmp_path: Path) -> None:
 
 
 def test_empty_file_uses_defaults(tmp_path: Path) -> None:
-    """An empty file is valid and keeps all defaults."""
-    assert load_settings(write(tmp_path, "")) == StudioSettings()
+    """An empty file is valid and keeps all defaults.
+
+    Args:
+        tmp_path: Temporary test folder.
+    """
+    settings = load_settings(write(tmp_path, ""))
+
+    assert settings == StudioSettings(data_dir=tmp_path / "data")
+
+
+def test_relative_data_dir_is_resolved_next_to_file(tmp_path: Path) -> None:
+    """A relative data folder belongs to the folder of ``studio.yaml``.
+
+    Args:
+        tmp_path: Temporary test folder.
+    """
+    settings = load_settings(write(tmp_path, "data_dir: daten/studio\n"))
+
+    assert settings.data_dir == tmp_path / "daten" / "studio"
+
+
+def test_absolute_data_dir_is_kept(tmp_path: Path) -> None:
+    """An absolute data folder is used as it is.
+
+    Args:
+        tmp_path: Temporary test folder.
+    """
+    settings = load_settings(write(tmp_path, "data_dir: /var/lib/anki-studio\n"))
+
+    assert settings.data_dir == Path("/var/lib/anki-studio")
+
+
+@pytest.mark.parametrize("days", [0, 3651])
+def test_invalid_retention_is_rejected(tmp_path: Path, days: int) -> None:
+    """The retention period must be between 1 and 3650 days.
+
+    Args:
+        tmp_path: Temporary test folder.
+        days: Invalid number of days.
+    """
+    with pytest.raises(SettingsError, match="job_retention_days"):
+        load_settings(write(tmp_path, f"job_retention_days: {days}\n"))
 
 
 def test_example_file_is_valid() -> None:

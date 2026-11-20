@@ -14,3 +14,10 @@ port: 8000
 allowed_hosts:
   - localhost
   - 127.0.0.1
+
+# Ordner für Jobs und später die Sammlung. Relativ zu dieser Datei; im Container
+# /var/lib/anki-studio.
+data_dir: data
+
+# Abgeschlossene Jobs werden nach so vielen Tagen gelöscht.
+job_retention_days: 14
