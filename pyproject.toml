@@ -1,0 +1,44 @@
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14"]
+build-backend = "uv_build"
+
+[project]
+name = "anki-studio"
+version = "0.1.0"
+description = "Web interface for the Anki Flashcard Generator and client of a self-hosted Anki sync server."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "anki==26.09.4",
+    "anki-flashcard-generator @ git+https://github.com/Egwe/anki-flashcard-generator@v0.2.0",
+    "fastapi>=0.115,<1",
+    "jinja2>=3.1,<4",
+    "pydantic>=2.10,<3",
+    "PyYAML>=6,<7",
+    "uvicorn>=0.30,<1",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.27,<1",
+    "pytest>=8,<10",
+    "ruff>=0.8,<1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["C90", "D", "E", "F", "I", "UP"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 8
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
