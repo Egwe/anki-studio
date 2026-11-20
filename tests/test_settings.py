@@ -70,6 +70,41 @@ def test_invalid_port_is_rejected(tmp_path: Path, port: object) -> None:
         load_settings(write(tmp_path, f"port: {port}\n"))
 
 
+def test_allowed_hosts_are_normalized(tmp_path: Path) -> None:
+    """Host names are trimmed and lower-cased; IPv6 addresses are allowed.
+
+    Args:
+        tmp_path: Temporary test folder.
+    """
+    settings = load_settings(write(tmp_path, "allowed_hosts: [' Anki-Studio.LAN ', '::1']\n"))
+
+    assert settings.allowed_hosts == ("anki-studio.lan", "::1")
+
+
+@pytest.mark.parametrize(
+    "entry", ["'*'", "'*.lan'", "'anki:8000'", "'http://anki'", "'a b'", "''", "'[::1]'"]
+)
+def test_invalid_allowed_hosts_are_rejected(tmp_path: Path, entry: str) -> None:
+    """Wildcards, ports, URLs, spaces, brackets, and empty names are refused.
+
+    Args:
+        tmp_path: Temporary test folder.
+        entry: Invalid list entry as YAML.
+    """
+    with pytest.raises(SettingsError, match="allowed_hosts"):
+        load_settings(write(tmp_path, f"allowed_hosts: [{entry}]\n"))
+
+
+def test_empty_allowed_hosts_are_rejected(tmp_path: Path) -> None:
+    """At least one host name is required.
+
+    Args:
+        tmp_path: Temporary test folder.
+    """
+    with pytest.raises(SettingsError, match="allowed_hosts"):
+        load_settings(write(tmp_path, "allowed_hosts: []\n"))
+
+
 def test_missing_file_is_an_error(tmp_path: Path) -> None:
     """An explicitly selected file must exist."""
     with pytest.raises(SettingsError, match="nicht lesbar"):

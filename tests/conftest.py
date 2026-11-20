@@ -16,5 +16,5 @@ def client() -> Iterator[TestClient]:
     Yields:
         A ``TestClient`` bound to a fresh application; closed afterwards.
     """
-    with TestClient(create_app(StudioSettings())) as test_client:
+    with TestClient(create_app(StudioSettings(allowed_hosts=("testserver",)))) as test_client:
         yield test_client
