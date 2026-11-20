@@ -16,3 +16,22 @@
 <li class="event status-line">Status: {{ status_labels.get(event.status, event.status) }}{% if event.message %} – {{ event.message }}{% endif %}</li>
 {% endif %}
 {%- endmacro %}
+
+{# Whether a line belongs in the history: progress only when a step ends. #}
+{% macro shown(event) -%}
+{{ "yes" if event.type != "stage_progress" or event.completed == event.total else "" }}
+{%- endmacro %}
+
+{% macro progress_bar(event) -%}
+<progress value="{{ event.completed }}" max="{{ event.total }}"></progress>
+<small>{{ event.label }}: {{ event.completed }} von {{ event.total }}{% if event.cards is not none %} · {{ event.cards }} Karten{% endif %}</small>
+{%- endmacro %}
+
+{% macro status_badge(event) -%}
+<span class="status status-{{ event.status }}">{{ status_labels.get(event.status, event.status) }}</span>
+{%- endmacro %}
+
+{# Swapped in when the job ends: reloads the job's main area once. #}
+{% macro reload(url) -%}
+<div hx-get="{{ url }}" hx-trigger="load" hx-select="#job-main" hx-target="#job-main" hx-swap="outerHTML"></div>
+{%- endmacro %}

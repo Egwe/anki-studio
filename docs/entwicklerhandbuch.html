@@ -67,6 +67,7 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
   <a href="#generator">Einbindung des Generators</a>
   <a href="#formular">Formular und Validierung</a>
   <a href="#jobs">Jobs und Worker</a>
+  <a href="#live">Live-Fortschritt</a>
   <a href="#formate">Datenformate</a>
   <a href="#sicherheit">Sicherheit</a>
   <a href="#frontend">Frontend</a>
@@ -134,6 +135,7 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
     <tr><td><code>generator_config.py</code></td><td>Generator-YAML laden (nur expliziter Pfad), aus <code>resources/generator-template.yaml</code> anlegen oder um fehlende Standardprofile ergänzen, wirksame Standardwerte und Profilübersicht über den Generator</td><td><code>test_generator_config.py</code></td></tr>
     <tr><td><code>forms.py</code></td><td><code>GenerateForm</code>: Typen, Bereiche, Enums, nur gesetzte Werte; deutsche Fehlermeldungen</td><td><code>test_forms.py</code></td></tr>
     <tr><td><code>generation.py</code></td><td><code>GenerationRunner</code>: Einstellungen je Job, Übertragungsprüfung, <code>produce_cards</code>, <code>cards.json</code></td><td><code>test_generation.py</code></td></tr>
+    <tr><td><code>sse.py</code>, <code>routes/jobs.py</code></td><td>Live-Fortschritt: <code>/jobs/&lt;id&gt;/events</code> streamt neue Zeilen aus <code>events.jsonl</code> als Server-Sent Events (<code>line</code>, <code>progress</code>, <code>status</code>, <code>done</code>), gerendert mit den Makros aus <code>_events.html</code></td><td><code>test_live.py</code></td></tr>
     <tr><td><code>templating.py</code></td><td>Jinja2-Umgebung mit Versionen und Statusnamen</td><td>indirekt</td></tr>
     <tr><td><code>routes/</code></td><td><code>login</code>, <code>pages</code> (Start, <code>/healthz</code>), <code>generate</code>, <code>jobs</code></td><td><code>test_auth.py</code>, <code>test_web_generate.py</code></td></tr>
   </table>
@@ -223,6 +225,19 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
   </ul>
 </section>
 
+<section id="live">
+  <h2>Live-Fortschritt</h2>
+  <p>Die Job-Seite rendert die vorhandenen Ereignisse und verbindet sich mit <code>hx-ext="sse"</code> und <code>sse-connect=".../events?start=N"</code>. <code>_stream</code> liest im Abstand von 0,5 s zuerst <code>job.json</code>, dann die neuen Zeilen ab Position N und sendet je Ereignis:</p>
+  <table>
+    <tr><th>SSE-Ereignis</th><th>Ziel im HTML</th><th>Inhalt</th></tr>
+    <tr><td><code>line</code> (mit <code>id</code>)</td><td><code>ul.events</code>, <code>beforeend</code></td><td>Verlaufszeile; Fortschritt nur, wenn ein Schritt fertig ist</td></tr>
+    <tr><td><code>progress</code></td><td><code>#job-progress</code></td><td><code>&lt;progress&gt;</code> mit Schritt, Abschnitten und Kartenzahl</td></tr>
+    <tr><td><code>status</code></td><td><code>#job-status</code></td><td>Statusabzeichen</td></tr>
+    <tr><td><code>done</code></td><td>leeres <code>div</code>; schließt die Verbindung (<code>sse-close</code>)</td><td>Element mit <code>hx-trigger="load"</code>, das <code>#job-main</code> einmal neu lädt</td></tr>
+  </table>
+  <p>Die <code>id</code> ist die Zahl der bisher gesendeten Ereignisse; nach einem Neuaufbau schickt der Browser sie als <code>Last-Event-ID</code>, die Vorrang vor <code>start</code> hat. Alle 15 s ohne neue Ereignisse geht ein Kommentar als Keepalive. Der Worker hängt ein <code>job_status</code>-Ereignis an, <em>bevor</em> er <code>job.json</code> ändert; weil der Stream zuerst <code>job.json</code> und dann die Ereignisse liest, sieht er bei einem fertigen Job immer schon dessen letzte Zeile.</p>
+</section>
+
 <section id="formate">
   <h2>Datenformate</h2>
   <pre><code>&lt;data_dir&gt;/jobs/&lt;32 Hex-Zeichen&gt;/
@@ -267,6 +282,7 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
     <li>Reguläre Tests laufen ohne Netzwerk, GPU, Schlüssel und Sync-Server.</li>
     <li><strong>KI simulieren:</strong> <code>monkeypatch.setattr(anki_flashcards.pipeline, "generate_cards", fake)</code>; der Fake ruft <code>kwargs["progress"](…)</code> auf, damit Fortschrittsereignisse entstehen. Für <code>native</code>: <code>pipeline.generate_native_cards</code>.</li>
     <li><strong>Web:</strong> Fixtures <code>client</code> (anonym) und <code>auth_client</code> (angemeldet) in <code>tests/conftest.py</code>; beide als Kontextmanager, damit <code>lifespan</code> den Worker startet. <code>studio_settings</code> legt Datenordner und Generator-YAML in <code>tmp_path</code>.</li>
+    <li><strong>SSE:</strong> <code>client.stream("GET", url)</code> liest einen Stream bis zum Ende; für laufende Jobs gibt ein <code>threading.Timer</code> die simulierte KI frei, damit der Stream endet (<code>test_live.py</code>).</li>
     <li><strong>Asynchrones warten:</strong> <code>wait_until(bedingung)</code> mit Zeitlimit statt fester Pausen.</li>
     <li><strong>Provider-HTTP:</strong> <code>app.state.http_transport</code> auf einen <code>httpx.MockTransport</code> setzen; <code>model_catalog</code>-Tests übergeben ihn direkt.</li>
     <li><strong>APKG:</strong> echte Pakete mit <code>anki_flashcards.apkg.create_apkg</code> im Testordner.</li>

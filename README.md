@@ -6,7 +6,7 @@ Anforderungen und ihr Status stehen in [requirements.md](./requirements.md), Arb
 
 ## Stand
 
-Nach der Anmeldung lassen sich Dokumente hochladen und Karten erzeugen: Jede Datei wird ein Job, die Jobs laufen nacheinander im Hintergrund, und die Karten landen als `cards.json` im Job-Ordner. Live-Fortschritt per SSE, Kartenprüfung und die Downloads von APKG und JSON folgen als nächste Pakete (Phase 2), Sync mit der Sammlung in Phase 3.
+Nach der Anmeldung lassen sich API-Schlüssel eintragen, Modelle beim Provider auswählen, Dokumente hochladen und Karten erzeugen: Jede Datei wird ein Job, die Jobs laufen nacheinander im Hintergrund mit Live-Fortschritt, und die Karten landen als `cards.json` im Job-Ordner. Kartenprüfung und die Downloads von APKG und JSON folgen als nächstes Paket (Phase 2), Sync mit der Sammlung in Phase 3.
 
 Ausführlich: [docs/benutzerhandbuch.html](./docs/benutzerhandbuch.html) für die Bedienung, [docs/entwicklerhandbuch.html](./docs/entwicklerhandbuch.html) für Module, Abläufe und Tests. Beide Dateien lassen sich ohne Server im Browser öffnen.
 
@@ -82,7 +82,7 @@ Im Formular **Generieren** steht unter dem Profil das Feld **Modell** mit dem Kn
 
 Geht Dokumentinhalt an einen Provider (`pdf_mode: native` oder Bild-Backend `profile` im strukturierten Modus), startet der Job nur mit ausdrücklicher Bestätigung (AS-003); der Server prüft das beim Absenden und beim Start des Jobs erneut.
 
-Jede Datei wird ein eigener **Job**. Es läuft immer nur ein Job, weitere warten. Ein Job-Ordner `<data_dir>/jobs/<id>/` enthält `job.json` (Zustand), `events.jsonl` (Ereignisse des Generators), `upload/` (das Dokument), bei Bedarf `target/` (die APKG zum Erweitern), `cards.json` (die erzeugten Karten) und im strukturierten Modus `source.md` (der aufbereitete Text; er wird immer im Job-Ordner gespeichert). Die Job-Seite zeigt Status, Optionen und Verlauf und lädt sich bis zum Ende alle drei Sekunden neu; wartende und laufende Jobs lassen sich abbrechen. Nach einem Neustart gelten wartende und laufende Jobs als abgebrochen.
+Jede Datei wird ein eigener **Job**. Es läuft immer nur ein Job, weitere warten. Ein Job-Ordner `<data_dir>/jobs/<id>/` enthält `job.json` (Zustand), `events.jsonl` (Ereignisse des Generators), `upload/` (das Dokument), bei Bedarf `target/` (die APKG zum Erweitern), `cards.json` (die erzeugten Karten) und im strukturierten Modus `source.md` (der aufbereitete Text; er wird immer im Job-Ordner gespeichert). Die Job-Seite zeigt Status, Optionen und Verlauf **live** (Server-Sent Events, AS-004): einen Fortschrittsbalken für den laufenden Schritt (Abschnitte, bisher erzeugte Karten), Hinweise, Warnungen, Datenübertragungen und die Statistik der Aufbereitung; am Ende lädt sie ihren Inhalt einmal neu. Nach einem Verbindungsabbruch setzt der Browser an der letzten Stelle fort. Wartende und laufende Jobs lassen sich abbrechen. Nach einem Neustart gelten wartende und laufende Jobs als abgebrochen.
 
 Uploads werden vor dem Speichern geprüft: nur die Dokumenttypen des Generators, je höchstens 100 MiB, höchstens zehn Dateien; Anfragen ohne Längenangabe oder über der Grenze lehnt der Server ab, bevor er sie liest.
 

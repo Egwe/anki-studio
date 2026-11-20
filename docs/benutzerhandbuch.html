@@ -189,7 +189,7 @@ mark { background: var(--mark); color: inherit; }
 
 <section id="jobseite">
   <h2>Job-Seite</h2>
-  <p>Die Job-Seite zeigt Status, die gewählten Optionen und den <strong>Verlauf</strong>: Beginn und Fortschritt der Aufbereitung und Generierung (Abschnitt x von y, bisher einzigartige Karten), Hinweise, Warnungen, die Statistik der Aufbereitung und am Ende die Zahl der erzeugten Karten. Solange der Job wartet oder läuft, lädt sich die Seite alle drei Sekunden neu.</p>
+  <p>Die Job-Seite zeigt Status, die gewählten Optionen und den <strong>Verlauf</strong>, und zwar live, ohne Neuladen: Ein Fortschrittsbalken zeigt den laufenden Schritt (etwa „Chunk 4 von 10 · 8 Karten“, also Abschnitt 4 von 10 und bisher 8 verschiedene Karten). Der Verlauf darunter sammelt Beginn und Ende der Schritte, Hinweise, Warnungen, Datenübertragungen, die Statistik der Aufbereitung und am Ende die Zahl der erzeugten Karten. Ist der Job fertig, lädt die Seite ihren Inhalt einmal neu. Bricht die Verbindung kurz ab, etwa im WLAN, setzt der Browser an derselben Stelle fort.</p>
   <p><strong>Abbrechen</strong> beendet einen wartenden Job sofort. Ein laufender Job hält nach dem aktuellen Abschnitt an; eine Anfrage, die gerade beim Provider läuft, wird noch zu Ende geführt. Ein abgebrochener Job schreibt keine Karten.</p>
 </section>
 
@@ -213,7 +213,6 @@ mark { background: var(--mark); color: inherit; }
 <section id="grenzen">
   <h2>Was noch fehlt</h2>
   <ul>
-    <li>Live-Fortschritt ohne Neuladen der Seite.</li>
     <li>Karten prüfen, bearbeiten und abwählen; Download von APKG, Karten-JSON und aufbereitetem Text.</li>
     <li>Sync mit der Anki-Sammlung, Deckauswahl aus der Sammlung, Sync-Status.</li>
     <li>Decks, Export, Konfiguration und Modelle als eigene Seiten.</li>

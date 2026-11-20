@@ -1,13 +1,12 @@
 {% extends "base.html" %}
-{% from "_events.html" import event_line %}
+{% from "_events.html" import event_line, progress_bar, shown, status_badge %}
 {% block title %}{{ job.source_name }} – Anki Studio{% endblock %}
-{% block head %}
-{% if not job.status.finished %}<meta http-equiv="refresh" content="3">{% endif %}
-{% endblock %}
 {% block content %}
+<div id="job-main">
+<div {% if not job.status.finished %}hx-ext="sse" sse-connect="{{ url_for('job_events', job_id=job.id) }}?start={{ events | length }}" sse-close="done"{% endif %}>
 <hgroup>
   <h1>{{ job.source_name }}</h1>
-  <p><span class="status status-{{ job.status.value }}">{{ status_labels[job.status.value] }}</span>
+  <p><span id="job-status" sse-swap="status">{{ status_badge({"status": job.status.value}) }}</span>
      · erstellt {{ job.created_at.strftime("%d.%m.%Y %H:%M") }} UTC</p>
 </hgroup>
 
@@ -29,21 +28,21 @@
 
 <article>
   <header><strong>Verlauf</strong></header>
-  {% if events %}
-  <ul class="events">
-    {% for event in events %}{{ event_line(event) }}{% endfor %}
+  <div id="job-progress" class="job-progress" sse-swap="progress">{% if progress %}{{ progress_bar(progress) }}{% endif %}</div>
+  <ul class="events" sse-swap="line" hx-swap="beforeend">
+    {% for event in events if shown(event) %}{{ event_line(event) }}{% endfor %}
   </ul>
-  {% else %}
-  <p>Wartet auf den Start.</p>
-  {% endif %}
   {% if not job.status.finished %}
   <footer>
     <form method="post" action="{{ url_for('cancel_job', job_id=job.id) }}">
       <button type="submit" class="secondary">Abbrechen</button>
     </form>
-    <small>Die Seite aktualisiert sich alle drei Sekunden. Ein laufender Provider-Aufruf wird noch zu Ende geführt.</small>
+    <small>Der Verlauf aktualisiert sich live. Ein laufender Provider-Aufruf wird beim Abbrechen noch zu Ende geführt.</small>
   </footer>
   {% endif %}
 </article>
+<div sse-swap="done"></div>
+</div>
+</div>
 <p><a href="{{ url_for('job_list') }}">Alle Jobs</a></p>
 {% endblock %}

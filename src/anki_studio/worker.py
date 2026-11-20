@@ -196,7 +196,10 @@ class JobWorker:
         return JobStatus.DONE, None
 
     def _set_status(self, job_id: str, status: JobStatus, message: str | None = None) -> None:
-        """Store a status and append it as ``job_status`` event.
+        """Append a status as ``job_status`` event, then store it.
+
+        The event comes first, so a reader that sees a finished job in
+        ``job.json`` has already got its last event (live progress, AS-004).
 
         Args:
             job_id: Identifier of the job.
@@ -206,7 +209,7 @@ class JobWorker:
         Returns:
             None.
         """
-        self.store.update(job_id, status, message)
         self.store.append_event(
             job_id, {"type": "job_status", "status": status.value, "message": message}
         )
+        self.store.update(job_id, status, message)
