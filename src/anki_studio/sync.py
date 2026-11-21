@@ -10,6 +10,7 @@ from typing import Any
 
 from anki import sync_pb2
 from anki.collection import Collection
+from anki.errors import AnkiException
 from anki_flashcards.apkg import ExportResult
 from anki_flashcards.errors import FlashcardError, GenerationCancelled
 from anki_flashcards.models import Card
@@ -187,14 +188,7 @@ class SyncService:
         if cancel():
             raise GenerationCancelled("Sync abgebrochen")
         state = self._initial_state()
-        endpoint = state.redirect_endpoint or self.settings.sync_endpoint
-        username = self.credentials.sync_username
-        password = self.credentials.sync_password
-        if endpoint is None or username is None or password is None:
-            raise SyncFailure(
-                "Sync ist nicht vollständig eingerichtet: Endpunkt sowie "
-                "ANKI_STUDIO_SYNC_USERNAME und ANKI_STUDIO_SYNC_PASSWORD fehlen."
-            )
+        endpoint, username, password = self._connection(state)
         report({"type": "notice", "text": "Am Sync-Server anmelden …", "level": "info"})
         try:
             outcome = self.worker.run(
@@ -313,8 +307,8 @@ class SyncService:
         password = self.credentials.sync_password
         if endpoint is None or username is None or password is None:
             raise SyncFailure(
-                "Sync ist nicht vollständig eingerichtet: Endpunkt sowie "
-                "ANKI_STUDIO_SYNC_USERNAME und ANKI_STUDIO_SYNC_PASSWORD fehlen."
+                "Sync ist nicht vollständig eingerichtet: Endpunkt, Benutzername und "
+                "Passwort unter „Einstellungen → Zugang und Sync“ eintragen."
             )
         return endpoint, username, password
 
@@ -406,10 +400,9 @@ class SyncService:
             auth = collection.sync_login(username, password, endpoint)
             report({"type": "notice", "text": "Sammlung abgleichen …", "level": "info"})
             response = collection.sync_collection(auth, sync_media=False)
-        except Exception as error:
-            raise SyncFailure(
-                "Anmeldung oder Abgleich mit dem Sync-Server ist fehlgeschlagen."
-            ) from error
+        except AnkiException as error:
+            summary = "Anmeldung oder Abgleich mit dem Sync-Server ist fehlgeschlagen"
+            raise SyncFailure(_failure_text(summary, error)) from error
         redirected = _redirected_endpoint(response) or endpoint
         if _requires(response, "NO_CHANGES"):
             return SyncOutcome("no_changes", redirected, response.server_message or None)
@@ -466,14 +459,19 @@ class SyncService:
                 "level": "info",
             }
         )
+        if endpoint != auth.endpoint:
+            auth.endpoint = endpoint
+        collection.close_for_full_sync()
         try:
-            if endpoint != auth.endpoint:
-                auth.endpoint = endpoint
-            collection.close_for_full_sync()
             collection.full_upload_or_download(auth=auth, server_usn=None, upload=False)
+        except AnkiException as error:
+            raise SyncFailure(
+                _failure_text("Der Komplett-Download der Sammlung ist fehlgeschlagen", error)
+            ) from error
+        finally:
+            # The backend reopens the collection after a full sync whatever
+            # the outcome; pylib must reattach to it like Anki desktop does.
             collection.reopen(after_full_sync=True)
-        except Exception as error:
-            raise SyncFailure("Der Komplett-Download der Sammlung ist fehlgeschlagen.") from error
         return SyncOutcome("full_download", endpoint, response.server_message or None)
 
     def _record_success(self, state: SyncState, outcome: SyncOutcome) -> None:
@@ -551,6 +549,24 @@ def collection_paths(data_dir: Path) -> tuple[Path, Path]:
     """
     directory = data_dir / COLLECTION_DIR
     return directory / COLLECTION_FILE, directory / STATE_FILE
+
+
+def _failure_text(summary: str, error: AnkiException) -> str:
+    """Complete a sync failure summary with pylib's own explanation.
+
+    Backend errors carry texts meant for users, such as a wrong password or
+    an unreachable server; they contain neither the password nor the hkey.
+
+    Args:
+        summary: German description of the failed step, without full stop.
+        error: Exception raised by pylib.
+
+    Returns:
+        ``summary`` followed by the pylib message, or with a full stop when
+        pylib gives no message.
+    """
+    reason = str(error).strip()
+    return f"{summary}: {reason}" if reason else f"{summary}."
 
 
 def _requires(response: Any, name: str) -> bool:

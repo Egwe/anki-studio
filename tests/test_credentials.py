@@ -1,6 +1,7 @@
 """Tests for reading the login secrets from the environment."""
 
 import pytest
+from cryptography.fernet import Fernet
 
 from anki_studio.credentials import (
     PASSWORD_HASH_ENV,
@@ -19,6 +20,7 @@ from anki_studio.runtime_env import (
     RUNTIME_SYNC_PASSWORD_ENV,
     RUNTIME_SYNC_USERNAME_ENV,
     encode_value,
+    encrypt_value,
 )
 
 SECRET = "s" * 40
@@ -102,15 +104,18 @@ def test_runtime_environment_overrides_base_access_values() -> None:
     """The daily environment wins over initial login and sync setup."""
     initial_hash = hash_password("erstes-passwort")
     runtime_hash = hash_password("neues-passwort")
+    key = new_secret_key()
+    fernet = Fernet(key)
     environment = {
+        SECRET_KEY_ENV: key,
         PASSWORD_HASH_ENV: initial_hash,
         SESSION_SECRET_ENV: SECRET,
         SYNC_USERNAME_ENV: "initial-user",
         SYNC_PASSWORD_ENV: "initial-password",
         RUNTIME_PASSWORD_HASH_ENV: encode_value(runtime_hash),
-        RUNTIME_SESSION_SECRET_ENV: encode_value("runtime-" + "s" * 40),
+        RUNTIME_SESSION_SECRET_ENV: encrypt_value(fernet, "runtime-" + "s" * 40),
         RUNTIME_SYNC_USERNAME_ENV: encode_value("runtime-user"),
-        RUNTIME_SYNC_PASSWORD_ENV: encode_value("runtime-password"),
+        RUNTIME_SYNC_PASSWORD_ENV: encrypt_value(fernet, " runtime password "),
     }
 
     credentials = load_credentials(environment)
@@ -118,7 +123,25 @@ def test_runtime_environment_overrides_base_access_values() -> None:
     assert credentials.password_hash == runtime_hash
     assert credentials.session_secret == "runtime-" + "s" * 40
     assert credentials.sync_username == "runtime-user"
-    assert credentials.sync_password == "runtime-password"
+    assert credentials.sync_password == " runtime password "
+
+
+@pytest.mark.parametrize("key", [None, "other"])
+def test_runtime_secrets_need_the_matching_key(key: str | None) -> None:
+    """Encrypted runtime values stop the start without the key that wrote them.
+
+    Args:
+        key: None for a missing key, ``other`` for a different valid key.
+    """
+    token = encrypt_value(Fernet(new_secret_key()), "runtime-password")
+    environment = {RUNTIME_SYNC_PASSWORD_ENV: token}
+    if key is not None:
+        environment[SECRET_KEY_ENV] = new_secret_key()
+
+    with pytest.raises(CredentialsError, match=RUNTIME_SYNC_PASSWORD_ENV) as error:
+        load_credentials(environment)
+
+    assert token not in str(error.value) and "runtime-password" not in str(error.value)
 
 
 def test_invalid_secret_key_is_rejected_without_value() -> None:

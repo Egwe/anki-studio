@@ -81,9 +81,9 @@ Unter **Einstellungen → Zugangsdaten** stehen alle Variablen, die Profile der 
 
 ## Zugang und Sync
 
-**Einstellungen → Zugang und Sync** ändert das Login-Passwort und richtet die Anki-Sync-Verbindung ein oder deaktiviert sie. Für eine aktive Verbindung sind Endpunkt, Benutzername und Passwort immer gemeinsam erforderlich; der Endpunkt akzeptiert nur vollständige HTTP(S)-Adressen ohne eingebettete Zugangsdaten. Das Passwort wird nach dem Speichern nie wieder angezeigt.
+**Einstellungen → Zugang und Sync** ändert das Login-Passwort (nur mit dem aktuellen Passwort) und richtet die Anki-Sync-Verbindung ein oder deaktiviert sie. Für eine aktive Verbindung sind Endpunkt, Benutzername und Passwort nötig; der Endpunkt akzeptiert nur vollständige HTTP(S)-Adressen ohne eingebettete Zugangsdaten. Bleibt das Passwortfeld leer und der Benutzername gleich, gilt das gespeicherte Passwort weiter, etwa wenn sich nur der Endpunkt ändert. Das Passwort wird nach dem Speichern nie wieder angezeigt.
 
-Anki Studio schreibt diese täglichen Werte atomar und mit Rechten `0600` in `<data_dir>/runtime.env`, eine zusätzliche systemd-`EnvironmentFile`. Ihre URL-sicher Base64-kodierten Werte überschreiben die anfänglichen Umgebungswerte beim nächsten Start; die Dateirechte, nicht die Kodierung, schützen die Geheimnisse. Der Dienst startet danach kontrolliert neu. Eine Passwortänderung dreht zusätzlich den Session-Schlüssel, beendet also alle bestehenden Anmeldungen. API-Schlüssel bleiben im getrennten verschlüsselten Schlüsselspeicher.
+Anki Studio schreibt diese täglichen Werte atomar und mit Rechten `0600` in `<data_dir>/runtime.env`, eine zusätzliche systemd-`EnvironmentFile`; ihre Werte überschreiben die anfänglichen Umgebungswerte beim nächsten Start. Login-Hash, Endpunkt und Benutzername stehen dort nur Base64-kodiert, Session-Schlüssel und Sync-Passwort verschlüsselt wie die API-Schlüssel (Fernet mit `ANKI_STUDIO_SECRET_KEY`). Ohne diesen Schlüssel lehnt die Seite das Speichern ab. Der Dienst startet danach kontrolliert neu. Eine Passwortänderung dreht zusätzlich den Session-Schlüssel, beendet also alle bestehenden Anmeldungen. API-Schlüssel bleiben im getrennten verschlüsselten Schlüsselspeicher.
 
 ## Modelle des Providers
 
@@ -149,9 +149,11 @@ ssh ct-anki-studio 'bash -s' < deploy/install.sh
 ssh ct-anki-studio 'bash -s' < deploy/update.sh
 ```
 
-`deploy/update.sh` verweigert einen fehlenden oder lokalen veränderten Produktionscheckout und ruft dann den idempotenten Installer auf. Beide Skripte prüfen zum Schluss `/healthz`. Die reguläre Installation wird erst ausgeführt, wenn dieser Codex-Stand nach `main` übernommen wurde; die bestehende `anki-studio-preview`-Vorschau bleibt davon getrennt.
+`deploy/update.sh` verweigert einen fehlenden oder lokalen veränderten Produktionscheckout und ruft dann den idempotenten Installer auf. Beide Skripte prüfen zum Schluss `/healthz`.
 
-Für die Arbeit auf einem lokalen Codex-Zweig gibt es zusätzlich `deploy/codex-preview.sh`. Es überträgt ausschließlich den **committeten, sauberen** lokalen Stand als `git archive` in einen eigenen Checkout, Datenordner, Systembenutzer und Dienst `anki-studio-codex-preview`. Die Vorschau hat keinen Sync-Endpunkt und erhält ein eigenes Environment mit eigenen Session- und Verschlüsselungsschlüsseln; beim ersten Einrichten wird höchstens der Login-Hash aus der Standardvorschau übernommen. Provider- und Sync-Zugangsdaten werden nicht in den Codex-Dienst übernommen. Sie wurde im Container erfolgreich mit Health-Check ausgeführt und ändert weder `main` noch `anki-studio-preview`.
+**Übernahme der Vorschau:** Läuft noch `anki-studio-preview`, stoppt und entfernt `install.sh` diesen Dienst, nachdem die Abhängigkeiten installiert sind, und verschiebt dessen Daten (Generator-YAML, gespeicherte API-Schlüssel, Modelle, Jobs, Sammlung) aus dem `DynamicUser`-Ordner `/var/lib/private/anki-studio` nach `/var/lib/anki-studio`, Eigentümer `anki-studio`. Login, Profile und Schlüssel bleiben dadurch erhalten. Danach verweigert `preview.sh` den Start, Updates laufen über `update.sh`.
+
+Die isolierte Codex-Vorschau (Dienst `anki-studio-codex-preview`, Port 8001), mit der Codex seinen Zweig vor der Übernahme nach `main` geprüft hat, ist überholt. `deploy/remove-codex-preview.sh` entfernt genau sie: Dienst, Systembenutzer, Programm-, Konfigurations-, Daten- und Cache-Ordner. Ausführen nur nach Freigabe: `ssh ct-anki-studio 'bash -s' < deploy/remove-codex-preview.sh`.
 
 ## Tests und Prüfungen
 
@@ -186,4 +188,4 @@ Alle Dateien liegen unter [src/anki_studio/static/vendor/](./src/anki_studio/sta
 - Die Verbindung ist unverschlüsseltes HTTP; Betrieb nur im LAN und über NetBird. Das Cookie trägt deshalb kein `Secure`-Attribut, und auch API-Schlüssel gehen im LAN unverschlüsselt zum Server (über NetBird im verschlüsselten Tunnel).
 - Ein Backup mit Datenordner und Umgebungsdatei enthält die verschlüsselten Schlüssel zusammen mit dem Entschlüsselungsschlüssel.
 - Die Verzögerung nach falschen Passwörtern bremst nur einzelne Versuche; parallele Versuche werden nicht gezählt oder gesperrt.
-- Die regulären Installations- und Update-Skripte sind lokal geprüft und die isolierte Codex-Vorschau ist im Container geprüft. Die eigentliche Produktionsinstallation bleibt bis zur Übernahme nach `main` aus; ein hostseitiger vzdump-Backupablauf (AS-042) braucht eine gesonderte Freigabe für den Proxmox-Host.
+- Die regulären Installations- und Update-Skripte sind geprüft (Syntax; der gleiche Dienstaufbau lief in der Codex-Vorschau im Container); die reguläre Installation erfolgt erst auf ausdrücklichen Auftrag. Ein hostseitiger vzdump-Backupablauf (AS-042) braucht eine gesonderte Freigabe für den Proxmox-Host.

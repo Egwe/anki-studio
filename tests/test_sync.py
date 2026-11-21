@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 from anki import sync_pb2
 from anki.collection import Collection
+from anki.errors import NetworkError, SyncError
 from anki_flashcards.apkg import collection_decks
 from anki_flashcards.models import Card, save_cards
 from anki_flashcards.pipeline import write_collection
@@ -329,6 +330,146 @@ def test_sync_never_runs_a_server_requested_full_upload(tmp_path: Path) -> None:
         worker.stop()
 
     assert collection.full_upload_called is False
+
+
+class _FailingCollection:
+    """Minimal pylib boundary whose login or full download fails.
+
+    Attributes:
+        fail_login: Whether ``sync_login`` raises a pylib sync error.
+        events: Pylib calls in the order they happened.
+    """
+
+    def __init__(self, *, fail_login: bool) -> None:
+        """Choose the failing step.
+
+        Args:
+            fail_login: True to fail the login; False to fail the download
+                that the server requests.
+        """
+        self.fail_login = fail_login
+        self.events: list[str] = []
+
+    def sync_login(self, username: str, password: str, endpoint: str) -> sync_pb2.SyncAuth:
+        """Return temporary auth or reject the login like the server would.
+
+        Args:
+            username: Test sync user name.
+            password: Test sync password.
+            endpoint: Test sync endpoint.
+
+        Returns:
+            Temporary generated sync auth.
+
+        Raises:
+            SyncError: If the login is set to fail.
+        """
+        del username, password
+        if self.fail_login:
+            raise SyncError("Benutzername oder Passwort falsch.", None, None, None, 0)
+        return sync_pb2.SyncAuth(endpoint=endpoint)
+
+    def sync_collection(
+        self, auth: sync_pb2.SyncAuth, sync_media: bool
+    ) -> sync_pb2.SyncCollectionResponse:
+        """Request a full download like for an empty local collection.
+
+        Args:
+            auth: Temporary auth, unused by this fake.
+            sync_media: Whether media would be synchronized, always false.
+
+        Returns:
+            Generated response requesting ``FULL_DOWNLOAD``.
+        """
+        del auth, sync_media
+        return sync_pb2.SyncCollectionResponse(
+            required=sync_pb2.SyncCollectionResponse.ChangesRequired.FULL_DOWNLOAD
+        )
+
+    def close_for_full_sync(self) -> None:
+        """Record that pylib handed the collection to the backend.
+
+        Returns:
+            None.
+        """
+        self.events.append("close")
+
+    def full_upload_or_download(self, **kwargs: object) -> None:
+        """Fail the download like a lost network connection.
+
+        Args:
+            **kwargs: Pylib full-sync arguments, unused in the fake.
+
+        Returns:
+            None.
+
+        Raises:
+            NetworkError: Always.
+        """
+        del kwargs
+        self.events.append("download")
+        raise NetworkError("Verbindung unterbrochen.", None, None, None)
+
+    def reopen(self, after_full_sync: bool = False) -> None:
+        """Record that pylib reattached to the collection.
+
+        Args:
+            after_full_sync: Must be True after a full sync.
+
+        Returns:
+            None.
+        """
+        self.events.append(f"reopen:{after_full_sync}")
+
+
+@pytest.mark.parametrize(
+    ("fail_login", "reason"),
+    [(True, "Benutzername oder Passwort falsch."), (False, "Verbindung unterbrochen.")],
+)
+def test_sync_failures_name_the_pylib_reason(tmp_path: Path, fail_login: bool, reason: str) -> None:
+    """Login and download failures explain the reason without secrets.
+
+    Args:
+        tmp_path: Temporary folder for the private sync service state.
+        fail_login: Whether the login or the full download fails.
+        reason: Message of the simulated pylib error.
+    """
+    endpoint = "http://sync.example/"
+    service, worker, _ = _service(tmp_path, endpoint)
+    collection = _FailingCollection(fail_login=fail_login)
+    try:
+        with pytest.raises(SyncFailure) as error:
+            service._sync_collection(
+                collection, SyncState(), endpoint, SYNC_USER, SYNC_PASSWORD, lambda event: None
+            )
+    finally:
+        worker.stop()
+
+    assert str(error.value).endswith(f": {reason}")
+    assert SYNC_PASSWORD not in str(error.value)
+
+
+def test_failed_full_download_reopens_the_collection(tmp_path: Path) -> None:
+    """After a failed full download pylib reattaches to the collection.
+
+    Without the reopen every later collection access of the worker would
+    fail until the service restarts.
+
+    Args:
+        tmp_path: Temporary folder for the private sync service state.
+    """
+    endpoint = "http://sync.example/"
+    service, worker, _ = _service(tmp_path, endpoint)
+    collection = _FailingCollection(fail_login=False)
+    try:
+        with pytest.raises(SyncFailure, match="Komplett-Download"):
+            service._sync_collection(
+                collection, SyncState(), endpoint, SYNC_USER, SYNC_PASSWORD, lambda event: None
+            )
+    finally:
+        worker.stop()
+
+    assert collection.events == ["close", "download", "reopen:True"]
 
 
 def test_collection_worker_runs_all_actions_on_its_own_thread(tmp_path: Path) -> None:

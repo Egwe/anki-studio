@@ -39,7 +39,7 @@ Die Entscheidungen zu Basis, Rolle, Generator-Einbindung, Backend, Frontend, Liv
 | 1 | Vorbereitung des Generators: R-170 bis R-176, Version 0.2.0 | Generator-Repo | **erledigt**: Generator 0.2.0, Git-Tag `v0.2.0`; R-170 bis R-176 dort umgesetzt (Übergabe Abschnitt 12) |
 | 2 | Web-MVP: Login, Generieren, Live-Fortschritt, Prüfen, APKG- und JSON-Download | anki-studio | **erledigt** (21.11.2026); dazu Zugangsdaten und Modellliste |
 | 3 | Sync: Anmeldung, lokale Sammlung, Deckauswahl, Schreiben und Synchronisieren | anki-studio | **lokal umgesetzt**; echter Lauf nur mit eigenem freigegebenem Testbenutzer noch offen |
-| 4 | Deployment im LXC: systemd, uv, Pfade, Backup | anki-studio | offen |
+| 4 | Deployment im LXC: systemd, uv, Pfade, Backup | anki-studio | **Skripte fertig** (`install.sh` mit Übernahme der Vorschau, `update.sh`); Ausführung auf Auftrag; Backup offen (Proxmox-Host) |
 | 5 | Optional: Karten durchsuchen und bearbeiten (AS-013) | anki-studio | offen |
 
 ## 4. Anforderungen
@@ -105,7 +105,7 @@ Die Generator-Konfiguration enthält immer ein Profil für jeden unterstützten 
 
 **AS-016 – Bedienung ohne Container-Zugriff · muss · umgesetzt**
 Alles, was im täglichen Betrieb eingestellt wird, geht über die Oberfläche: Generator-Konfiguration und Profile (AS-009, AS-015), API-Schlüssel (AS-035), Modellwahl (AS-014), später Sync-Zugang und Login-Passwort. Shell-Zugriff auf den Container bleibt für Installation, Updates und Notfälle.
-*Umsetzung:* Zusätzlich zu Generator-Konfiguration und Profilen (P7), API-Schlüsseln (P4c), Modellwahl (P4d) und der Sync-Statusseite (P10) bietet **Einstellungen → Zugang und Sync** das Ändern des Login-Passworts sowie das vollständige Einrichten oder Abschalten der Sync-Verbindung. `RuntimeEnvironment` schreibt die vollständigen täglichen Werte atomar mit 0600 als zweite systemd-`EnvironmentFile` unter dem Datenordner; sie wird nach der Administrator-Umgebung geladen und überschreibt diese beim Neustart. Passwort und Sync-Zugang bleiben damit Umgebungswerte, nicht YAML-, Job- oder Logdaten. Eine Passwortänderung dreht den Session-Schlüssel; jeder Speichervorgang startet den Dienst kontrolliert neu. Belegt durch `tests/test_runtime_env.py` und `tests/test_web_access.py`.
+*Umsetzung:* Zusätzlich zu Generator-Konfiguration und Profilen (P7), API-Schlüsseln (P4c), Modellwahl (P4d) und der Sync-Statusseite (P10) bietet **Einstellungen → Zugang und Sync** das Ändern des Login-Passworts sowie das vollständige Einrichten oder Abschalten der Sync-Verbindung. `RuntimeEnvironment` schreibt die vollständigen täglichen Werte atomar mit 0600 als zweite systemd-`EnvironmentFile` unter dem Datenordner; sie wird nach der Administrator-Umgebung geladen und überschreibt diese beim Neustart. Passwort und Sync-Zugang bleiben damit Umgebungswerte, nicht YAML-, Job- oder Logdaten; Session-Schlüssel und Sync-Passwort stehen dort verschlüsselt (AS-031). Das Ändern des Login-Passworts verlangt das aktuelle Passwort und dreht den Session-Schlüssel; ein leeres Sync-Passwortfeld behält bei gleichem Benutzernamen das gespeicherte Passwort; jeder Speichervorgang startet den Dienst kontrolliert neu. Belegt durch `tests/test_runtime_env.py` und `tests/test_web_access.py`.
 
 **AS-013 – Karten in der Sammlung durchsuchen und bearbeiten · kann · offen**
 Suche über `col.find_notes`, Bearbeiten und Löschen generierter Notizen. Zurückgestellt auf Phase 5.
@@ -158,6 +158,7 @@ Ein Passwort; nur sein Hash steht in der Umgebungsdatei. Session-Cookie `HttpOnl
 **AS-031 – Secrets · muss · umgesetzt**
 Login-Hash, Session-Schlüssel, Schlüssel der Verschlüsselung und Sync-Zugangsdaten nur in der Umgebungsdatei. API-Schlüssel der Provider in der Umgebungsdatei oder, über die Oberfläche eingegeben, verschlüsselt im Datenordner (AS-035; Änderung vom 21.11.2026, ursprünglich nur Umgebungsdatei). Die YAML enthält wie im Generator nur Variablennamen (`api_key_env`). Keine Secrets in Logs, Job-Dateien, Fehlermeldungen oder der Oberfläche.
 *Umsetzung:* Login-Hash, Session-, Verschlüsselungs- und Sync-Zugangsdaten kommen nur aus der Umgebung; Fehlermeldungen nennen die Variable, nie den Wert; `repr` blendet die Werte aus (`tests/test_credentials.py`); API-Schlüssel nach AS-035.
+*Ergänzung 21.11.2026 (AS-016):* In der Oberfläche geänderte Werte liegen in `<data_dir>/runtime.env`, der zweiten `EnvironmentFile` des Dienstes. Session-Schlüssel und Sync-Passwort stehen dort als Fernet-Token unter `ANKI_STUDIO_SECRET_KEY` wie die API-Schlüssel, Login-Hash, Endpunkt und Benutzername nur Base64-kodiert. Ohne Schlüssel wird nichts gespeichert; ein nicht entschlüsselbarer Wert stoppt den Start mit dem Variablennamen (`tests/test_runtime_env.py`, `tests/test_credentials.py`, `tests/test_web_access.py`).
 
 **AS-032 – Jobs · muss · umgesetzt**
 Ein Job läuft zur Zeit (eine GPU, ein Benutzer); weitere warten in einer Warteschlange. Jeder Job hat einen Ordner mit Upload, Ereignisprotokoll, Karten-JSON und Ergebnis. Nach einem Neustart sind abgeschlossene Jobs weiter sichtbar; laufende gelten als abgebrochen. Alte Jobs werden nach einer einstellbaren Frist gelöscht.
@@ -187,7 +188,7 @@ Reguläre Tests laufen ohne Netzwerk, ohne echten Sync-Server, ohne API-Schlüss
 **AS-040 – Installation · muss · teilweise**
 Im LXC „anki-studio“: eigener Systembenutzer statt root; Programm mit uv in `/opt/anki-studio`; Daten in `/var/lib/anki-studio`; Konfiguration `/etc/anki-studio/config.yaml` (Generator-YAML) und `/etc/anki-studio/studio.yaml` (Endpunkt, Datenpfade, Port); Secrets in `/etc/anki-studio/env` (0600) als `EnvironmentFile`; systemd-Unit mit uvicorn. Ein Installations- und Update-Skript im Repo (`deploy/`).
 *Änderung 21.11.2026:* Die Generator-YAML liegt im Datenordner (`/var/lib/anki-studio/generator.yaml`), weil sie über die Oberfläche bearbeitet wird (AS-015, AS-016); `/etc/anki-studio` enthält nur `studio.yaml` und `env`.
-*Umsetzung:* `deploy/install.sh` und `deploy/update.sh` verwenden ausschließlich den veröffentlichten `main`-Zweig, richten einen eigenen Systembenutzer, `/opt/anki-studio`, `/var/lib/anki-studio`, `/etc/anki-studio/{studio.yaml,env}` (0600) und eine gehärtete systemd-Unit ein, bewahren Konfiguration und Daten und prüfen `/healthz`. Eine isolierte Codex-Vorschau mit eigenem Nutzer, Dienst, Datenordner und eigener Umgebung ist im Container erfolgreich ausgeführt worden; sie übernimmt beim ersten Einrichten höchstens den Login-Hash, nie Provider- oder Sync-Zugangsdaten. *Offen:* reguläre Installation erst nach der Übernahme dieses Stands in `main`; sie wird nicht vom Codex-Zweig aus ausgelöst.
+*Umsetzung:* `deploy/install.sh` und `deploy/update.sh` verwenden ausschließlich den veröffentlichten `main`-Zweig, richten einen eigenen Systembenutzer, `/opt/anki-studio`, `/var/lib/anki-studio`, `/etc/anki-studio/{studio.yaml,env}` (0600) und eine gehärtete systemd-Unit ein, bewahren Konfiguration und Daten und prüfen `/healthz`. Eine isolierte Codex-Vorschau mit gleichem Dienstaufbau (eigener Nutzer, `ProtectSystem=strict`, `ReadWritePaths` nur Datenordner) lief im Container einschließlich GPU-Modell-Download. Seit P14 übernimmt `install.sh` eine laufende Vorschau: Dienst `anki-studio-preview` stoppen und entfernen, Daten aus `/var/lib/private/anki-studio` nach `/var/lib/anki-studio` verschieben und dem Dienstbenutzer übergeben; `preview.sh` verweigert danach den Start. `deploy/remove-codex-preview.sh` entfernt die überholte Codex-Vorschau. *Offen:* Ausführen der regulären Installation, nur auf ausdrücklichen Auftrag des Projektinhabers.
 
 **AS-041 – GPU · soll · umgesetzt**
 Strukturierter Modus mit der durchgereichten GPU, sofern der GPU-Test (Abschnitt 5.3) sie als nutzbar bestätigt. Sonst dokumentieren, welche Ausweichwege gelten.
@@ -311,13 +312,15 @@ Jedes Paket ist ein Branch mit kleinen Commits, wird nach grünen Prüfungen mit
 | P7 | `feature/config-editor` | Konfiguration anzeigen (Herkunft) und Profile und Standardwerte bearbeiten | AS-009, AS-016 | erledigt |
 | G1 | Generator-Repo | Generator 0.2.1: `tenacity`, Mehrwort-Tags, Batch-Größe Formeln, genauere GPU-Prüfung; Anki Studio auf `v0.2.1` | – | erledigt (vorgezogen) |
 | P8 | `feature/structured-mode` | Extra `pdf` mit PyTorch `cu126`, Modelle laden, GPU-Anzeige | AS-041, AS-010 | erledigt: Code, Tests, Modell-Download, CUDA-Validierung, providerfreier strukturierter Rauchtest und UI-Job der Codex-Vorschau geprüft |
-| P9 | `feature/decks-export` | Decks einer APKG, Export Karten-JSON → APKG | AS-007, AS-008 (APKG-Teile) | **teilweise erledigt**: APKG-Deckbaum und neuer APKG-Export umgesetzt; Sammlungsteile bleiben Phase 3 |
-| P10 | `codex/sync-foundation` | Sync-Anmeldung, lokaler Sammlungs-Worker, sicherer Erst- und Normal-Sync, Statusseite | AS-020–AS-025, AS-011, AS-031, AS-034 | **teilweise erledigt**: Sync-Grundlage und lokale Integrationstests umgesetzt; Sammlung als Schreibziel, Deckbaum und Export folgen |
+| P9 | `feature/decks-export` | Decks einer APKG, Export Karten-JSON → APKG | AS-007, AS-008 (APKG-Teile) | erledigt; Sammlungsteile mit P11 |
+| P10 | `codex/sync-foundation` | Sync-Anmeldung, lokaler Sammlungs-Worker, sicherer Erst- und Normal-Sync, Statusseite | AS-020–AS-025, AS-011, AS-031, AS-034 | erledigt (lokal); Sammlung als Ziel mit P11 |
 | P11 | `codex/collection-target` | Sammlung als Ziel für Generierung, Prüfung und Karten-JSON; Sammlung-Deckbaum; Vor-/Nach-Sync | AS-002, AS-006–AS-008, AS-011, AS-022, AS-034 | **lokal erledigt**: 127.0.0.1-Integrationstests; echter Testbenutzer bleibt offen |
 | P12 | `codex/deployment-foundation` | reguläre Installations-/Update-Skripte und isolierte Codex-Vorschau | AS-040, AS-041 (Vorschau), AS-042 | **teilweise erledigt**: Skripte und Codex-Vorschau im Container geprüft; reguläre Installation und Proxmox-Backup bewusst noch nicht ausgeführt |
 | P13 | `codex/runtime-access-settings` | Login-Passwort und Sync-Zugang im Browser, atomare Laufzeit-Umgebung, kontrollierter Neustart | AS-016 | erledigt |
-| Phase 3 | `codex/collection-target` | Sync-Client, Sammlung als Ziel, Sync-Status | AS-020–AS-025, AS-002, AS-006, AS-007, AS-008, AS-011 | **lokal umgesetzt**; echter Server-Test mit Testbenutzer offen |
-| Phase 4 | `feature/deploy-…` | Installation und Update nach AS-040, Backup | AS-040, AS-042 | offen |
+| M1 | `codex/main` → `main` | Review und Übernahme des Codex-Stands P9–P13 (Merge `26c6563`) | – | erledigt |
+| P14 | `feature/codex-review-fixes` | Befunde des Reviews: Sync-Fehlertexte und Wiederöffnen nach gescheitertem Komplett-Download, aktuelles Passwort beim Ändern, Sync-Passwort behalten, Session-Schlüssel und Sync-Passwort verschlüsselt in `runtime.env`, Übernahme der Vorschau durch `install.sh`, Entfernen der Codex-Vorschau | AS-016, AS-022, AS-031, AS-040 | erledigt |
+| Phase 3 | P10, P11 | Sync-Client, Sammlung als Ziel, Sync-Status | AS-020–AS-025, AS-002, AS-006, AS-007, AS-008, AS-011 | **lokal umgesetzt**; echter Server-Test mit Testbenutzer offen |
+| Phase 4 | P12, P14 | Installation und Update nach AS-040, Backup | AS-040, AS-042 | Skripte fertig; Ausführung von `install.sh` erst auf Auftrag; Backup offen (Proxmox-Host) |
 
 ## 8. Codex-Abschlussbericht (21.11.2026)
 
@@ -344,5 +347,7 @@ darf erst nach einer bewussten Übernahme in das globale `main` erfolgen; das
 Proxmox-Backup (AS-042) braucht eine separate Host-Freigabe. Ein echter
 Sync-Test bleibt bis zur Bereitstellung eines ausdrücklich freigegebenen
 Testbenutzers aus.
+
+*Übernahme nach `main` (21.11.2026):* Claude hat `codex/main` gegen `main` geprüft (Sync-Sicherheit nach AS-023, Sammlungs-Worker, Laufzeit-Umgebung, Routen, Deploy-Skripte) und mit dem Merge-Commit `26c6563` übernommen. Die Befunde behebt P14: allgemeine Sync-Fehlermeldung ohne Grund, fehlendes Wiederöffnen der Sammlung nach gescheitertem Komplett-Download, Passwortänderung ohne aktuelles Passwort, Sync-Passwort und Session-Schlüssel nur Base64-kodiert im Datenordner, keine Übernahme der Vorschau durch `install.sh` (Port- und Datenordnerkonflikt mit `DynamicUser`), Codex-Vorschau-Skripte mit Nicht-`main`-Ständen.
 
 **Übernahme durch eine andere Person oder KI:** `AGENTS.md` lesen, dann `git log --oneline --first-parent main` für die erledigten Pakete und diese Tabelle für das nächste. Prüfungen: `uv sync`, `ruff check`, `ruff format --check`, `pytest` (README). Die Vorschau aktualisiert `ssh ct-anki-studio 'bash -s' < deploy/preview.sh`.

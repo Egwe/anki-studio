@@ -9,8 +9,9 @@ from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 
-from anki_studio.passwords import hash_password
-from anki_studio.runtime_env import RuntimeEnvironment
+from anki_studio.credentials import Credentials
+from anki_studio.passwords import hash_password, verify_password
+from anki_studio.runtime_env import RuntimeEnvironment, RuntimeEnvironmentError
 from anki_studio.settings import validate_sync_endpoint
 
 router = APIRouter()
@@ -20,10 +21,13 @@ class PasswordForm(BaseModel):
     """Validate a replacement login password before hashing it.
 
     Attributes:
+        current: Current login password; proves that the person at the
+            browser knows it, not only holds a session.
         password: New plain-text password with at most 1024 characters.
         confirmation: Repeated plain-text password.
     """
 
+    current: str = Field(default="", max_length=1024)
     password: str = Field(default="", max_length=1024)
     confirmation: str = Field(default="", max_length=1024)
 
@@ -36,6 +40,7 @@ class SyncAccessForm(BaseModel):
         endpoint: HTTP(S) endpoint without embedded credentials.
         username: Account name on the configured sync server.
         password: Plain-text password for ``username``; never rendered again.
+            Empty keeps the stored password as long as the user name stays.
     """
 
     enabled: bool = False
@@ -63,11 +68,14 @@ async def change_password(request: Request, form: Annotated[PasswordForm, Form()
 
     Args:
         request: Authenticated browser request.
-        form: New password and its confirmation.
+        form: Current password, new password and its confirmation.
 
     Returns:
         A redirect while the service restarts, or the form with an error.
     """
+    credentials = request.app.state.credentials
+    if not await run_in_threadpool(_current_password_matches, credentials, form.current):
+        return _render(request, password_error="Das aktuelle Passwort ist falsch.", status=400)
     if form.password != form.confirmation:
         return _render(
             request,
@@ -78,7 +86,6 @@ async def change_password(request: Request, form: Annotated[PasswordForm, Form()
         password_hash = await run_in_threadpool(hash_password, form.password)
     except ValueError as error:
         return _render(request, password_error=str(error), status=400)
-    credentials = request.app.state.credentials
     try:
         await run_in_threadpool(
             _runtime(request).save,
@@ -88,6 +95,8 @@ async def change_password(request: Request, form: Annotated[PasswordForm, Form()
             sync_username=credentials.sync_username,
             sync_password=credentials.sync_password,
         )
+    except RuntimeEnvironmentError as error:
+        return _render(request, password_error=str(error), status=500)
     except OSError:
         return _render(
             request,
@@ -108,11 +117,11 @@ async def change_sync_access(request: Request, form: Annotated[SyncAccessForm, F
     Returns:
         A redirect while the service restarts, or the form with an error.
     """
-    values, error = _sync_values(form)
+    credentials = request.app.state.credentials
+    values, error = _sync_values(form, credentials)
     if error is not None:
         return _render(request, sync_error=error, sync_values=form, status=400)
     endpoint, username, password = values
-    credentials = request.app.state.credentials
     try:
         await run_in_threadpool(
             _runtime(request).save,
@@ -122,6 +131,8 @@ async def change_sync_access(request: Request, form: Annotated[SyncAccessForm, F
             sync_username=username,
             sync_password=password,
         )
+    except RuntimeEnvironmentError as error:
+        return _render(request, sync_error=str(error), sync_values=form, status=500)
     except OSError:
         return _render(
             request,
@@ -132,13 +143,32 @@ async def change_sync_access(request: Request, form: Annotated[SyncAccessForm, F
     return _restart_response(request)
 
 
+def _current_password_matches(credentials: Credentials, password: str) -> bool:
+    """Check the current login password before it may be replaced.
+
+    Args:
+        credentials: Loaded credentials of the running service.
+        password: Password entered in the form.
+
+    Returns:
+        True if a login hash exists and ``password`` matches it.
+    """
+    if credentials.password_hash is None:
+        return False
+    return verify_password(password, credentials.password_hash)
+
+
 def _sync_values(
-    form: SyncAccessForm,
+    form: SyncAccessForm, credentials: Credentials
 ) -> tuple[tuple[str | None, str | None, str | None], str | None]:
     """Validate a complete enabled connection or an explicit disabled state.
 
+    An empty password field keeps the stored password while the user name
+    stays the same, so changing only the endpoint needs no retyping.
+
     Args:
         form: Submitted sync form.
+        credentials: Currently loaded sync credentials.
 
     Returns:
         Endpoint, user name, and password together with an error.  The three
@@ -146,13 +176,17 @@ def _sync_values(
     """
     if not form.enabled:
         return (None, None, None), None
-    if not form.username.strip() or not form.password:
+    username = form.username.strip()
+    password = form.password
+    if not password and username == credentials.sync_username:
+        password = credentials.sync_password or ""
+    if not username or not password:
         return (None, None, None), "Benutzername und Passwort sind erforderlich."
     try:
         endpoint = validate_sync_endpoint(form.endpoint)
     except ValueError as error:
         return (None, None, None), f"Sync-Endpunkt {error}"
-    return (endpoint, form.username.strip(), form.password), None
+    return (endpoint, username, password), None
 
 
 def _runtime(request: Request) -> RuntimeEnvironment:
@@ -162,9 +196,12 @@ def _runtime(request: Request) -> RuntimeEnvironment:
         request: Incoming request giving access to application settings.
 
     Returns:
-        The file writer below the configured data directory.
+        The file writer below the configured data directory, encrypting with
+        the configured ``ANKI_STUDIO_SECRET_KEY``.
     """
-    return RuntimeEnvironment(request.app.state.settings.data_dir)
+    return RuntimeEnvironment(
+        request.app.state.settings.data_dir, request.app.state.credentials.secret_key
+    )
 
 
 def _restart_response(request: Request) -> RedirectResponse:
@@ -215,6 +252,7 @@ def _render(
         "password_error": password_error,
         "sync_error": sync_error,
         "sync_values": values,
+        "sync_password_set": credentials.sync_password is not None,
     }
     return request.app.state.templates.TemplateResponse(
         request, "access.html", context, status_code=status
