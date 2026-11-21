@@ -79,6 +79,9 @@ replace_checkout() {
     mv "$APP_DIR" "$PREVIOUS_DIR"
   fi
   mv "$incoming" "$APP_DIR"
+  # mktemp creates the staging directory as 0700. The separate system user
+  # needs read and execute access to immutable program files, never to data.
+  chmod -R a+rX "$APP_DIR"
 }
 
 install_dependencies() {
