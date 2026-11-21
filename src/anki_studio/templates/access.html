@@ -40,7 +40,7 @@
       <input id="username" name="username" type="text" maxlength="1024" value="{{ sync_values.username }}" autocomplete="username">
     </label>
     <label for="sync-password">Passwort
-      <input id="sync-password" name="password" type="password" maxlength="1024" autocomplete="off"{% if sync_password_set %} placeholder="gespeichert – leer lassen, um es zu behalten"{% endif %}>
+      <input id="sync-password" name="password" type="password" maxlength="1024" autocomplete="off"{% if sync_password_set %} placeholder="gespeichert – leer lassen"{% endif %}>
     </label>
     <small>Zum Deaktivieren das Häkchen entfernen und speichern.</small>
     <button type="submit">Sync-Zugang speichern und neu starten</button>
