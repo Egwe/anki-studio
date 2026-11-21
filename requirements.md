@@ -319,4 +319,30 @@ Jedes Paket ist ein Branch mit kleinen Commits, wird nach grünen Prüfungen mit
 | Phase 3 | `codex/collection-target` | Sync-Client, Sammlung als Ziel, Sync-Status | AS-020–AS-025, AS-002, AS-006, AS-007, AS-008, AS-011 | **lokal umgesetzt**; echter Server-Test mit Testbenutzer offen |
 | Phase 4 | `feature/deploy-…` | Installation und Update nach AS-040, Backup | AS-040, AS-042 | offen |
 
+## 8. Codex-Abschlussbericht (21.11.2026)
+
+Der isolierte Codex-Fachstand wurde auf `codex/main` mit dem Merge-Commit
+`c25a48b` zusammengeführt. Er ergänzt die lokale Sync- und Sammlungsarbeit,
+die isolierte Container-Vorschau, die GPU-Validierung sowie die vollständige
+Bedienung im Alltag: Unter **Einstellungen → Zugang und Sync** lassen sich
+Login-Passwort und Sync-Verbindung ohne Shell-Zugriff ändern. Die Werte bleiben
+in einer privaten optionalen systemd-`EnvironmentFile`; der Dienst startet nach
+einer atomaren Änderung kontrolliert neu. Globale Branches wurden dabei nicht
+verändert: `main` und `origin/main` standen weiterhin auf `c74ba4e`.
+
+Die fokussierten lokalen Prüfungen (`ruff`, Format, `tests/test_runtime_env.py`,
+`tests/test_settings.py`, `tests/test_credentials.py`) waren grün. Die volle
+Prüffolge `uv sync --locked --extra pdf`, Ruff-Check, Format-Check und pytest
+lief anschließend erfolgreich im isolierten Codex-Checkout des freigegebenen
+Containers. Die Codex-Vorschau wurde danach mit `c25a48b` aktualisiert; ihr
+eigener Dienst `anki-studio-codex-preview` war aktiv, beantwortete `/healthz`
+und las die optionale Laufzeit-Umgebung nach seiner eigenen Basis-Umgebung.
+
+Nicht als unvollständige Codex-Implementierung zu verstehen sind die klar
+abgegrenzten nächsten Betriebsaktionen: Die reguläre Installation (AS-040)
+darf erst nach einer bewussten Übernahme in das globale `main` erfolgen; das
+Proxmox-Backup (AS-042) braucht eine separate Host-Freigabe. Ein echter
+Sync-Test bleibt bis zur Bereitstellung eines ausdrücklich freigegebenen
+Testbenutzers aus.
+
 **Übernahme durch eine andere Person oder KI:** `AGENTS.md` lesen, dann `git log --oneline --first-parent main` für die erledigten Pakete und diese Tabelle für das nächste. Prüfungen: `uv sync`, `ruff check`, `ruff format --check`, `pytest` (README). Die Vorschau aktualisiert `ssh ct-anki-studio 'bash -s' < deploy/preview.sh`.
