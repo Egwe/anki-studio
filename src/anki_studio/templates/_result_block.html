@@ -1,21 +1,21 @@
 {# Outcome of writing (AS-006). #}
 <section id="result">
-  <h2>Ergebnis</h2>
+  <h2>{{ t('Result', de='Ergebnis') }}</h2>
   <article class="success">
-    <header><strong>{{ result.added }} neue Karten geschrieben</strong>{% if result.skipped %}, {{ result.skipped }} übersprungen (schon vorhanden){% endif %}{% if result.target == "collection" %} · synchronisierte Sammlung{% endif %}</header>
+    <header><strong>{{ t('{count} new cards written', de='{count} neue Karten geschrieben', count=result.added) }}</strong>{% if result.skipped %}, {{ t('{count} skipped (already present)', de='{count} übersprungen (schon vorhanden)', count=result.skipped) }}{% endif %}{% if result.target == "collection" %} · {{ t('synchronised collection', de='synchronisierte Sammlung') }}{% endif %}</header>
     {% if result.added_by_deck %}
     <table>
-      <thead><tr><th scope="col">Deck</th><th scope="col">Neue Karten</th></tr></thead>
+      <thead><tr><th scope="col">{{ t('Deck') }}</th><th scope="col">{{ t('New cards', de='Neue Karten') }}</th></tr></thead>
       <tbody>
         {% for deck, count in result.added_by_deck.items() %}<tr><td>{{ deck }}</td><td>{{ count }}</td></tr>{% endfor %}
       </tbody>
     </table>
     {% endif %}
     <p>
-      {% if result.target != "collection" %}<a href="{{ url_for('download', job_id=job.id, kind='apkg') }}" role="button">APKG herunterladen</a>{% endif %}
-      <a href="{{ url_for('download', job_id=job.id, kind='json') }}" role="button" class="secondary outline">Karten-JSON</a>
-      {% if has_source %}<a href="{{ url_for('download', job_id=job.id, kind='source') }}" role="button" class="secondary outline">Aufbereiteter Text</a>{% endif %}
+      {% if result.target != "collection" %}<a href="{{ url_for('download', job_id=job.id, kind='apkg') }}" role="button">{{ t('Download APKG', de='APKG herunterladen') }}</a>{% endif %}
+      <a href="{{ url_for('download', job_id=job.id, kind='json') }}" role="button" class="secondary outline">{{ t('Card JSON', de='Karten-JSON') }}</a>
+      {% if has_source %}<a href="{{ url_for('download', job_id=job.id, kind='source') }}" role="button" class="secondary outline">{{ t('Processed text', de='Aufbereiteter Text') }}</a>{% endif %}
     </p>
-    <footer><small>{% if result.target == "collection" %}Nach dem Schreiben: {{ result.sync_result }}. {% else %}Die APKG-Datei lässt sich in Anki Desktop über „Datei → Importieren“ einlesen. {% endif %}Geschrieben am {{ result.written_at[:16] | replace("T", " ") }} UTC.</small></footer>
+    <footer><small>{% if result.target == "collection" %}{{ t('After writing: {result}.', de='Nach dem Schreiben: {result}.', result=result.sync_result) }} {% else %}{{ t('The APKG file can be imported into Anki Desktop through “File → Import”.', de='Die APKG-Datei lässt sich in Anki Desktop über „Datei → Importieren“ einlesen.') }} {% endif %}{{ t('Written at {time} UTC.', de='Geschrieben am {time} UTC.', time=result.written_at[:16] | replace('T', ' ')) }}</small></footer>
   </article>
 </section>

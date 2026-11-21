@@ -15,6 +15,7 @@ from starlette.concurrency import run_in_threadpool
 
 from anki_studio.forms import error_message
 from anki_studio.generator_config import load_generator_config
+from anki_studio.i18n import locale_from_request
 from anki_studio.model_catalog import ModelList, ModelListError, list_models
 
 router = APIRouter()
@@ -57,7 +58,9 @@ async def model_list(
     except (FlashcardError, ModelListError) as problem:
         error = str(problem)
     except ValidationError as problem:
-        error = "; ".join(error_message(item) for item in problem.errors())
+        error = "; ".join(
+            error_message(item, locale_from_request(request)) for item in problem.errors()
+        )
     template = "_model_check.html" if view == "keys" else "_model_list.html"
     context = {"result": result, "error": error}
     return request.app.state.templates.TemplateResponse(request, template, context)

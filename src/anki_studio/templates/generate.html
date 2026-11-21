@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 {% from "_fields.html" import error, switch %}
-{% block title %}Generieren – Anki Studio{% endblock %}
+{% block title %}{{ t('Generate') }} – Anki Studio{% endblock %}
 {% block content %}
 <hgroup>
-  <h1>Karten generieren</h1>
-  <p>Dokumente hochladen, Optionen wählen, Karten erzeugen. Geschrieben wird erst nach der Prüfung.</p>
+  <h1>{{ t('Generate cards') }}</h1>
+  <p>{{ t('Upload documents, choose options, and create cards. Nothing is written until review.', de='Dokumente hochladen, Optionen wählen, Karten erzeugen. Geschrieben wird erst nach der Prüfung.') }}</p>
 </hgroup>
 
 {% if config_error %}
 <article class="alert">
-  <strong>Die Generator-Konfiguration ist nicht nutzbar.</strong>
+  <strong>{{ t('The generator configuration cannot be used.', de='Die Generator-Konfiguration ist nicht nutzbar.') }}</strong>
   <p>{{ config_error }}</p>
-  <p>Pfad und Inhalt stehen in <code>generator_config</code> der <code>studio.yaml</code>.</p>
+  <p>{{ t('Its path and contents are set in <code>generator_config</code> in <code>studio.yaml</code>.', de='Pfad und Inhalt stehen in <code>generator_config</code> der <code>studio.yaml</code>.') }}</p>
 </article>
 {% else %}
 {% if errors.form %}<article class="alert" role="alert">{{ errors.form }}</article>{% endif %}
@@ -25,65 +25,65 @@
       data-target="{{ values.target or 'new_apkg' }}">
 
   <fieldset>
-    <legend><strong>Dokumente</strong></legend>
+    <legend><strong>{{ t('Documents', de='Dokumente') }}</strong></legend>
     <input type="file" name="documents" multiple required
            accept=".pdf,.docx,.html,.htm,.md,.markdown,.txt"
            {% if errors.documents %}aria-invalid="true"{% endif %}>
-    <small>PDF, DOCX, HTML, Markdown oder Text, je höchstens 100 MiB, bis zu {{ max_documents }} Dateien. Jede Datei wird ein eigener Job.</small>
+    <small>{{ t('PDF, DOCX, HTML, Markdown, or text; at most 100 MiB each and up to {count} files. Each file becomes its own job.', de='PDF, DOCX, HTML, Markdown oder Text, je höchstens 100 MiB, bis zu {count} Dateien. Jede Datei wird ein eigener Job.', count=max_documents) }}</small>
     {{ error(errors, "documents") }}
   </fieldset>
 
   <fieldset>
-    <legend><strong>Ziel</strong></legend>
-    <label><input type="radio" name="target" value="new_apkg" x-model="target"> Neue APKG-Datei</label>
-    <label><input type="radio" name="target" value="extend_apkg" x-model="target"> Vorhandene APKG erweitern</label>
-    <label><input type="radio" name="target" value="collection" x-model="target"> Synchronisierte Anki-Sammlung</label>
+    <legend><strong>{{ t('Target', de='Ziel') }}</strong></legend>
+    <label><input type="radio" name="target" value="new_apkg" x-model="target"> {{ t('New APKG file', de='Neue APKG-Datei') }}</label>
+    <label><input type="radio" name="target" value="extend_apkg" x-model="target"> {{ t('Extend existing APKG', de='Vorhandene APKG erweitern') }}</label>
+    <label><input type="radio" name="target" value="collection" x-model="target"> {{ t('Synchronised Anki collection', de='Synchronisierte Anki-Sammlung') }}</label>
     <div x-show="extend">
-      <label for="target_apkg">APKG-Datei zum Erweitern</label>
+      <label for="target_apkg">{{ t('APKG file to extend', de='APKG-Datei zum Erweitern') }}</label>
       <input id="target_apkg" type="file" name="target_apkg" accept=".apkg"
              {% if errors.target_apkg %}aria-invalid="true"{% endif %}>
-      <small>Höchstens 512 MiB; nur zusammen mit einem einzelnen Dokument.</small>
+      <small>{{ t('At most 512 MiB; only together with a single document.', de='Höchstens 512 MiB; nur zusammen mit einem einzelnen Dokument.') }}</small>
     </div>
     {{ error(errors, "target_apkg") }}
     {{ error(errors, "target") }}
-    <label for="deck">Deck</label>
+    <label for="deck">{{ t('Deck') }}</label>
     <input id="deck" name="deck" list="collection-deck-list" value="{{ values.deck or '' }}"
            placeholder="{{ deck_placeholder }}"
            {% if errors.deck %}aria-invalid="true"{% endif %}>
     <datalist id="collection-deck-list">{% for name in collection_decks %}<option value="{{ name }}">{% endfor %}</datalist>
-    <small>Für die Sammlung schlagen synchronisierte Decks Namen vor; ein neuer Name ist ebenfalls möglich. Leer: Wert aus der Konfiguration oder Dateiname. <code>::</code> trennt Unterdecks.</small>
+    <small>{{ t('For the collection, synchronised decks suggest names; a new name is also possible. Empty: configuration value or filename. <code>::</code> separates subdecks.', de='Für die Sammlung schlagen synchronisierte Decks Namen vor; ein neuer Name ist ebenfalls möglich. Leer: Wert aus der Konfiguration oder Dateiname. <code>::</code> trennt Unterdecks.') }}</small>
     {{ error(errors, "deck") }}
-    {{ switch("subdecks", "KI ordnet Karten Unterdecks zu", values, defaults.subdecks) }}
+    {{ switch("subdecks", t("AI assigns cards to subdecks", de="KI ordnet Karten Unterdecks zu"), values, defaults.subdecks) }}
   </fieldset>
 
   <fieldset>
-    <legend><strong>Modell</strong></legend>
-    <label for="profile">Profil</label>
+    <legend><strong>{{ t('Model', de='Modell') }}</strong></legend>
+    <label for="profile">{{ t('Profile', de='Profil') }}</label>
     <select id="profile" name="profile" x-model="profile">
-      <option value="">Standard{% if defaults.profile_name %}: {{ defaults.profile_name }}{% endif %}</option>
+      <option value="">{{ t('Default', de='Standard') }}{% if defaults.profile_name %}: {{ defaults.profile_name }}{% endif %}</option>
       {% for view in profiles %}
-      <option value="{{ view.name }}">{{ view.name }} – {{ view.model }} ({{ view.pdf_mode.value }}{% if view.key_status == "fehlt" %}, Schlüssel fehlt{% endif %})</option>
+      <option value="{{ view.name }}">{{ view.name }} – {{ view.model }} ({{ view.pdf_mode.value }}{% if view.key_status == "fehlt" %}, {{ t('key missing', de='Schlüssel fehlt') }}{% endif %})</option>
       {% endfor %}
     </select>
     {{ error(errors, "profile") }}
-    <label for="model">Modell</label>
+    <label for="model">{{ t('Model') }}</label>
     <fieldset role="group">
       <input id="model" name="model" x-ref="model" value="{{ values.model or '' }}"
-             placeholder="{{ defaults.ai.model or 'provider/modell' }}"
+             placeholder="{{ defaults.ai.model or t('provider/model', de='provider/modell') }}"
              {% if errors.model %}aria-invalid="true"{% endif %}>
       <button type="button" class="secondary nowrap"
               hx-get="{{ url_for('model_list') }}" hx-include="#profile"
-              hx-target="#model-list" hx-swap="outerHTML">Modelle laden</button>
+              hx-target="#model-list" hx-swap="outerHTML">{{ t('Load models', de='Modelle laden') }}</button>
     </fieldset>
-    <small>Leer: Modell des Profils. „Modelle laden“ fragt den Provider des gewählten Profils, welche Modelle es gibt; dabei geht nur der API-Schlüssel dorthin.</small>
+    <small>{{ t('Empty: profile model. “Load models” asks the chosen profile provider which models exist; only the API key is sent there.', de='Leer: Modell des Profils. „Modelle laden“ fragt den Provider des gewählten Profils, welche Modelle es gibt; dabei geht nur der API-Schlüssel dorthin.') }}</small>
     {{ error(errors, "model") }}
     <div id="model-list"></div>
     <details>
-      <summary>Endpunkt und Timeout überschreiben</summary>
-      <label for="api_base">API-Basis</label>
-      <input id="api_base" name="api_base" value="{{ values.api_base or '' }}" placeholder="{{ defaults.ai.api_base or 'Standard des Providers' }}">
+      <summary>{{ t('Override endpoint and timeout', de='Endpunkt und Timeout überschreiben') }}</summary>
+      <label for="api_base">{{ t('API base', de='API-Basis') }}</label>
+      <input id="api_base" name="api_base" value="{{ values.api_base or '' }}" placeholder="{{ defaults.ai.api_base or t('Provider default', de='Standard des Providers') }}">
       {{ error(errors, "api_base") }}
-      <label for="timeout">Timeout in Sekunden (1–3600)</label>
+      <label for="timeout">{{ t('Timeout in seconds (1–3600)', de='Timeout in Sekunden (1–3600)') }}</label>
       <input id="timeout" name="timeout" type="number" min="1" max="3600" value="{{ values.timeout or '' }}"
              placeholder="{{ defaults.ai.timeout }}" {% if errors.timeout %}aria-invalid="true"{% endif %}>
       {{ error(errors, "timeout") }}
@@ -91,26 +91,26 @@
   </fieldset>
 
   <fieldset>
-    <legend><strong>Karten</strong></legend>
+    <legend><strong>{{ t('Cards', de='Karten') }}</strong></legend>
     <div class="grid">
       <div>
-        <label for="language">Sprache</label>
+        <label for="language">{{ t('Card language', de='Sprache') }}</label>
         <input id="language" name="language" value="{{ values.language or '' }}" placeholder="{{ defaults.language }}">
         {{ error(errors, "language") }}
       </div>
       <div>
-        <label for="limit">Höchstzahl (0 = unbegrenzt)</label>
+        <label for="limit">{{ t('Maximum (0 = unlimited)', de='Höchstzahl (0 = unbegrenzt)') }}</label>
         <input id="limit" name="limit" type="number" min="0" value="{{ values.limit or '' }}"
                placeholder="{{ defaults.limit }}" {% if errors.limit %}aria-invalid="true"{% endif %}>
         {{ error(errors, "limit") }}
       </div>
     </div>
     <details>
-      <summary>Anweisungen und Textaufteilung</summary>
-      <label for="instructions">Zusätzliche Anweisungen</label>
-      <textarea id="instructions" name="instructions" rows="3" placeholder="{{ defaults.instructions or 'z. B. Bevorzuge Verständnisfragen.' }}">{{ values.instructions or '' }}</textarea>
+      <summary>{{ t('Instructions and text splitting', de='Anweisungen und Textaufteilung') }}</summary>
+      <label for="instructions">{{ t('Additional instructions', de='Zusätzliche Anweisungen') }}</label>
+      <textarea id="instructions" name="instructions" rows="3" placeholder="{{ defaults.instructions or t('for example Prefer questions that test understanding.', de='z. B. Bevorzuge Verständnisfragen.') }}">{{ values.instructions or '' }}</textarea>
       {{ error(errors, "instructions") }}
-      <label for="chunk_size">Zeichen pro Abschnitt (1000–100000)</label>
+      <label for="chunk_size">{{ t('Characters per section (1000–100000)', de='Zeichen pro Abschnitt (1000–100000)') }}</label>
       <input id="chunk_size" name="chunk_size" type="number" min="1000" max="100000" value="{{ values.chunk_size or '' }}"
              placeholder="{{ defaults.chunk_size }}" {% if errors.chunk_size %}aria-invalid="true"{% endif %}>
       {{ error(errors, "chunk_size") }}
@@ -118,34 +118,34 @@
   </fieldset>
 
   <fieldset>
-    <legend><strong>PDF-Verarbeitung</strong></legend>
-    <label for="pdf_mode">PDF-Modus</label>
+    <legend><strong>{{ t('PDF processing', de='PDF-Verarbeitung') }}</strong></legend>
+    <label for="pdf_mode">{{ t('PDF mode', de='PDF-Modus') }}</label>
     <select id="pdf_mode" name="pdf_mode" x-model="pdfMode">
-      <option value="">Standard des Profils</option>
-      <option value="local">local – nur eingebetteter Text</option>
-      <option value="structured">structured – lokal mit Docling (GPU)</option>
-      <option value="native">native – Provider liest die PDF (Upload)</option>
+      <option value="">{{ t('Profile default', de='Standard des Profils') }}</option>
+      <option value="local">{{ t('local – embedded text only', de='local – nur eingebetteter Text') }}</option>
+      <option value="structured">{{ t('structured – local with Docling (GPU)', de='structured – lokal mit Docling (GPU)') }}</option>
+      <option value="native">{{ t('native – provider reads the PDF (upload)', de='native – Provider liest die PDF (Upload)') }}</option>
     </select>
-    <small>Wirksam: <strong x-text="effectiveMode">{{ defaults.pdf_mode.value }}</strong></small>
+    <small>{{ t('Effective:', de='Wirksam:') }} <strong x-text="effectiveMode">{{ defaults.pdf_mode.value }}</strong></small>
     {{ error(errors, "pdf_mode") }}
     <div x-show="structured">
       {% set options = defaults.conversion.options %}
-      {{ switch("formulas", "Formeln als LaTeX erkennen", values, options.formulas) }}
-      {{ switch("force_ocr", "Jede Seite per OCR lesen", values, options.force_ocr) }}
-      {{ switch("allow_unreadable", "Nicht lesbare Elemente als Platzhalter zulassen", values, options.allow_unreadable) }}
-      {{ switch("allow_cpu", "Ohne GPU auf der CPU arbeiten (langsam)", values, options.allow_cpu) }}
-      <label for="picture_backend">Bildbeschreibung</label>
+      {{ switch("formulas", t("Recognise formulas as LaTeX", de="Formeln als LaTeX erkennen"), values, options.formulas) }}
+      {{ switch("force_ocr", t("Read every page with OCR", de="Jede Seite per OCR lesen"), values, options.force_ocr) }}
+      {{ switch("allow_unreadable", t("Allow unreadable elements as placeholders", de="Nicht lesbare Elemente als Platzhalter zulassen"), values, options.allow_unreadable) }}
+      {{ switch("allow_cpu", t("Run on the CPU without a GPU (slow)", de="Ohne GPU auf der CPU arbeiten (langsam)"), values, options.allow_cpu) }}
+      <label for="picture_backend">{{ t('Image description', de='Bildbeschreibung') }}</label>
       <select id="picture_backend" name="picture_backend" x-model="pictureBackend">
-        <option value="">Standard ({{ defaults.conversion.picture_backend.value }})</option>
-        <option value="local">local – Bildmodell im Programm</option>
-        <option value="profile">profile – Modellprofil (Bildausschnitte gehen an den Provider)</option>
-        <option value="none">none – keine Beschreibung</option>
+        <option value="">{{ t('Default ({backend})', de='Standard ({backend})', backend=defaults.conversion.picture_backend.value) }}</option>
+        <option value="local">{{ t('local – image model in the application', de='local – Bildmodell im Programm') }}</option>
+        <option value="profile">{{ t('profile – model profile (image excerpts go to the provider)', de='profile – Modellprofil (Bildausschnitte gehen an den Provider)') }}</option>
+        <option value="none">{{ t('none – no description', de='none – keine Beschreibung') }}</option>
       </select>
       {{ error(errors, "picture_backend") }}
       <div x-show="pictureBackend === 'profile' || (!pictureBackend && defaultBackend === 'profile')">
-        <label for="picture_profile">Bild-Profil</label>
+        <label for="picture_profile">{{ t('Image profile', de='Bild-Profil') }}</label>
         <select id="picture_profile" name="picture_profile">
-          <option value="">Standard der Konfiguration</option>
+          <option value="">{{ t('Configuration default', de='Standard der Konfiguration') }}</option>
           {% for view in picture_profiles %}
           <option value="{{ view.name }}" {% if values.picture_profile == view.name %}selected{% endif %}>{{ view.name }} – {{ view.model }}</option>
           {% endfor %}
@@ -159,13 +159,13 @@
     <label>
       <input type="checkbox" name="confirm_transfer" value="true" {% if values.confirm_transfer %}checked{% endif %}
              {% if errors.confirm_transfer %}aria-invalid="true"{% endif %}>
-      Ich bestätige, dass das Dokument beziehungsweise Bildausschnitte an den Provider übertragen werden.
+      {{ t('I confirm that the document or image excerpts are transferred to the provider.', de='Ich bestätige, dass das Dokument beziehungsweise Bildausschnitte an den Provider übertragen werden.') }}
     </label>
     {{ error(errors, "confirm_transfer") }}
   </article>
 
-  <button type="submit">Karten erzeugen</button>
-  <small>Konfiguration: <code>{{ config_path }}</code></small>
+  <button type="submit">{{ t('Create cards', de='Karten erzeugen') }}</button>
+  <small>{{ t('Configuration:', de='Konfiguration:') }} <code>{{ config_path }}</code></small>
 </form>
 {% endif %}
 {% endblock %}

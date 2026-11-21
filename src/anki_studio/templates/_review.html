@@ -1,7 +1,7 @@
 {# Cards under review: view and edit mode, counter (AS-005). #}
 
 {% macro review_count(review, oob=False) -%}
-<span id="review-count" {% if oob %}hx-swap-oob="true"{% endif %}>{{ review.selected | length }} von {{ review.cards | length }} Karten ausgewählt</span>
+<span id="review-count" {% if oob %}hx-swap-oob="true"{% endif %}>{{ t('{selected} of {total} cards selected', de='{selected} von {total} Karten ausgewählt', selected=review.selected | length, total=review.cards | length) }}</span>
 {%- endmacro %}
 
 {% macro review_card(job, entry) -%}
@@ -11,22 +11,22 @@
       <input type="checkbox" role="switch" name="selected" value="true" {% if entry.selected %}checked{% endif %}
              hx-post="{{ url_for('select_card', job_id=job.id, card_id=entry.id) }}"
              hx-target="#card-{{ entry.id }}" hx-swap="outerHTML">
-      übernehmen
+      {{ t('Include', de='übernehmen') }}
     </label>
     {% if entry.card.subdeck %}<span class="status">{{ entry.card.subdeck }}</span>{% endif %}
   </header>
   <p class="card-front">{{ entry.card.front }}</p>
   <p class="card-back">{{ entry.card.back }}</p>
-  {% if entry.card.tags %}<small>Tags: {{ entry.card.tags | join(" ") }}</small>{% endif %}
+  {% if entry.card.tags %}<small>{{ t('Tags:') }} {{ entry.card.tags | join(" ") }}</small>{% endif %}
   <footer>
     <div class="card-actions">
       <button type="button" class="secondary outline"
               hx-get="{{ url_for('edit_card', job_id=job.id, card_id=entry.id) }}"
-              hx-target="#card-{{ entry.id }}" hx-swap="outerHTML">Bearbeiten</button>
+              hx-target="#card-{{ entry.id }}" hx-swap="outerHTML">{{ t('Edit', de='Bearbeiten') }}</button>
       <button type="button" class="secondary outline"
               hx-post="{{ url_for('remove_card', job_id=job.id, card_id=entry.id) }}"
               hx-target="#card-{{ entry.id }}" hx-swap="outerHTML"
-              hx-confirm="Diese Karte aus dem Ergebnis löschen?">Löschen</button>
+              hx-confirm="{{ t('Delete this card from the result?', de='Diese Karte aus dem Ergebnis löschen?') }}">{{ t('Delete', de='Löschen') }}</button>
     </div>
   </footer>
 </article>
@@ -36,26 +36,26 @@
 <article class="review-card editing" id="card-{{ entry.id }}">
   <form hx-post="{{ url_for('save_card', job_id=job.id, card_id=entry.id) }}"
         hx-target="#card-{{ entry.id }}" hx-swap="outerHTML">
-    <label>Frage
+    <label>{{ t('Question', de='Frage') }}
       <textarea name="front" rows="2" required {% if error %}aria-invalid="true"{% endif %}>{{ values.front }}</textarea>
     </label>
-    <label>Antwort
+    <label>{{ t('Answer', de='Antwort') }}
       <textarea name="back" rows="4" required>{{ values.back }}</textarea>
     </label>
     <div class="grid">
-      <label>Unterdeck (eine Ebene, leer für keins)
+      <label>{{ t('Subdeck (one level, empty for none)', de='Unterdeck (eine Ebene, leer für keins)') }}
         <input name="subdeck" value="{{ values.subdeck }}">
       </label>
-      <label>Tags (durch Leerzeichen getrennt)
+      <label>{{ t('Tags (separated by spaces)', de='Tags (durch Leerzeichen getrennt)') }}
         <input name="tags" value="{{ values.tags }}">
       </label>
     </div>
     {% if error %}<small class="field-error">{{ error }}</small>{% endif %}
     <div class="card-actions">
-      <button type="submit">Speichern</button>
+      <button type="submit">{{ t('Save', de='Speichern') }}</button>
       <button type="button" class="secondary"
               hx-get="{{ url_for('show_card', job_id=job.id, card_id=entry.id) }}"
-              hx-target="#card-{{ entry.id }}" hx-swap="outerHTML">Abbrechen</button>
+              hx-target="#card-{{ entry.id }}" hx-swap="outerHTML">{{ t('Cancel') }}</button>
     </div>
   </form>
 </article>

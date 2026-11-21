@@ -2,18 +2,18 @@
 {% macro event_line(event) -%}
 {% set kind = event.type %}
 {% if kind == "notice" %}
-<li class="event notice-{{ event.level }}">{% if event.level == "transfer" %}<strong>Datenübertragung:</strong> {% elif event.level == "warning" %}<strong>Warnung:</strong> {% endif %}{{ event.text }}</li>
+<li class="event notice-{{ event.level }}">{% if event.level == "transfer" %}<strong>{{ t('Data transfer:', de='Datenübertragung:') }}</strong> {% elif event.level == "warning" %}<strong>{{ t('Warning:', de='Warnung:') }}</strong> {% endif %}{{ event.text }}</li>
 {% elif kind == "stage_started" %}
 <li class="event">{{ event.description }}</li>
 {% elif kind == "stage_progress" %}
-<li class="event progress-line">{{ event.label }}: {{ event.completed }} von {{ event.total }}{% if event.cards is not none %} · {{ event.cards }} Karten{% endif %}</li>
+<li class="event progress-line">{{ event.label }}: {{ t('{completed} of {total}', de='{completed} von {total}', completed=event.completed, total=event.total) }}{% if event.cards is not none %} · {{ t('{count} cards', de='{count} Karten', count=event.cards) }}{% endif %}</li>
 {% elif kind == "conversion_finished" %}
 {% set stats = event.stats %}
-<li class="event">Aufbereitung: {{ stats.pages }} Seiten, {{ stats.ocr_pages }} mit OCR, {{ stats.tables }} Tabellen, {{ stats.formulas }} Formeln, {{ stats.pictures_described }} Abbildungen beschrieben{% if stats.unreadable %}; nicht lesbar: {{ stats.unreadable | join(", ") }}{% endif %}</li>
+<li class="event">{{ t('Conversion: {pages} pages, {ocr_pages} with OCR, {tables} tables, {formulas} formulas, {pictures} pictures described', de='Aufbereitung: {pages} Seiten, {ocr_pages} mit OCR, {tables} Tabellen, {formulas} Formeln, {pictures} Abbildungen beschrieben', pages=stats.pages, ocr_pages=stats.ocr_pages, tables=stats.tables, formulas=stats.formulas, pictures=stats.pictures_described) }}{% if stats.unreadable %}; {{ t('unreadable:', de='nicht lesbar:') }} {{ stats.unreadable | join(", ") }}{% endif %}</li>
 {% elif kind == "cards_saved" %}
-<li class="event"><strong>{{ event.count }} Karten erzeugt</strong> für Deck {{ event.deck }}</li>
+<li class="event"><strong>{{ t('{count} cards created', de='{count} Karten erzeugt', count=event.count) }}</strong> {{ t('for deck', de='für Deck') }} {{ event.deck }}</li>
 {% elif kind == "job_status" %}
-<li class="event status-line">Status: {{ status_labels.get(event.status, event.status) }}{% if event.message %} – {{ event.message }}{% endif %}</li>
+<li class="event status-line">{{ t('Status:', de='Status:') }} {{ status_label(event.status) }}{% if event.message %} – {{ event.message }}{% endif %}</li>
 {% endif %}
 {%- endmacro %}
 
@@ -24,11 +24,11 @@
 
 {% macro progress_bar(event) -%}
 <progress value="{{ event.completed }}" max="{{ event.total }}"></progress>
-<small>{{ event.label }}: {{ event.completed }} von {{ event.total }}{% if event.cards is not none %} · {{ event.cards }} Karten{% endif %}</small>
+<small>{{ event.label }}: {{ t('{completed} of {total}', de='{completed} von {total}', completed=event.completed, total=event.total) }}{% if event.cards is not none %} · {{ t('{count} cards', de='{count} Karten', count=event.cards) }}{% endif %}</small>
 {%- endmacro %}
 
 {% macro status_badge(event) -%}
-<span class="status status-{{ event.status }}">{{ status_labels.get(event.status, event.status) }}</span>
+<span class="status status-{{ event.status }}">{{ status_label(event.status) }}</span>
 {%- endmacro %}
 
 {# Swapped in when the job ends: reloads the job's main area once. #}

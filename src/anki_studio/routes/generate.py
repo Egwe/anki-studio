@@ -21,6 +21,7 @@ from anki_studio.generator_config import (
     load_generator_config,
     profile_views,
 )
+from anki_studio.i18n import locale_from_request, translate_request
 from anki_studio.jobs import JobStore
 from anki_studio.limits import MAX_DOCUMENTS
 from anki_studio.uploads import APKG, DOCUMENT, UploadError, check_upload, clean_filename
@@ -62,12 +63,23 @@ async def generate_submit(request: Request) -> Response:
     try:
         form = GenerateForm.model_validate(values)
     except ValidationError as error:
-        return _render(request, values=values, errors=form_errors(error.errors()), status=400)
+        return _render(
+            request,
+            values=values,
+            errors=form_errors(error.errors(), locale_from_request(request)),
+            status=400,
+        )
     errors = _submission_errors(request, form, documents, package)
     if errors:
         return _render(request, values=values, errors=errors, status=400)
     job_ids = await run_in_threadpool(
-        _create_jobs, request.app.state.jobs, request.app.state.worker, form, documents, package
+        _create_jobs,
+        request.app.state.jobs,
+        request.app.state.worker,
+        form,
+        documents,
+        package,
+        locale_from_request(request),
     )
     location = f"/jobs/{job_ids[0]}" if len(job_ids) == 1 else "/jobs"
     return RedirectResponse(location, status_code=303)
@@ -114,27 +126,50 @@ def _submission_errors(
     Returns:
         Field name to German message; empty if the jobs may be created.
     """
-    errors = _document_errors(documents) | _target_errors(request, form, documents, package)
+    errors = _document_errors(request, documents) | _target_errors(
+        request, form, documents, package
+    )
     try:
         generator = load_generator_config(request.app.state.settings.generator_path)
     except FlashcardError as error:
-        return errors | {"form": f"Generator-Konfiguration nicht nutzbar: {error}"}
-    return errors | _settings_errors(generator, form)
+        return errors | {
+            "form": translate_request(
+                request,
+                "Generator configuration cannot be used: {error}",
+                de="Generator-Konfiguration nicht nutzbar: {error}",
+                error=error,
+            )
+        }
+    return errors | _settings_errors(request, generator, form)
 
 
-def _document_errors(documents: list[UploadFile]) -> dict[str, str]:
+def _document_errors(request: Request, documents: list[UploadFile]) -> dict[str, str]:
     """Check number, types, and sizes of the uploaded documents.
 
     Args:
+        request: Browser request selecting validation-message language.
         documents: Uploaded documents.
 
     Returns:
         A message for ``documents`` if something is wrong, otherwise empty.
     """
     if not documents:
-        return {"documents": "Bitte mindestens ein Dokument auswählen."}
+        return {
+            "documents": translate_request(
+                request,
+                "Select at least one document.",
+                de="Bitte mindestens ein Dokument auswählen.",
+            )
+        }
     if len(documents) > MAX_DOCUMENTS:
-        return {"documents": f"Höchstens {MAX_DOCUMENTS} Dokumente auf einmal."}
+        return {
+            "documents": translate_request(
+                request,
+                "At most {count} documents at once.",
+                de="Höchstens {count} Dokumente auf einmal.",
+                count=MAX_DOCUMENTS,
+            )
+        }
     try:
         for document in documents:
             check_upload(clean_filename(document.filename), document.size, DOCUMENT)
@@ -161,13 +196,31 @@ def _target_errors(
     if form.target is Target.COLLECTION:
         if request.app.state.sync_service.configured:
             return {}
-        return {"target": "Für die Sammlung zuerst die Synchronisierung einrichten."}
+        return {
+            "target": translate_request(
+                request,
+                "Set up synchronisation before using the collection.",
+                de="Für die Sammlung zuerst die Synchronisierung einrichten.",
+            )
+        }
     if form.target is not Target.EXTEND_APKG:
         return {}
     if package is None:
-        return {"target_apkg": "Bitte die APKG-Datei wählen, die erweitert werden soll."}
+        return {
+            "target_apkg": translate_request(
+                request,
+                "Select the APKG file to extend.",
+                de="Bitte die APKG-Datei wählen, die erweitert werden soll.",
+            )
+        }
     if len(documents) > 1:
-        return {"target_apkg": "Eine APKG lässt sich nur mit einem Dokument zugleich erweitern."}
+        return {
+            "target_apkg": translate_request(
+                request,
+                "An APKG can only be extended with one document at a time.",
+                de="Eine APKG lässt sich nur mit einem Dokument zugleich erweitern.",
+            )
+        }
     try:
         check_upload(clean_filename(package.filename), package.size, APKG)
     except UploadError as error:
@@ -175,10 +228,13 @@ def _target_errors(
     return {}
 
 
-def _settings_errors(generator: GeneratorConfig, form: GenerateForm) -> dict[str, str]:
+def _settings_errors(
+    request: Request, generator: GeneratorConfig, form: GenerateForm
+) -> dict[str, str]:
     """Resolve the effective settings and require a transfer confirmation.
 
     Args:
+        request: Browser request selecting validation-message language.
         generator: Loaded generator configuration.
         form: Validated form fields.
 
@@ -191,7 +247,12 @@ def _settings_errors(generator: GeneratorConfig, form: GenerateForm) -> dict[str
         return {"form": str(error)}
     notice = transfer_notice(settings)
     if notice is not None and not form.confirm_transfer:
-        return {"confirm_transfer": f"{notice} Bitte die Übertragung bestätigen."}
+        return {
+            "confirm_transfer": f"{notice} "
+            + translate_request(
+                request, "Please confirm the transfer.", de="Bitte die Übertragung bestätigen."
+            )
+        }
     return {}
 
 
@@ -201,6 +262,7 @@ def _create_jobs(
     form: GenerateForm,
     documents: list[UploadFile],
     package: UploadFile | None,
+    locale: str,
 ) -> list[str]:
     """Store the uploads as jobs and queue them; runs in a worker thread.
 
@@ -210,6 +272,7 @@ def _create_jobs(
         form: Validated form fields.
         documents: Checked documents, one job each.
         package: Checked APKG to extend, or None.
+        locale: Interface language captured for background job notices.
 
     Returns:
         The identifiers of the queued jobs in upload order.
@@ -218,7 +281,10 @@ def _create_jobs(
     job_ids = []
     for document in documents:
         job = store.create(
-            document.file, document.filename, document.size, job_options(form, target_file)
+            document.file,
+            document.filename,
+            document.size,
+            job_options(form, target_file) | {"locale": locale},
         )
         if package is not None:
             store.add_file(job.id, TARGET_DIR, package.file, package.filename, package.size, APKG)
@@ -245,7 +311,9 @@ def _render(
     context: dict[str, Any] = {"values": values, "errors": errors, "max_documents": MAX_DOCUMENTS}
     context["collection_decks"] = _collection_deck_names(request)
     try:
-        context |= _config_context(load_generator_config(request.app.state.settings.generator_path))
+        context |= _config_context(
+            request, load_generator_config(request.app.state.settings.generator_path)
+        )
     except FlashcardError as error:
         context["config_error"] = str(error)
     return request.app.state.templates.TemplateResponse(
@@ -277,10 +345,11 @@ def _collection_deck_names(request: Request) -> tuple[str, ...]:
     return tuple(sorted((str(entry["name"]) for entry in entries), key=str.casefold))
 
 
-def _config_context(generator: GeneratorConfig) -> dict[str, Any]:
+def _config_context(request: Request, generator: GeneratorConfig) -> dict[str, Any]:
     """Collect what the form shows from the generator configuration.
 
     Args:
+        request: Browser request selecting the placeholder language.
         generator: Loaded generator configuration.
 
     Returns:
@@ -296,5 +365,6 @@ def _config_context(generator: GeneratorConfig) -> dict[str, Any]:
         "picture_profiles": [view for view in profiles if view.image_input],
         "profile_modes": json.dumps(modes),
         "config_path": str(generator.path),
-        "deck_placeholder": generator.config.generation.deck or "Dateiname ohne Endung",
+        "deck_placeholder": generator.config.generation.deck
+        or translate_request(request, "Filename without extension", de="Dateiname ohne Endung"),
     }

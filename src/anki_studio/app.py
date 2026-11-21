@@ -32,6 +32,7 @@ from anki_studio.routes import (
     generate,
     jobs,
     keys,
+    language,
     login,
     models,
     pages,
@@ -185,6 +186,7 @@ def create_app(
     for module in (
         access,
         login,
+        language,
         pages,
         generate,
         jobs,

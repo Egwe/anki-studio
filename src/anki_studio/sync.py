@@ -18,6 +18,7 @@ from anki_flashcards.pipeline import write_collection
 
 from anki_studio.collection_worker import CollectionWorker, CollectionWorkerError
 from anki_studio.credentials import Credentials
+from anki_studio.i18n import translate_with_fallback
 from anki_studio.jobs import Job
 from anki_studio.settings import StudioSettings
 from anki_studio.worker import CancelCheck, Reporter
@@ -170,12 +171,13 @@ class SyncService:
         """
         return self.states.load()
 
-    def sync(self, report: Reporter, cancel: CancelCheck) -> SyncOutcome:
+    def sync(self, report: Reporter, cancel: CancelCheck, locale: str = "en") -> SyncOutcome:
         """Synchronize safely, allowing only a non-destructive full download.
 
         Args:
             report: Receives user-visible progress notices without secrets.
             cancel: Returns True if the queued sync job was cancelled.
+            locale: Interface language captured when the job was created.
 
         Returns:
             The successful sync outcome.
@@ -186,14 +188,24 @@ class SyncService:
                 prevent a safe sync.
         """
         if cancel():
-            raise GenerationCancelled("Sync abgebrochen")
+            raise GenerationCancelled(
+                translate_with_fallback(locale, "Synchronisation cancelled", de="Sync abgebrochen")
+            )
         state = self._initial_state()
         endpoint, username, password = self._connection(state)
-        report({"type": "notice", "text": "Am Sync-Server anmelden …", "level": "info"})
+        report(
+            {
+                "type": "notice",
+                "text": translate_with_fallback(
+                    locale, "Logging in to sync server …", de="Am Sync-Server anmelden …"
+                ),
+                "level": "info",
+            }
+        )
         try:
             outcome = self.worker.run(
                 lambda collection: self._sync_collection(
-                    collection, state, endpoint, username, password, report
+                    collection, state, endpoint, username, password, report, locale
                 )
             )
         except (CollectionWorkerError, SyncFailure) as error:
@@ -201,7 +213,7 @@ class SyncService:
             self._record_failure(state, str(failure))
             raise failure from error
         self._record_success(state, outcome)
-        report({"type": "notice", "text": _success_text(outcome), "level": "info"})
+        report({"type": "notice", "text": _success_text(outcome, locale), "level": "info"})
         if outcome.server_message:
             report({"type": "notice", "text": outcome.server_message, "level": "info"})
         return outcome
@@ -220,7 +232,12 @@ class SyncService:
         self.states.save(replace(state, local_changes=True))
 
     def write_cards(
-        self, deck: str, cards: list[Card], report: Reporter, cancel: CancelCheck
+        self,
+        deck: str,
+        cards: list[Card],
+        report: Reporter,
+        cancel: CancelCheck,
+        locale: str = "en",
     ) -> tuple[ExportResult, SyncOutcome]:
         """Synchronize, write validated cards once, and synchronize again.
 
@@ -235,6 +252,7 @@ class SyncService:
             cards: Validated, locally deduplicated cards selected by a user.
             report: Receives safe progress notices for the job page.
             cancel: Checked before login and before the collection mutation.
+            locale: Interface language captured when the job was created.
 
         Returns:
             The generator's add/skip result and the final safe sync outcome.
@@ -246,20 +264,35 @@ class SyncService:
             FlashcardError: If the generator cannot write into the collection.
         """
         if cancel():
-            raise GenerationCancelled("Schreiben abgebrochen")
+            raise GenerationCancelled(
+                translate_with_fallback(locale, "Writing cancelled", de="Schreiben abgebrochen")
+            )
         state = self._initial_state()
         endpoint, username, password = self._connection(state)
         report(
             {
                 "type": "notice",
-                "text": "Sammlung vor dem Schreiben abgleichen …",
+                "text": translate_with_fallback(
+                    locale,
+                    "Synchronising collection before writing …",
+                    de="Sammlung vor dem Schreiben abgleichen …",
+                ),
                 "level": "info",
             }
         )
         try:
             result, outcome = self.worker.run(
                 lambda collection: self._sync_then_write(
-                    collection, state, endpoint, username, password, deck, cards, report, cancel
+                    collection,
+                    state,
+                    endpoint,
+                    username,
+                    password,
+                    deck,
+                    cards,
+                    report,
+                    cancel,
+                    locale,
                 )
             )
         except (CollectionWorkerError, SyncFailure) as error:
@@ -267,7 +300,7 @@ class SyncService:
             self._record_failure(self._initial_state(), str(failure))
             raise failure from error
         self._record_success(self._initial_state(), outcome)
-        report({"type": "notice", "text": _success_text(outcome), "level": "info"})
+        report({"type": "notice", "text": _success_text(outcome, locale), "level": "info"})
         if outcome.server_message:
             report({"type": "notice", "text": outcome.server_message, "level": "info"})
         return result, outcome
@@ -323,6 +356,7 @@ class SyncService:
         cards: list[Card],
         report: Reporter,
         cancel: CancelCheck,
+        locale: str = "en",
     ) -> tuple[ExportResult, SyncOutcome]:
         """Perform the two safe sync calls around a collection mutation.
 
@@ -336,6 +370,7 @@ class SyncService:
             cards: Validated, deduplicated cards to add.
             report: Receives job notices.
             cancel: Checked after the pre-write synchronization.
+            locale: Interface language captured when the job was created.
 
         Returns:
             Write result and the outcome of the post-write synchronization.
@@ -345,17 +380,35 @@ class SyncService:
             SyncFailure: If either sync cannot complete safely.
             FlashcardError: If the generator rejects the Anki mutation.
         """
-        before = self._sync_collection(collection, state, endpoint, username, password, report)
+        before = self._sync_collection(
+            collection, state, endpoint, username, password, report, locale
+        )
         self._record_success(state, before)
         if cancel():
-            raise GenerationCancelled("Schreiben abgebrochen")
+            raise GenerationCancelled(
+                translate_with_fallback(locale, "Writing cancelled", de="Schreiben abgebrochen")
+            )
         self.mark_local_changes()
-        report({"type": "notice", "text": "Karten in die Sammlung schreiben …", "level": "info"})
+        report(
+            {
+                "type": "notice",
+                "text": translate_with_fallback(
+                    locale, "Writing cards to collection …", de="Karten in die Sammlung schreiben …"
+                ),
+                "level": "info",
+            }
+        )
         result = write_collection(collection, deck, cards)
         report(
             {
                 "type": "notice",
-                "text": f"{result.added} Karten in Deck „{result.deck}“ geschrieben.",
+                "text": translate_with_fallback(
+                    locale,
+                    "Wrote {count} cards in deck “{deck}”.",
+                    de="{count} Karten in Deck „{deck}“ geschrieben.",
+                    count=result.added,
+                    deck=result.deck,
+                ),
                 "level": "info",
             }
         )
@@ -363,12 +416,16 @@ class SyncService:
         report(
             {
                 "type": "notice",
-                "text": "Sammlung nach dem Schreiben abgleichen …",
+                "text": translate_with_fallback(
+                    locale,
+                    "Synchronising collection after writing …",
+                    de="Sammlung nach dem Schreiben abgleichen …",
+                ),
                 "level": "info",
             }
         )
         return result, self._sync_collection(
-            collection, post_state, before.endpoint, username, password, report
+            collection, post_state, before.endpoint, username, password, report, locale
         )
 
     def _sync_collection(
@@ -379,6 +436,7 @@ class SyncService:
         username: str,
         password: str,
         report: Reporter,
+        locale: str = "en",
     ) -> SyncOutcome:
         """Run pylib sync calls while the collection worker exclusively owns it.
 
@@ -389,6 +447,7 @@ class SyncService:
             username: Environment-only sync user name.
             password: Environment-only sync password.
             report: Receives progress notices without credentials or hkey.
+            locale: Interface language captured when the job was created.
 
         Returns:
             Successful safe synchronization outcome.
@@ -398,7 +457,15 @@ class SyncService:
         """
         try:
             auth = collection.sync_login(username, password, endpoint)
-            report({"type": "notice", "text": "Sammlung abgleichen …", "level": "info"})
+            report(
+                {
+                    "type": "notice",
+                    "text": translate_with_fallback(
+                        locale, "Synchronising collection …", de="Sammlung abgleichen …"
+                    ),
+                    "level": "info",
+                }
+            )
             response = collection.sync_collection(auth, sync_media=False)
         except AnkiException as error:
             summary = "Anmeldung oder Abgleich mit dem Sync-Server ist fehlgeschlagen"
@@ -407,7 +474,9 @@ class SyncService:
         if _requires(response, "NO_CHANGES"):
             return SyncOutcome("no_changes", redirected, response.server_message or None)
         if _requires(response, "FULL_DOWNLOAD"):
-            return self._full_download(collection, auth, state, redirected, response, report)
+            return self._full_download(
+                collection, auth, state, redirected, response, report, locale
+            )
         if _requires(response, "FULL_UPLOAD"):
             raise SyncFailure(
                 "Der Sync-Server verlangt einen Komplett-Upload. Anki Studio führt ihn "
@@ -428,6 +497,7 @@ class SyncService:
         endpoint: str,
         response: Any,
         report: Reporter,
+        locale: str = "en",
     ) -> SyncOutcome:
         """Download a full collection only if no unsent local write exists.
 
@@ -438,6 +508,7 @@ class SyncService:
             endpoint: Effective endpoint after any server redirect.
             response: Pylib sync response that requested the download.
             report: Receives progress notices.
+            locale: Interface language captured when the job was created.
 
         Returns:
             Successful full-download outcome.
@@ -455,7 +526,11 @@ class SyncService:
         report(
             {
                 "type": "notice",
-                "text": "Leere lokale Sammlung vollständig herunterladen …",
+                "text": translate_with_fallback(
+                    locale,
+                    "Downloading empty local collection in full …",
+                    de="Leere lokale Sammlung vollständig herunterladen …",
+                ),
                 "level": "info",
             }
         )
@@ -534,8 +609,7 @@ class SyncRunner:
         Returns:
             None.
         """
-        del job
-        self.service.sync(report, cancel)
+        self.service.sync(report, cancel, locale=str(job.options.get("locale", "en")))
 
 
 def collection_paths(data_dir: Path) -> tuple[Path, Path]:
@@ -595,18 +669,23 @@ def _redirected_endpoint(response: Any) -> str | None:
     return response.new_endpoint if response.HasField("new_endpoint") else None
 
 
-def _success_text(outcome: SyncOutcome) -> str:
+def _success_text(outcome: SyncOutcome, locale: str) -> str:
     """Format the final notice of a successful sync.
 
     Args:
         outcome: Result of a safe sync.
+        locale: Interface language captured when the job was created.
 
     Returns:
-        Short German success message.
+        Localised short success message.
     """
     if outcome.result == "full_download":
-        return "Komplett-Download abgeschlossen."
-    return "Synchronisierung abgeschlossen."
+        return translate_with_fallback(
+            locale, "Full download complete.", de="Komplett-Download abgeschlossen."
+        )
+    return translate_with_fallback(
+        locale, "Synchronisation complete.", de="Synchronisierung abgeschlossen."
+    )
 
 
 def _state_data(state: SyncState) -> dict[str, Any]:

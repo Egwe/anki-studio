@@ -10,6 +10,7 @@ from starlette.concurrency import run_in_threadpool
 
 from anki_studio.auth import LOGIN_PATH, SESSION_KEY, safe_next
 from anki_studio.credentials import PASSWORD_HASH_ENV
+from anki_studio.i18n import SESSION_LOCALE, locale_from_request, translate
 from anki_studio.passwords import verify_password
 
 FAILED_LOGIN_DELAY_SECONDS = 1.0
@@ -62,12 +63,17 @@ async def login(request: Request, form: Annotated[LoginForm, Form()]) -> Respons
         status 401 and an error message.
     """
     if await _password_matches(request, form.password):
+        locale = locale_from_request(request)
         request.session.clear()
+        request.session[SESSION_LOCALE] = locale
         request.session[SESSION_KEY] = True
         return RedirectResponse(safe_next(form.next), status_code=303)
     await asyncio.sleep(FAILED_LOGIN_DELAY_SECONDS)
     return _render(
-        request, next=safe_next(form.next), error="Das Passwort ist falsch.", status_code=401
+        request,
+        next=safe_next(form.next),
+        error=translate(locale_from_request(request), "The password is incorrect."),
+        status_code=401,
     )
 
 
@@ -81,7 +87,9 @@ def logout(request: Request) -> RedirectResponse:
     Returns:
         A redirect to the login page.
     """
+    locale = locale_from_request(request)
     request.session.clear()
+    request.session[SESSION_LOCALE] = locale
     return RedirectResponse(LOGIN_PATH, status_code=303)
 
 

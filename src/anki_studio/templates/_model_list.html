@@ -3,13 +3,13 @@
   {% if error %}
   <small class="field-error">{{ error }}</small>
   {% else %}
-  <label for="model-choice">{{ result.models | length }} Modelle von {{ result.provider }}</label>
+  <label for="model-choice">{{ t('{count} models from {provider}', de='{count} Modelle von {provider}', count=result.models | length, provider=result.provider) }}</label>
   <select id="model-choice" x-on:change="$refs.model.value = $event.target.value">
-    <option value="">Modell wählen …</option>
+    <option value="">{{ t('Choose a model …', de='Modell wählen …') }}</option>
     {% for name in result.models %}
     <option value="{{ name }}">{{ name }}</option>
     {% endfor %}
   </select>
-  <small>Die Auswahl landet im Feld „Modell“.</small>
+  <small>{{ t('The selection is copied to the “Model” field.', de='Die Auswahl landet im Feld „Modell“.') }}</small>
   {% endif %}
 </div>

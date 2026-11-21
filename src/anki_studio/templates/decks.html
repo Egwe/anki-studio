@@ -1,36 +1,36 @@
 {% extends "base.html" %}
-{% block title %}Decks ansehen – Anki Studio{% endblock %}
+{% block title %}{{ t('View decks', de='Decks ansehen') }} – Anki Studio{% endblock %}
 {% block content %}
 <hgroup>
-  <h1>Decks ansehen</h1>
-  <p>Sieh Decks und direkte Kartenanzahlen der synchronisierten Sammlung oder einer hochgeladenen APKG-Datei an. Dateien werden nicht verändert.</p>
+  <h1>{{ t('View decks', de='Decks ansehen') }}</h1>
+  <p>{{ t('View decks and direct card counts in the synchronised collection or an uploaded APKG file. Files are not modified.', de='Sieh Decks und direkte Kartenanzahlen der synchronisierten Sammlung oder einer hochgeladenen APKG-Datei an. Dateien werden nicht verändert.') }}</p>
 </hgroup>
 {% if error %}<article class="alert">{{ error }}</article>{% endif %}
 <article>
-  <header><strong>Synchronisierte Sammlung</strong></header>
+  <header><strong>{{ t('Synchronised collection', de='Synchronisierte Sammlung') }}</strong></header>
   {% if collection_error %}
-  <p>{{ collection_error }} <a href="{{ url_for('sync_page') }}">Zum Sync-Status</a></p>
+  <p>{{ collection_error }} <a href="{{ url_for('sync_page') }}">{{ t('View sync status', de='Zum Sync-Status') }}</a></p>
   {% else %}
-  <small>Stand {{ collection_synced_at.strftime("%d.%m.%Y %H:%M UTC") }}; Karten in Unterdecks zählen nur dort.</small>
+  <small>{{ t('As of {time}; cards in subdecks count only there.', de='Stand {time}; Karten in Unterdecks zählen nur dort.', time=collection_synced_at.strftime('%d.%m.%Y %H:%M UTC')) }}</small>
   {% if collection_decks %}
   <ul class="deck-tree">
     {% for deck in collection_decks recursive %}
-    <li><strong>{{ deck.name }}</strong> <span class="nowrap">· {{ deck.cards }} Karten</span>
+    <li><strong>{{ deck.name }}</strong> <span class="nowrap">· {{ t('{count} cards', de='{count} Karten', count=deck.cards) }}</span>
       {% if deck.children %}<ul>{{ loop(deck.children) }}</ul>{% endif %}
     </li>
     {% endfor %}
   </ul>
-  {% else %}<p>Die synchronisierte Sammlung enthält keine normalen Decks.</p>{% endif %}
+  {% else %}<p>{{ t('The synchronised collection contains no normal decks.', de='Die synchronisierte Sammlung enthält keine normalen Decks.') }}</p>{% endif %}
   {% endif %}
 </article>
 <article>
-  <header><strong>Hochgeladene APKG</strong></header>
+  <header><strong>{{ t('Uploaded APKG', de='Hochgeladene APKG') }}</strong></header>
   <form method="post" action="{{ url_for('decks_submit') }}" enctype="multipart/form-data">
-    <label for="package">APKG-Datei
+    <label for="package">{{ t('APKG file', de='APKG-Datei') }}
       <input id="package" type="file" name="package" accept=".apkg" required>
     </label>
-    <small>Höchstens {{ max_size }}. Das Lesen läuft als Job; eine APKG bleibt unverändert.</small>
-    <footer><button type="submit">Deckbaum lesen</button></footer>
+    <small>{{ t('At most {size}. Reading runs as a job; an APKG remains unchanged.', de='Höchstens {size}. Das Lesen läuft als Job; eine APKG bleibt unverändert.', size=max_size) }}</small>
+    <footer><button type="submit">{{ t('Read deck tree', de='Deckbaum lesen') }}</button></footer>
   </form>
 </article>
 {% endblock %}

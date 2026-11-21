@@ -15,6 +15,7 @@ from anki_flashcards.model_storage import ModelStorage, downloaded_components
 from anki_flashcards.pipeline import event_to_dict, prepare_models
 
 from anki_studio.generator_config import load_generator_config
+from anki_studio.i18n import translate_with_fallback
 from anki_studio.jobs import Job
 from anki_studio.worker import CancelCheck, Reporter
 
@@ -131,4 +132,15 @@ class ModelsRunner:
         folder = prepare_models(
             generator.config, generator.path, report=lambda event: report(event_to_dict(event))
         )
-        report({"type": "notice", "text": f"Modelle bereit in {folder}.", "level": "info"})
+        report(
+            {
+                "type": "notice",
+                "text": translate_with_fallback(
+                    str(job.options.get("locale", "en")),
+                    "Models ready in {folder}.",
+                    de="Modelle bereit in {folder}.",
+                    folder=folder,
+                ),
+                "level": "info",
+            }
+        )

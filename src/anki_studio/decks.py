@@ -9,6 +9,7 @@ from typing import Any
 
 from anki_flashcards.apkg import inspect_apkg
 
+from anki_studio.i18n import translate_with_fallback
 from anki_studio.jobs import Job, JobStore
 from anki_studio.worker import CancelCheck, Reporter
 
@@ -129,13 +130,25 @@ class DecksRunner:
             FlashcardError: If the APKG cannot be opened or inspected.
         """
         del cancel
-        report({"type": "notice", "text": "APKG wird gelesen …", "level": "info"})
+        locale = str(job.options.get("locale", "en"))
+        report(
+            {
+                "type": "notice",
+                "text": translate_with_fallback(locale, "Reading APKG …", de="APKG wird gelesen …"),
+                "level": "info",
+            }
+        )
         decks = inspect_decks(self.store.upload_path(job))
         save_decks(self.store.job_dir(job.id) / DECKS_FILE, decks)
         report(
             {
                 "type": "notice",
-                "text": f"{len(decks)} Decks der obersten Ebene gefunden.",
+                "text": translate_with_fallback(
+                    locale,
+                    "Found {count} top-level decks.",
+                    de="{count} Decks der obersten Ebene gefunden.",
+                    count=len(decks),
+                ),
                 "level": "info",
             }
         )

@@ -9,6 +9,7 @@ from starlette.datastructures import FormData, UploadFile
 
 from anki_studio.collection_worker import CollectionWorkerError, CollectionWorkerStoppedError
 from anki_studio.decks import DECKS_FILE, DECKS_KIND, deck_tree, load_decks
+from anki_studio.i18n import locale_from_request, translate_request
 from anki_studio.jobs import Job, JobStatus, JobStore
 from anki_studio.uploads import APKG, UploadError, check_upload, clean_filename
 from anki_studio.worker import JobWorker
@@ -42,11 +43,21 @@ async def decks_submit(request: Request) -> Response:
     data = await request.form(max_files=1, max_fields=5)
     package = _package(data)
     if package is None:
-        return _render(request, error="Bitte eine APKG-Datei auswählen.", status=400)
+        return _render(
+            request,
+            error=translate_request(
+                request, "Select an APKG file.", de="Bitte eine APKG-Datei auswählen."
+            ),
+            status=400,
+        )
     try:
         check_upload(clean_filename(package.filename), package.size, APKG)
         job = await run_in_threadpool(
-            _create_job, request.app.state.jobs, request.app.state.worker, package
+            _create_job,
+            request.app.state.jobs,
+            request.app.state.worker,
+            package,
+            locale_from_request(request),
         )
     except (UploadError, OSError) as error:
         return _render(request, error=str(error), status=400)
@@ -71,7 +82,7 @@ def deck_result(request: Request, job_id: str) -> HTMLResponse:
     try:
         decks = load_decks(request.app.state.jobs.job_dir(job.id) / DECKS_FILE)
     except (OSError, ValueError) as error:
-        raise HTTPException(status_code=404, detail="Deck-Ergebnis nicht vorhanden") from error
+        raise HTTPException(status_code=404, detail="Deck result is not available") from error
     return request.app.state.templates.TemplateResponse(
         request, "deck_result.html", {"job": job, "decks": decks}
     )
@@ -90,13 +101,14 @@ def _package(data: FormData) -> UploadFile | None:
     return value if isinstance(value, UploadFile) and value.filename else None
 
 
-def _create_job(store: JobStore, worker: JobWorker, package: UploadFile) -> Job:
+def _create_job(store: JobStore, worker: JobWorker, package: UploadFile, locale: str) -> Job:
     """Store one checked APKG as a job and submit it to the worker.
 
     Args:
         store: Job storage receiving the package.
         worker: Serial worker that inspects the APKG.
         package: Checked browser upload.
+        locale: Interface language captured for background job notices.
 
     Returns:
         Newly queued deck-inspection job.
@@ -109,7 +121,7 @@ def _create_job(store: JobStore, worker: JobWorker, package: UploadFile) -> Job:
         package.file,
         package.filename,
         package.size,
-        {"kind": DECKS_KIND},
+        {"kind": DECKS_KIND, "locale": locale},
         upload_kind=APKG,
     )
     worker.submit(job)
@@ -131,7 +143,7 @@ def _completed_job(request: Request, job_id: str) -> Job:
     """
     job = request.app.state.jobs.get(job_id)
     if job is None or job.status is not JobStatus.DONE or job.options.get("kind") != DECKS_KIND:
-        raise HTTPException(status_code=404, detail="Deck-Ergebnis nicht vorhanden")
+        raise HTTPException(status_code=404, detail="Deck result is not available")
     return job
 
 
@@ -173,13 +185,17 @@ def _collection_context(request: Request) -> dict[str, object]:
         return {
             "collection_decks": (),
             "collection_synced_at": None,
-            "collection_error": "Sync-Status nicht lesbar.",
+            "collection_error": translate_request(
+                request, "Sync status cannot be read.", de="Sync-Status nicht lesbar."
+            ),
         }
     if state.last_synced_at is None:
         return {
             "collection_decks": (),
             "collection_synced_at": None,
-            "collection_error": "Noch nicht synchronisiert.",
+            "collection_error": translate_request(
+                request, "Not synchronised yet.", de="Noch nicht synchronisiert."
+            ),
         }
     try:
         decks = request.app.state.collection_worker.run(
@@ -189,7 +205,11 @@ def _collection_context(request: Request) -> dict[str, object]:
         return {
             "collection_decks": (),
             "collection_synced_at": state.last_synced_at,
-            "collection_error": "Lokale Sammlung kann gerade nicht gelesen werden.",
+            "collection_error": translate_request(
+                request,
+                "The local collection cannot be read right now.",
+                de="Lokale Sammlung kann gerade nicht gelesen werden.",
+            ),
         }
     return {
         "collection_decks": decks,

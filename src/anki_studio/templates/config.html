@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_fields.html" import error %}
-{% block title %}Konfiguration – Anki Studio{% endblock %}
+{% block title %}{{ t('Configuration') }} – Anki Studio{% endblock %}
 {% macro yes_no(name, label) -%}
 <label>
   <input type="hidden" name="{{ name }}" value="false">
@@ -15,115 +15,115 @@
 {%- endmacro %}
 {% block content %}
 <hgroup>
-  <h1>Konfiguration</h1>
-  <p>Profile und Standardwerte des Generators. Änderungen prüft das Schema des Generators; gespeichert wird atomar in <code>{{ path }}</code>.</p>
+  <h1>{{ t('Configuration') }}</h1>
+  <p>{{ t('Generator profiles and defaults. The generator schema validates changes; they are saved atomically in <code>{path}</code>.', de='Profile und Standardwerte des Generators. Änderungen prüft das Schema des Generators; gespeichert wird atomar in <code>{path}</code>.', path=path) }}</p>
 </hgroup>
 {% if notice %}<article class="success" role="status">{{ notice }}</article>{% endif %}
 {% if errors.form %}<article class="alert" role="alert">{{ errors.form }}</article>{% endif %}
 
 <details>
-  <summary>Wirksame Werte mit Herkunft</summary>
+  <summary>{{ t('Effective values with source', de='Wirksame Werte mit Herkunft') }}</summary>
   <div class="overflow-auto">
   <table class="striped">
-    <thead><tr><th scope="col">Wert</th><th scope="col">Einstellung</th><th scope="col">Herkunft</th></tr></thead>
+    <thead><tr><th scope="col">{{ t('Value', de='Wert') }}</th><th scope="col">{{ t('Setting', de='Einstellung') }}</th><th scope="col">{{ t('Source', de='Herkunft') }}</th></tr></thead>
     <tbody>
       {% for name, value, source in diagnostics %}<tr><td><code>{{ name }}</code></td><td>{{ value }}</td><td>{{ source }}</td></tr>{% endfor %}
     </tbody>
   </table>
   </div>
-  <small>Das ist, was ein Lauf ohne Angaben im Formular verwenden würde. API-Schlüssel erscheinen nur als „set (hidden)“ oder „not set“.</small>
+  <small>{{ t('This is what a run without form values would use. API keys appear only as “set (hidden)” or “not set”.', de='Das ist, was ein Lauf ohne Angaben im Formular verwenden würde. API-Schlüssel erscheinen nur als „set (hidden)“ oder „not set“.') }}</small>
 </details>
 
 <section id="profiles">
-  <h2>Profile</h2>
+  <h2>{{ t('Profiles', de='Profile') }}</h2>
   {% for view in profiles %}
   <article class="profile-row" id="profile-{{ view.name }}">
     <header>
       <strong>{{ view.name }}</strong>
-      {% if view.name == config.default_profile %}<span class="status status-done">Standard</span>{% endif %}
-      {% if view.key_status == "fehlt" %}<span class="status">Schlüssel fehlt</span>{% endif %}
+      {% if view.name == config.default_profile %}<span class="status status-done">{{ t('Default', de='Standard') }}</span>{% endif %}
+      {% if view.key_status == "fehlt" %}<span class="status">{{ t('Key missing', de='Schlüssel fehlt') }}</span>{% endif %}
     </header>
-    <p><code>{{ view.model }}</code> · PDF-Modus {{ view.pdf_mode.value }}{% if view.image_input %} · Bilder{% endif %}</p>
+    <p><code>{{ view.model }}</code> · {{ t('PDF mode', de='PDF-Modus') }} {{ view.pdf_mode.value }}{% if view.image_input %} · {{ t('images', de='Bilder') }}{% endif %}</p>
     <div class="card-actions">
-      <a href="{{ url_for('edit_profile', name=view.name) }}" role="button" class="secondary outline">Bearbeiten</a>
+      <a href="{{ url_for('edit_profile', name=view.name) }}" role="button" class="secondary outline">{{ t('Edit', de='Bearbeiten') }}</a>
       {% if view.name in standard %}
       <form method="post" action="{{ url_for('reset_profile_route', name=view.name) }}">
-        <button type="submit" class="secondary outline">Auf Vorlage zurücksetzen</button>
+        <button type="submit" class="secondary outline">{{ t('Reset to template', de='Auf Vorlage zurücksetzen') }}</button>
       </form>
       {% else %}
       <form method="post" action="{{ url_for('delete_profile_route', name=view.name) }}">
-        <button type="submit" class="secondary outline">Löschen</button>
+        <button type="submit" class="secondary outline">{{ t('Delete', de='Löschen') }}</button>
       </form>
       {% endif %}
     </div>
   </article>
   {% endfor %}
-  <a href="{{ url_for('new_profile') }}" role="button">Neues Profil</a>
+  <a href="{{ url_for('new_profile') }}" role="button">{{ t('New profile', de='Neues Profil') }}</a>
 </section>
 
 <section id="defaults">
-  <h2>Standardwerte</h2>
+  <h2>{{ t('Defaults', de='Standardwerte') }}</h2>
   <form method="post" action="{{ url_for('save_defaults_route') }}">
-    <label for="default_profile">Standardprofil</label>
+    <label for="default_profile">{{ t('Default profile', de='Standardprofil') }}</label>
     <select id="default_profile" name="default_profile">
-      <option value="">kein Standardprofil</option>
+      <option value="">{{ t('no default profile', de='kein Standardprofil') }}</option>
       {% for view in profiles %}<option value="{{ view.name }}" {% if values.default_profile == view.name %}selected{% endif %}>{{ view.name }} – {{ view.model }}</option>{% endfor %}
     </select>
 
     <fieldset>
-      <legend><strong>Karten</strong></legend>
+      <legend><strong>{{ t('Cards', de='Karten') }}</strong></legend>
       <div class="grid">
-        <label>Deck (leer: Dateiname)<input name="generation.deck" value="{{ values['generation.deck'] }}"></label>
-        <label>Sprache<input name="generation.language" value="{{ values['generation.language'] }}" {% if errors['generation.language'] %}aria-invalid="true"{% endif %}></label>
+        <label>{{ t('Deck (empty: filename)', de='Deck (leer: Dateiname)') }}<input name="generation.deck" value="{{ values['generation.deck'] }}"></label>
+        <label>{{ t('Language', de='Sprache') }}<input name="generation.language" value="{{ values['generation.language'] }}" {% if errors['generation.language'] %}aria-invalid="true"{% endif %}></label>
       </div>
       <div class="grid">
-        <label>Höchstzahl (0 = unbegrenzt)<input type="number" min="0" name="generation.limit" value="{{ values['generation.limit'] }}" {% if errors['generation.limit'] %}aria-invalid="true"{% endif %}>{{ error(errors, "generation.limit") }}</label>
-        <label>Zeichen pro Abschnitt<input type="number" min="1000" max="100000" name="generation.chunk_size" value="{{ values['generation.chunk_size'] }}" {% if errors['generation.chunk_size'] %}aria-invalid="true"{% endif %}>{{ error(errors, "generation.chunk_size") }}</label>
-        <label>Timeout in Sekunden (leer: Profil)<input type="number" min="1" max="3600" name="generation.timeout" value="{{ values['generation.timeout'] }}">{{ error(errors, "generation.timeout") }}</label>
+        <label>{{ t('Maximum (0 = unlimited)', de='Höchstzahl (0 = unbegrenzt)') }}<input type="number" min="0" name="generation.limit" value="{{ values['generation.limit'] }}" {% if errors['generation.limit'] %}aria-invalid="true"{% endif %}>{{ error(errors, "generation.limit") }}</label>
+        <label>{{ t('Characters per section', de='Zeichen pro Abschnitt') }}<input type="number" min="1000" max="100000" name="generation.chunk_size" value="{{ values['generation.chunk_size'] }}" {% if errors['generation.chunk_size'] %}aria-invalid="true"{% endif %}>{{ error(errors, "generation.chunk_size") }}</label>
+        <label>{{ t('Timeout in seconds (empty: profile)', de='Timeout in Sekunden (leer: Profil)') }}<input type="number" min="1" max="3600" name="generation.timeout" value="{{ values['generation.timeout'] }}">{{ error(errors, "generation.timeout") }}</label>
       </div>
-      <label>Zusätzliche Anweisungen<textarea name="generation.instructions" rows="2">{{ values['generation.instructions'] }}</textarea></label>
-      <label for="generation.pdf_mode">PDF-Modus für alle Profile (leer: Modus des Profils)</label>
-      {{ choice("generation.pdf_mode", [("", "Modus des Profils"), ("local", "local"), ("structured", "structured"), ("native", "native")]) }}
-      {{ yes_no("generation.subdecks", "KI ordnet Karten Unterdecks zu") }}
+      <label>{{ t('Additional instructions', de='Zusätzliche Anweisungen') }}<textarea name="generation.instructions" rows="2">{{ values['generation.instructions'] }}</textarea></label>
+      <label for="generation.pdf_mode">{{ t('PDF mode for every profile (empty: profile mode)', de='PDF-Modus für alle Profile (leer: Modus des Profils)') }}</label>
+      {{ choice("generation.pdf_mode", [("", t("Profile mode", de="Modus des Profils")), ("local", "local"), ("structured", "structured"), ("native", "native")]) }}
+      {{ yes_no("generation.subdecks", t("AI assigns cards to subdecks", de="KI ordnet Karten Unterdecks zu")) }}
     </fieldset>
 
     <fieldset>
-      <legend><strong>Strukturierte PDF-Aufbereitung</strong></legend>
+      <legend><strong>{{ t('Structured PDF processing', de='Strukturierte PDF-Aufbereitung') }}</strong></legend>
       <div class="grid">
-        <label>OCR-Sprachen (z. B. de en){{ error(errors, "pdf_conversion.ocr_languages") }}<input name="pdf_conversion.ocr_languages" value="{{ values['pdf_conversion.ocr_languages'] }}"></label>
-        <label>Formeln je Aufruf (leer: Docling, 5; K1200: 1)<input type="number" min="1" max="64" name="pdf_conversion.formula_batch_size" value="{{ values['pdf_conversion.formula_batch_size'] }}" {% if errors['pdf_conversion.formula_batch_size'] %}aria-invalid="true"{% endif %}>{{ error(errors, "pdf_conversion.formula_batch_size") }}</label>
+        <label>{{ t('OCR languages (for example de en)', de='OCR-Sprachen (z. B. de en)') }}{{ error(errors, "pdf_conversion.ocr_languages") }}<input name="pdf_conversion.ocr_languages" value="{{ values['pdf_conversion.ocr_languages'] }}"></label>
+        <label>{{ t('Formulas per call (empty: Docling, 5; K1200: 1)', de='Formeln je Aufruf (leer: Docling, 5; K1200: 1)') }}<input type="number" min="1" max="64" name="pdf_conversion.formula_batch_size" value="{{ values['pdf_conversion.formula_batch_size'] }}" {% if errors['pdf_conversion.formula_batch_size'] %}aria-invalid="true"{% endif %}>{{ error(errors, "pdf_conversion.formula_batch_size") }}</label>
       </div>
-      {{ yes_no("pdf_conversion.formulas", "Formeln als LaTeX erkennen") }}
-      {{ yes_no("pdf_conversion.force_ocr", "Jede Seite per OCR lesen") }}
-      {{ yes_no("pdf_conversion.allow_unreadable", "Nicht lesbare Elemente als Platzhalter zulassen") }}
-      {{ yes_no("pdf_conversion.allow_cpu", "Ohne GPU auf der CPU arbeiten") }}
+      {{ yes_no("pdf_conversion.formulas", t("Recognise formulas as LaTeX", de="Formeln als LaTeX erkennen")) }}
+      {{ yes_no("pdf_conversion.force_ocr", t("Read every page with OCR", de="Jede Seite per OCR lesen")) }}
+      {{ yes_no("pdf_conversion.allow_unreadable", t("Allow unreadable elements as placeholders", de="Nicht lesbare Elemente als Platzhalter zulassen")) }}
+      {{ yes_no("pdf_conversion.allow_cpu", t("Run on the CPU without a GPU", de="Ohne GPU auf der CPU arbeiten")) }}
       <div class="grid">
-        <label for="pictures.backend">Bildbeschreibung
-          {{ choice("pictures.backend", [("local", "local – Bildmodell im Programm"), ("profile", "profile – Modellprofil"), ("none", "none – keine")]) }}
+        <label for="pictures.backend">{{ t('Image description', de='Bildbeschreibung') }}
+          {{ choice("pictures.backend", [("local", t("local – image model in the application", de="local – Bildmodell im Programm")), ("profile", t("profile – model profile", de="profile – Modellprofil")), ("none", t("none – none", de="none – keine"))]) }}
         </label>
-        <label for="pictures.profile">Bild-Profil (leer: Kartenprofil)
+        <label for="pictures.profile">{{ t('Image profile (empty: card profile)', de='Bild-Profil (leer: Kartenprofil)') }}
           <select id="pictures.profile" name="pictures.profile">
-            <option value="">Kartenprofil</option>
+            <option value="">{{ t('Card profile', de='Kartenprofil') }}</option>
             {% for view in profiles if view.image_input %}<option value="{{ view.name }}" {% if values['pictures.profile'] == view.name %}selected{% endif %}>{{ view.name }}</option>{% endfor %}
           </select>
         </label>
       </div>
-      <label>Lokales Bildmodell (Hugging Face)<input name="pictures.model" value="{{ values['pictures.model'] }}">{{ error(errors, "pictures.model") }}</label>
-      <small>Modellordner: <code>{{ config.pdf_conversion.models_dir }}</code></small>
+      <label>{{ t('Local image model (Hugging Face)', de='Lokales Bildmodell (Hugging Face)') }}<input name="pictures.model" value="{{ values['pictures.model'] }}">{{ error(errors, "pictures.model") }}</label>
+      <small>{{ t('Model directory:', de='Modellordner:') }} <code>{{ config.pdf_conversion.models_dir }}</code></small>
     </fieldset>
-    <button type="submit">Standardwerte speichern</button>
+    <button type="submit">{{ t('Save defaults', de='Standardwerte speichern') }}</button>
   </form>
 </section>
 
 <section id="file">
-  <h2>Datei</h2>
-  <p><a href="{{ url_for('download_config') }}" role="button" class="secondary outline">YAML herunterladen</a></p>
+  <h2>{{ t('File', de='Datei') }}</h2>
+  <p><a href="{{ url_for('download_config') }}" role="button" class="secondary outline">{{ t('Download YAML', de='YAML herunterladen') }}</a></p>
   <form method="post" action="{{ url_for('upload_config') }}" enctype="multipart/form-data">
-    <label for="file">YAML hochladen und die Konfiguration ersetzen</label>
+    <label for="file">{{ t('Upload YAML and replace the configuration', de='YAML hochladen und die Konfiguration ersetzen') }}</label>
     <input id="file" type="file" name="file" accept=".yaml,.yml" required {% if errors.file %}aria-invalid="true"{% endif %}>
     {{ error(errors, "file") }}
-    <small>Die Datei wird vor dem Speichern vollständig geprüft. Fehlende Standardprofile ergänzt Anki Studio beim nächsten Start.</small>
-    <button type="submit" class="secondary">Hochladen und ersetzen</button>
+    <small>{{ t('The file is fully validated before saving. Anki Studio adds missing standard profiles at the next start.', de='Die Datei wird vor dem Speichern vollständig geprüft. Fehlende Standardprofile ergänzt Anki Studio beim nächsten Start.') }}</small>
+    <button type="submit" class="secondary">{{ t('Upload and replace', de='Hochladen und ersetzen') }}</button>
   </form>
 </section>
 {% endblock %}

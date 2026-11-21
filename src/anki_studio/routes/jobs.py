@@ -150,7 +150,9 @@ async def _stream(request: Request, job_id: str, position: int) -> AsyncIterator
         Formatted events, keepalive comments, and finally ``done``.
     """
     store = request.app.state.jobs
-    fragments = request.app.state.templates.env.get_template("_events.html").module
+    fragments = request.app.state.templates.env.get_template("_events.html").make_module(
+        {"request": request}
+    )
     quiet = 0.0
     while not await request.is_disconnected():
         job = await run_in_threadpool(store.get, job_id)

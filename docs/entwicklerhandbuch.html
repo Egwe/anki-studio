@@ -71,6 +71,7 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
   <a href="#formate">Datenformate</a>
   <a href="#sicherheit">Sicherheit</a>
   <a href="#frontend">Frontend</a>
+  <a href="#i18n">Oberflächensprache</a>
   <a href="#tests">Tests und Nahtstellen</a>
   <a href="#vorschau">Vorschau im Container</a>
   <a href="#besonderheiten">Besonderheiten</a>
@@ -143,7 +144,7 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
     <tr><td><code>sse.py</code>, <code>routes/jobs.py</code></td><td>Live-Fortschritt: <code>/jobs/&lt;id&gt;/events</code> streamt neue Zeilen aus <code>events.jsonl</code> als Server-Sent Events (<code>line</code>, <code>progress</code>, <code>status</code>, <code>done</code>), gerendert mit den Makros aus <code>_events.html</code></td><td><code>test_live.py</code></td></tr>
     <tr><td><code>review.py</code>, <code>routes/review.py</code></td><td>Prüfstand <code>review.json</code> (Karten mit ID und Auswahl), Bearbeiten über <code>Card</code>, Schreiben mit <code>deduplicate_cards</code>, <code>validate_output</code>, <code>write_apkg</code>; Ergebnis <code>result.json</code>; htmx-Fragmente und Downloads</td><td><code>test_review.py</code>, <code>test_web_review.py</code></td></tr>
     <tr><td><code>config_editor.py</code>, <code>routes/config.py</code></td><td>Profile anlegen, bearbeiten, zurücksetzen, löschen; Standardwerte; YAML ersetzen. Änderungen als Daten, Prüfung mit <code>AppConfig</code>, Speichern mit <code>save_config</code>; Fehler je Feld (<code>ConfigEditError.errors</code>)</td><td><code>test_config_editor.py</code>, <code>test_web_config.py</code></td></tr>
-    <tr><td><code>templating.py</code></td><td>Jinja2-Umgebung mit Versionen und Statusnamen</td><td>indirekt</td></tr>
+    <tr><td><code>templating.py</code></td><td>Jinja2-Umgebung mit Versionen, Statusnamen und Übersetzungsfunktionen</td><td>indirekt</td></tr>
     <tr><td><code>routes/</code></td><td><code>login</code>, <code>pages</code> (Start, <code>/healthz</code>), <code>generate</code>, <code>decks</code>, <code>export</code>, <code>sync</code>, <code>jobs</code>, <code>keys</code>, <code>models</code>, <code>review</code>, <code>config</code>, <code>structured</code></td><td><code>test_auth.py</code>, <code>test_web_generate.py</code>, <code>test_decks_export.py</code>, <code>test_sync.py</code>, <code>test_structured.py</code></td></tr>
   </table>
 </section>
@@ -300,6 +301,13 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
 <section id="frontend">
   <h2>Frontend</h2>
   <p>Templates erben von <code>base.html</code>; Makros für Formularfelder stehen in <code>_fields.html</code>, Ereigniszeilen in <code>_events.html</code>. Die Navigation verlinkt nach Anmeldung Generieren, Decks, Export, Sync, Jobs sowie Einstellungen für Konfiguration, Zugang/Sync, Provider-Schlüssel und Modelle. Das Einstellungsmenü ist Picos <code>details.dropdown</code> mit rechtsbündiger Liste (<code>dir="rtl"</code>); unter 768 px schaltet <code>app.css</code> es auf eine eigene Zeile in voller Breite und lässt die Liste im Seitenfluss aufklappen, denn rechtsbündig ragte sie dort über den linken Bildschirmrand. Die Liste bleibt <code>position: relative</code>, damit sie über Picos transparenter Fläche liegt, die das Menü bei einem Tipp daneben schließt. <code>routes/access.py</code> schreibt über <code>RuntimeEnvironment</code> die vollständige tägliche Zugangskonfiguration und legt nach Auslieferung der Antwort einen kontrollierten Neustart an; <code>cli.serve_command</code> ersetzt diese Testnaht mit SIGTERM, die Unit mit <code>Restart=always</code> startet danach neu. Interaktive Zustände des Formulars kapselt die Alpine-Komponente <code>generateForm</code> in <code>static/app.js</code>: wirksamer PDF-Modus (Formular → Profil → Standard, Werte je Profil vom Server), Sichtbarkeit der strukturierten Optionen, Bestätigungskasten, APKG-Feld. Die Bibliotheken liegen versioniert unter <code>static/vendor/</code> (siehe README).</p>
+</section>
+
+<section id="i18n">
+  <h2>Oberflächensprache</h2>
+  <p><code>i18n.py</code> hält <code>en</code> als festen Standard und <code>de</code> als mitgelieferte Alternative. <code>locale</code> liegt in der signierten Starlette-Sitzung; fehlende oder ungültige Werte fallen auf Englisch zurück. Die öffentliche POST-Route <code>/language</code> akzeptiert nur diese beiden Codes und nur lokale Rücksprungziele. Login und Logout bewahren die Auswahl, wenn sie die Sitzung erneuern.</p>
+  <p>Templates rufen <code>t(englischer_Schlüssel, de=deutscher_Fallback)</code> auf. Der englische Text ist zugleich der stabile Schlüssel: Ein weiterer Sprachkatalog kann ihn in <code>i18n.py</code> abbilden, ohne Templates zu kopieren. <code>status_label</code> übersetzt persistierte technische Jobzustände. Routen verwenden <code>translate_request</code>; Hintergrundjobs speichern die beim Start gewählte Sprache in ihren Optionen und verwenden <code>translate_with_fallback</code> für eigene Hinweise.</p>
+  <p>Die Oberflächensprache und <code>generation.language</code> sind absichtlich getrennt. Erstere betrifft Beschriftungen und neue Statusmeldungen, letztere den Inhalt der vom Generator erzeugten Karten.</p>
 </section>
 
 <section id="tests">

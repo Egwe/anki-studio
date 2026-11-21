@@ -2,19 +2,19 @@
 {% block content %}
 <hgroup>
   <h1>Anki Studio</h1>
-  <p>Karteikarten aus Dokumenten erzeugen, prüfen und auf alle Geräte bringen.</p>
+  <p>{{ t("Create flashcards from documents, review them, and bring them to every device.") }}</p>
 </hgroup>
 <p>
-  <a href="{{ url_for('generate_page') }}" role="button">Karten generieren</a>
-  <a href="{{ url_for('job_list') }}" role="button" class="secondary outline">Jobs ansehen</a>
+  <a href="{{ url_for('generate_page') }}" role="button">{{ t("Generate cards") }}</a>
+  <a href="{{ url_for('job_list') }}" role="button" class="secondary outline">{{ t("View jobs") }}</a>
 </p>
 <article>
-  <header><strong>Installierte Komponenten</strong></header>
+  <header><strong>{{ t("Installed components") }}</strong></header>
   <dl class="components">
     <dt>Anki Studio</dt><dd>{{ versions.studio }}</dd>
-    <dt>Anki Flashcard Generator</dt><dd>{{ versions.generator }}</dd>
+    <dt>{{ t("Anki Flashcard Generator") }}</dt><dd>{{ versions.generator }}</dd>
     <dt>Anki (pylib)</dt><dd>{{ versions.anki }}</dd>
   </dl>
-  <footer><small>Karten prüfen und schreiben, sicher synchronisieren und Karten exportieren: Die passenden Seiten stehen in der Navigation bereit.</small></footer>
+  <footer><small>{{ t("Cards can be reviewed and written, synchronised safely, and exported from the pages in the navigation.") }}</small></footer>
 </article>
 {% endblock %}

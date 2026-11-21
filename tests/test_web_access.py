@@ -197,7 +197,7 @@ def test_sync_change_keeps_the_stored_password_for_the_same_user(
         )
 
     environment = runtime_environment(studio_settings)
-    assert "gespeichert – leer lassen" in page and SYNC_PASSWORD not in page
+    assert "stored — leave empty" in page and SYNC_PASSWORD not in page
     assert kept.status_code == 303
     assert read_secret(environment, RUNTIME_SYNC_PASSWORD_ENV, SECRET_KEY) == SYNC_PASSWORD
     assert read_value(environment, RUNTIME_SYNC_ENDPOINT_ENV) == "https://neu.example"

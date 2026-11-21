@@ -25,15 +25,20 @@ from anki_studio.generator_config import (
     profile_views,
     template_config,
 )
+from anki_studio.i18n import translate_request
 
-SOURCE_LABELS = {"built-in": "Standard", "config": "Konfiguration", "cli": "Formular"}
+SOURCE_LABELS = {
+    "built-in": ("Default", "Standard"),
+    "config": ("Configuration", "Konfiguration"),
+    "cli": ("Form", "Formular"),
+}
 HIDDEN_DIAGNOSTICS = frozenset({"input_file", "output", "json_output", "extend", "sources"})
 NOTICES = {
-    "defaults": "Standardwerte gespeichert.",
-    "profile": "Profil gespeichert.",
-    "deleted": "Profil gelöscht.",
-    "reset": "Profil auf die Vorlage zurückgesetzt.",
-    "upload": "Konfiguration ersetzt.",
+    "defaults": ("Defaults saved.", "Standardwerte gespeichert."),
+    "profile": ("Profile saved.", "Profil gespeichert."),
+    "deleted": ("Profile deleted.", "Profil gelöscht."),
+    "reset": ("Profile reset to template.", "Profil auf die Vorlage zurückgesetzt."),
+    "upload": ("Configuration replaced.", "Konfiguration ersetzt."),
 }
 
 router = APIRouter()
@@ -50,7 +55,11 @@ def config_page(request: Request, saved: str = "") -> HTMLResponse:
     Returns:
         The configuration page.
     """
-    return _render_page(request, notice=NOTICES.get(saved))
+    notice = NOTICES.get(saved)
+    message = None
+    if notice is not None:
+        message = translate_request(request, notice[0], de=notice[1])
+    return _render_page(request, notice=message)
 
 
 @router.post("/settings/config/defaults", response_class=HTMLResponse)
@@ -206,7 +215,15 @@ async def upload_config(request: Request) -> Response:
     """
     upload = (await request.form()).get("file")
     if not isinstance(upload, UploadFile) or not upload.filename:
-        return _render_page(request, errors={"file": "Bitte eine YAML-Datei wählen."}, status=400)
+        return _render_page(
+            request,
+            errors={
+                "file": translate_request(
+                    request, "Select a YAML file.", de="Bitte eine YAML-Datei wählen."
+                )
+            },
+            status=400,
+        )
     text = (await upload.read()).decode("utf-8", errors="replace")
     try:
         await run_in_threadpool(replace_config, _path(request), text)
@@ -292,29 +309,47 @@ def _template(request: Request) -> Any:
     return template_config(request.app.state.settings.data_dir / "models")
 
 
-def _diagnostics(generator: GeneratorConfig) -> list[tuple[str, str, str]]:
+def _diagnostics(request: Request, generator: GeneratorConfig) -> list[tuple[str, str, str]]:
     """Describe the effective values with their source, without secrets.
 
     Args:
+        request: Browser request selecting the source-label language.
         generator: Loaded configuration.
 
     Returns:
-        Rows of name, value, and German source label; structured PDF values
+        Rows of name, value, and localised source label; structured PDF values
         are prefixed with ``pdf_conversion.``.
     """
     try:
         data = configuration_diagnostics(effective_settings(generator, {}), generator.path)
     except FlashcardError as error:
-        return [("Fehler", str(error), "")]
+        return [(translate_request(request, "Error", de="Fehler"), str(error), "")]
     sources = data["sources"]
     rows = [
-        (name, str(value), SOURCE_LABELS.get(sources.get(name, ""), ""))
+        (name, str(value), _source_label(request, sources.get(name, "")))
         for name, value in data.items()
         if name not in HIDDEN_DIAGNOSTICS and not isinstance(value, dict)
     ]
     conversion = data.get("pdf_conversion", {})
     rows += [(f"pdf_conversion.{name}", str(value), "") for name, value in conversion.items()]
     return rows
+
+
+def _source_label(request: Request, source: str) -> str:
+    """Translate one generator configuration source label.
+
+    Args:
+        request: Browser request selecting the response language.
+        source: Raw source code returned by the generator diagnostics.
+
+    Returns:
+        The matching English or German label, or an empty string when the
+        generator returned an unknown source code.
+    """
+    labels = SOURCE_LABELS.get(source)
+    if labels is None:
+        return ""
+    return translate_request(request, labels[0], de=labels[1])
 
 
 def _default_fields(config: Any) -> dict[str, str]:
@@ -397,7 +432,7 @@ def _render_page(
         "values": values or _default_fields(config),
         "config": config,
         "path": str(generator.path),
-        "diagnostics": _diagnostics(generator),
+        "diagnostics": _diagnostics(request, generator),
         "profiles": profile_views(generator),
         "standard": set(_template(request).models),
     }

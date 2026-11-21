@@ -12,6 +12,7 @@ from starlette.datastructures import FormData, UploadFile
 from anki_studio.card_export import EXPORT_FILE, EXPORT_KIND
 from anki_studio.forms import ExportForm, ExportTarget, form_errors
 from anki_studio.generator_config import load_generator_config
+from anki_studio.i18n import locale_from_request, translate_request
 from anki_studio.jobs import Job, JobStatus, JobStore
 from anki_studio.uploads import CARD_JSON, UploadError, check_upload, clean_filename
 from anki_studio.worker import JobWorker
@@ -48,23 +49,43 @@ async def export_submit(request: Request) -> Response:
     try:
         form = ExportForm.model_validate(values)
     except ValidationError as error:
-        return _render(request, values=values, errors=form_errors(error.errors()), status=400)
+        return _render(
+            request,
+            values=values,
+            errors=form_errors(error.errors(), locale_from_request(request)),
+            status=400,
+        )
     try:
         generator = load_generator_config(request.app.state.settings.generator_path)
     except FlashcardError as error:
         return _render(
             request,
             values=values,
-            errors={"form": f"Generator-Konfiguration nicht nutzbar: {error}"},
+            errors={
+                "form": translate_request(
+                    request,
+                    "Generator configuration cannot be used: {error}",
+                    de="Generator-Konfiguration nicht nutzbar: {error}",
+                    error=error,
+                )
+            },
             status=400,
         )
     deck = form.deck or generator.config.generation.deck
-    errors = _submission_errors(cards, deck, form.target, request.app.state.sync_service.configured)
+    errors = _submission_errors(
+        request, cards, deck, form.target, request.app.state.sync_service.configured
+    )
     if errors:
         return _render(request, values=values, errors=errors, status=400)
     try:
         job = await run_in_threadpool(
-            _create_job, request.app.state.jobs, request.app.state.worker, cards, deck, form.target
+            _create_job,
+            request.app.state.jobs,
+            request.app.state.worker,
+            cards,
+            deck,
+            form.target,
+            locale_from_request(request),
         )
     except (UploadError, OSError) as error:
         return _render(request, values=values, errors={"cards": str(error)}, status=400)
@@ -122,11 +143,16 @@ def _cards_file(data: FormData) -> UploadFile | None:
 
 
 def _submission_errors(
-    cards: UploadFile | None, deck: str, target: ExportTarget, sync_configured: bool
+    request: Request,
+    cards: UploadFile | None,
+    deck: str,
+    target: ExportTarget,
+    sync_configured: bool,
 ) -> dict[str, str]:
     """Check that export has a card JSON and a target deck.
 
     Args:
+        request: Browser request selecting validation-message language.
         cards: Uploaded card JSON, or None.
         deck: Effective target deck from the form or generator YAML.
         target: Selected APKG or synchronized collection destination.
@@ -137,11 +163,23 @@ def _submission_errors(
     """
     errors = {}
     if not deck:
-        errors["deck"] = "Bitte ein Ziel-Deck angeben oder in der Konfiguration setzen."
+        errors["deck"] = translate_request(
+            request,
+            "Specify a target deck or set one in the configuration.",
+            de="Bitte ein Ziel-Deck angeben oder in der Konfiguration setzen.",
+        )
     if target is ExportTarget.COLLECTION and not sync_configured:
-        errors["target"] = "Für die Sammlung zuerst die Synchronisierung einrichten."
+        errors["target"] = translate_request(
+            request,
+            "Set up synchronisation before using the collection.",
+            de="Für die Sammlung zuerst die Synchronisierung einrichten.",
+        )
     if cards is None:
-        return errors | {"cards": "Bitte eine Karten-JSON-Datei auswählen."}
+        return errors | {
+            "cards": translate_request(
+                request, "Select a card JSON file.", de="Bitte eine Karten-JSON-Datei auswählen."
+            )
+        }
     try:
         check_upload(clean_filename(cards.filename), cards.size, CARD_JSON)
     except UploadError as error:
@@ -155,6 +193,7 @@ def _create_job(
     cards: UploadFile | None,
     deck: str,
     target: ExportTarget,
+    locale: str,
 ) -> Job:
     """Store card JSON as a job and submit the APKG export.
 
@@ -164,6 +203,7 @@ def _create_job(
         cards: Checked card JSON upload.
         deck: Non-empty normalized target deck.
         target: APKG or synchronized collection destination.
+        locale: Interface language captured for background job notices.
 
     Returns:
         Newly queued export job.
@@ -178,7 +218,7 @@ def _create_job(
         cards.file,
         cards.filename,
         cards.size,
-        {"kind": EXPORT_KIND, "deck": deck, "target": target.value},
+        {"kind": EXPORT_KIND, "deck": deck, "target": target.value, "locale": locale},
         upload_kind=CARD_JSON,
     )
     worker.submit(job)

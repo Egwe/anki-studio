@@ -1,40 +1,40 @@
 {% extends "base.html" %}
-{% block title %}Modelle und GPU – Anki Studio{% endblock %}
+{% block title %}{{ t('Models and GPU') }} – Anki Studio{% endblock %}
 {% block content %}
 <hgroup>
-  <h1>Modelle und GPU</h1>
-  <p>Der strukturierte PDF-Modus bereitet PDFs auf dem Server mit Docling auf: Text in Bildern, Tabellen, Formeln, Abbildungen. Er braucht Docling, eine nutzbare GPU und einmal heruntergeladene Modelle.</p>
+  <h1>{{ t('Models and GPU') }}</h1>
+  <p>{{ t('Structured PDF mode processes PDFs on the server with Docling: text in images, tables, formulas, and figures. It needs Docling, a usable GPU, and models downloaded once.', de='Der strukturierte PDF-Modus bereitet PDFs auf dem Server mit Docling auf: Text in Bildern, Tabellen, Formeln, Abbildungen. Er braucht Docling, eine nutzbare GPU und einmal heruntergeladene Modelle.') }}</p>
 </hgroup>
 {% if error %}
-<article class="alert">Generator-Konfiguration nicht nutzbar: {{ error }}</article>
+<article class="alert">{{ t('Generator configuration cannot be used:', de='Generator-Konfiguration nicht nutzbar:') }} {{ error }}</article>
 {% else %}
 <article>
-  <header><strong>Zustand</strong></header>
+  <header><strong>{{ t('Status', de='Zustand') }}</strong></header>
   <dl class="components">
     <dt>Docling</dt>
-    <dd>{% if state.docling %}installiert{% else %}nicht installiert (Extra <code>pdf</code>){% endif %}</dd>
+    <dd>{% if state.docling %}{{ t('installed', de='installiert') }}{% else %}{{ t('not installed (the <code>pdf</code> extra)', de='nicht installiert (Extra <code>pdf</code>)') }}{% endif %}</dd>
     <dt>GPU</dt>
-    <dd>{% if state.device %}<span class="status status-done">{{ state.device }}</span> nutzbar{% elif state.gpu_problem %}nicht nutzbar{% elif state.docling %}keine gefunden{% else %}nicht geprüft{% endif %}</dd>
-    <dt>Formeln je Aufruf</dt>
-    <dd>{{ formula_batch_size or "Standard von Docling (5)" }}</dd>
-    <dt>Modellordner</dt>
+    <dd>{% if state.device %}<span class="status status-done">{{ state.device }}</span> {{ t('usable', de='nutzbar') }}{% elif state.gpu_problem %}{{ t('not usable', de='nicht nutzbar') }}{% elif state.docling %}{{ t('none found', de='keine gefunden') }}{% else %}{{ t('not checked', de='nicht geprüft') }}{% endif %}</dd>
+    <dt>{{ t('Formulas per call', de='Formeln je Aufruf') }}</dt>
+    <dd>{{ formula_batch_size or t('Docling default (5)', de='Standard von Docling (5)') }}</dd>
+    <dt>{{ t('Model directory', de='Modellordner') }}</dt>
     <dd><code class="path">{{ state.models_dir }}</code></dd>
   </dl>
   {% if state.gpu_problem %}<p class="field-error">{{ state.gpu_problem }}</p>{% endif %}
-  {% if not state.docling %}<p><small>Ohne Docling bleiben die PDF-Modi <code>local</code> und <code>native</code>. Installiert wird das Extra mit <code>uv sync --extra pdf</code>; die Vorschau im Container macht das selbst.</small></p>{% endif %}
+  {% if not state.docling %}<p><small>{{ t('Without Docling, only the <code>local</code> and <code>native</code> PDF modes remain. Install the extra with <code>uv sync --extra pdf</code>; the container preview does that itself.', de='Ohne Docling bleiben die PDF-Modi <code>local</code> und <code>native</code>. Installiert wird das Extra mit <code>uv sync --extra pdf</code>; die Vorschau im Container macht das selbst.') }}</small></p>{% endif %}
 </article>
 <article>
-  <header><strong>Modelle</strong></header>
+  <header><strong>{{ t('Models', de='Modelle') }}</strong></header>
   <ul class="events">
     {% for component in state.components %}
-    <li>{% if component.downloaded %}<strong>vorhanden</strong>{% else %}fehlt{% endif %} · <code>{{ component.name }}</code></li>
+    <li>{% if component.downloaded %}<strong>{{ t('available', de='vorhanden') }}</strong>{% else %}{{ t('missing', de='fehlt') }}{% endif %} · <code>{{ component.name }}</code></li>
     {% endfor %}
   </ul>
   <footer>
     <form method="post" action="{{ url_for('download_models') }}">
-      <button type="submit" {% if not state.docling %}disabled{% endif %}>Fehlende Modelle herunterladen</button>
+      <button type="submit" {% if not state.docling %}disabled{% endif %}>{{ t('Download missing models', de='Fehlende Modelle herunterladen') }}</button>
     </form>
-    <small>Rund 1,9 GB von Hugging Face; der Download läuft als Job mit Live-Fortschritt. Welche Modelle nötig sind, folgt aus der Konfiguration (Formeln, Bildbeschreibung).</small>
+    <small>{{ t('About 1.9 GB from Hugging Face; the download runs as a job with live progress. The configuration determines which models are needed (formulas and image descriptions).', de='Rund 1,9 GB von Hugging Face; der Download läuft als Job mit Live-Fortschritt. Welche Modelle nötig sind, folgt aus der Konfiguration (Formeln, Bildbeschreibung).') }}</small>
   </footer>
 </article>
 {% endif %}

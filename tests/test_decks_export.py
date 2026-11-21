@@ -121,7 +121,7 @@ def test_deck_runner_stores_the_inspection_result(store: JobStore, tmp_path: Pat
 
     tree = load_decks(store.job_dir(job.id) / "decks.json")
     assert any(node.full_name == "Elektrotechnik" for node in tree)
-    assert notices[-1]["text"].endswith("Decks der obersten Ebene gefunden.")
+    assert notices[-1]["text"].endswith("top-level decks.")
 
 
 def test_export_runner_creates_new_apkg(
@@ -150,7 +150,7 @@ def test_export_runner_creates_new_apkg(
     output = store.job_dir(job.id) / EXPORT_FILE
     names = {deck["name"] for deck in inspect_apkg(output)}
     assert {"Export::EL1", "Export::EL1::Grundlagen"} <= names
-    assert notices[-1]["text"] == "2 Karten für Deck „Export::EL1“ geschrieben."
+    assert notices[-1]["text"] == "Wrote 2 cards for deck “Export::EL1”."
 
 
 def test_export_runner_refuses_invalid_card_json(

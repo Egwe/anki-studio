@@ -15,15 +15,16 @@ from typing import Any
 
 from anki_flashcards.errors import FlashcardError, GenerationCancelled
 
+from anki_studio.i18n import translate_with_fallback
 from anki_studio.jobs import Job, JobStatus, JobStore
 
 Reporter = Callable[[dict[str, Any]], None]
 CancelCheck = Callable[[], bool]
 JobRunner = Callable[[Job, Reporter, CancelCheck], None]
 
-CANCELLED_BY_USER = "Vom Benutzer abgebrochen."
-CANCELLED_BY_STOP = "Beim Beenden von Anki Studio abgebrochen."
-UNEXPECTED_ERROR = "Unerwarteter Fehler; Details stehen im Protokoll des Dienstes."
+CANCELLED_BY_USER = "Cancelled by user."
+CANCELLED_BY_STOP = "Cancelled while Anki Studio was stopping."
+UNEXPECTED_ERROR = "Unexpected error; details are in the service log."
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +121,7 @@ class JobWorker:
             if job_id in self._cancel:
                 self._cancel[job_id].set()
             if job.status is JobStatus.QUEUED:
-                self._set_status(job_id, JobStatus.CANCELLED, CANCELLED_BY_USER)
+                self._set_status(job_id, JobStatus.CANCELLED, _cancelled_by_user(job))
         return True
 
     def _loop(self) -> None:
@@ -148,7 +149,7 @@ class JobWorker:
         status, message = self._execute(job, cancel_event.is_set)
         with self._lock:
             if status is JobStatus.CANCELLED and self._stopping:
-                message = CANCELLED_BY_STOP
+                message = _cancelled_by_stop(job)
             self._set_status(job_id, status, message)
             self._cancel.pop(job_id, None)
         self.store.remove_expired(self.retention)
@@ -187,12 +188,12 @@ class JobWorker:
         try:
             self.runner(job, report, cancel)
         except GenerationCancelled:
-            return JobStatus.CANCELLED, CANCELLED_BY_USER
+            return JobStatus.CANCELLED, _cancelled_by_user(job)
         except FlashcardError as error:
             return JobStatus.FAILED, str(error)
         except Exception:
             logger.exception("Job %s ist unerwartet fehlgeschlagen", job.id)
-            return JobStatus.FAILED, UNEXPECTED_ERROR
+            return JobStatus.FAILED, _unexpected_error(job)
         return JobStatus.DONE, None
 
     def _set_status(self, job_id: str, status: JobStatus, message: str | None = None) -> None:
@@ -213,3 +214,51 @@ class JobWorker:
             job_id, {"type": "job_status", "status": status.value, "message": message}
         )
         self.store.update(job_id, status, message)
+
+
+def _cancelled_by_user(job: Job) -> str:
+    """Return the selected-language message for a user cancellation.
+
+    Args:
+        job: Job whose options capture its initiating interface locale.
+
+    Returns:
+        A concise cancellation message for the job history.
+    """
+    return translate_with_fallback(
+        str(job.options.get("locale", "en")),
+        CANCELLED_BY_USER,
+        de="Vom Benutzer abgebrochen.",
+    )
+
+
+def _cancelled_by_stop(job: Job) -> str:
+    """Return the selected-language message for a shutdown cancellation.
+
+    Args:
+        job: Job whose options capture its initiating interface locale.
+
+    Returns:
+        A concise shutdown message for the job history.
+    """
+    return translate_with_fallback(
+        str(job.options.get("locale", "en")),
+        CANCELLED_BY_STOP,
+        de="Beim Beenden von Anki Studio abgebrochen.",
+    )
+
+
+def _unexpected_error(job: Job) -> str:
+    """Return a safe selected-language message for an unexpected failure.
+
+    Args:
+        job: Job whose options capture its initiating interface locale.
+
+    Returns:
+        A failure message that keeps internal exception details in logs.
+    """
+    return translate_with_fallback(
+        str(job.options.get("locale", "en")),
+        UNEXPECTED_ERROR,
+        de="Unerwarteter Fehler; Details stehen im Protokoll des Dienstes.",
+    )

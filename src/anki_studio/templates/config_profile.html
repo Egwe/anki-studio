@@ -1,47 +1,47 @@
 {% extends "base.html" %}
 {% from "_fields.html" import error %}
-{% block title %}{{ "Neues Profil" if new else "Profil " ~ name }} – Anki Studio{% endblock %}
+{% block title %}{{ t('New profile', de='Neues Profil') if new else t('Profile {name}', de='Profil {name}', name=name) }} – Anki Studio{% endblock %}
 {% block content %}
 <hgroup>
-  <h1>{{ "Neues Profil" if new else "Profil " ~ name }}</h1>
-  <p>Ein Profil verbindet ein Modell eines Providers mit Endpunkt, Schlüsselvariable und Optionen. Den Schlüssel selbst trägst du unter <a href="{{ url_for('keys_page') }}">Zugangsdaten</a> ein.</p>
+  <h1>{{ t('New profile', de='Neues Profil') if new else t('Profile {name}', de='Profil {name}', name=name) }}</h1>
+  <p>{{ t('A profile connects a provider model with its endpoint, key variable, and options. Enter the key itself under', de='Ein Profil verbindet ein Modell eines Providers mit Endpunkt, Schlüsselvariable und Optionen. Den Schlüssel selbst trägst du unter') }} <a href="{{ url_for('keys_page') }}">{{ t('Credentials') }}</a> {{ t('in the settings.', de='ein.') }}</p>
 </hgroup>
 {% if errors.form %}<article class="alert" role="alert">{{ errors.form }}</article>{% endif %}
 <form method="post" action="{{ url_for('create_profile') if new else url_for('update_profile', name=name) }}" x-data>
   {% if new %}
-  <label for="name">Name</label>
+  <label for="name">{{ t('Name', de='Name') }}</label>
   <input id="name" name="name" required value="{{ values.name or '' }}" placeholder="z. B. openai-gpt-4-1"
          {% if errors.name %}aria-invalid="true"{% endif %}>
   {{ error(errors, "name") }}
   {% endif %}
-  <label for="model">Modell (provider/modell)</label>
+  <label for="model">{{ t('Model (provider/model)', de='Modell (provider/modell)') }}</label>
   <fieldset role="group">
     <input id="model" name="model" x-ref="model" required value="{{ values.model or '' }}" placeholder="openai/gpt-4o-mini"
            {% if errors.model %}aria-invalid="true"{% endif %}>
     <button type="button" class="secondary nowrap"
             hx-get="{{ url_for('model_list') }}" hx-include="#model, #api_base, #api_key_env"
-            hx-target="#model-list" hx-swap="outerHTML">Modelle laden</button>
+            hx-target="#model-list" hx-swap="outerHTML">{{ t('Load models', de='Modelle laden') }}</button>
   </fieldset>
   {{ error(errors, "model") }}
   <div id="model-list"></div>
   <div class="grid">
-    <label for="api_base">API-Basis (leer: Standard des Providers)
+    <label for="api_base">{{ t('API base (empty: provider default)', de='API-Basis (leer: Standard des Providers)') }}
       <input id="api_base" name="api_base" value="{{ values.api_base or '' }}" placeholder="https://api.openai.com/v1">
       {{ error(errors, "api_base") }}
     </label>
-    <label for="api_key_env">Schlüsselvariable (leer: keine)
+    <label for="api_key_env">{{ t('Key variable (empty: none)', de='Schlüsselvariable (leer: keine)') }}
       <input id="api_key_env" name="api_key_env" value="{{ values.api_key_env or '' }}" placeholder="OPENAI_API_KEY"
              {% if errors.api_key_env %}aria-invalid="true"{% endif %}>
       {{ error(errors, "api_key_env") }}
     </label>
   </div>
   <div class="grid">
-    <label for="timeout">Timeout in Sekunden (1–3600)
+    <label for="timeout">{{ t('Timeout in seconds (1–3600)', de='Timeout in Sekunden (1–3600)') }}
       <input id="timeout" type="number" min="1" max="3600" name="timeout" value="{{ values.timeout or '' }}"
              {% if errors.timeout %}aria-invalid="true"{% endif %}>
       {{ error(errors, "timeout") }}
     </label>
-    <label for="pdf_mode">PDF-Modus
+    <label for="pdf_mode">{{ t('PDF mode', de='PDF-Modus') }}
       <select id="pdf_mode" name="pdf_mode">
         {% for mode in ("local", "structured", "native") %}<option value="{{ mode }}" {% if values.pdf_mode == mode %}selected{% endif %}>{{ mode }}</option>{% endfor %}
       </select>
@@ -51,16 +51,16 @@
   <label>
     <input type="hidden" name="image_input" value="false">
     <input type="checkbox" role="switch" name="image_input" value="true" {% if values.image_input == "true" %}checked{% endif %}>
-    Modell versteht Bilder (darf Abbildungen beschreiben)
+    {{ t('Model understands images (may describe figures)', de='Modell versteht Bilder (darf Abbildungen beschreiben)') }}
   </label>
-  <label for="options">Optionen für den Provider (je Zeile „name: wert“)</label>
+  <label for="options">{{ t('Options for the provider (one “name: value” per line)', de='Optionen für den Provider (je Zeile „name: wert“)') }}</label>
   <textarea id="options" name="options" rows="5" placeholder="temperature: 0.2&#10;max_tokens: 8192"
             {% if errors.options %}aria-invalid="true"{% endif %}>{{ values.options or '' }}</textarea>
   {{ error(errors, "options") }}
-  <small>Im nativen PDF-Modus gehen die Optionen an die OpenAI Responses API: <code>max_output_tokens</code> statt <code>max_tokens</code>. Schlüssel gehören nie hierher.</small>
+  <small>{{ t('In native PDF mode, the options go to the OpenAI Responses API: <code>max_output_tokens</code> rather than <code>max_tokens</code>. Keys never belong here.', de='Im nativen PDF-Modus gehen die Optionen an die OpenAI Responses API: <code>max_output_tokens</code> statt <code>max_tokens</code>. Schlüssel gehören nie hierher.') }}</small>
   <div class="card-actions">
-    <button type="submit">Speichern</button>
-    <a href="{{ url_for('config_page') }}#profiles" role="button" class="secondary outline">Abbrechen</a>
+    <button type="submit">{{ t('Save', de='Speichern') }}</button>
+    <a href="{{ url_for('config_page') }}#profiles" role="button" class="secondary outline">{{ t('Cancel') }}</a>
   </div>
 </form>
 {% endblock %}

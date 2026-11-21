@@ -75,7 +75,7 @@ def test_wrong_password_is_rejected(client: TestClient) -> None:
     response = client.post("/login", data={"password": "falsch-geheim"}, follow_redirects=False)
 
     assert response.status_code == 401
-    assert "Das Passwort ist falsch." in response.text
+    assert "The password is incorrect." in response.text
     assert client.get("/", follow_redirects=False).status_code == 303
 
 

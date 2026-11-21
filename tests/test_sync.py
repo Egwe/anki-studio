@@ -181,7 +181,7 @@ def test_first_sync_downloads_the_server_collection_without_secrets(
     state_text = states.path.read_text(encoding="utf-8")
     assert outcome.result == "full_download"
     assert any(deck["name"] == "Elektrotechnik" and deck["cards"] == 1 for deck in decks)
-    assert "Komplett-Download abgeschlossen" in str(events)
+    assert "Full download complete" in str(events)
     assert SYNC_USER not in state_text
     assert SYNC_PASSWORD not in state_text
     assert "hkey" not in state_text
@@ -248,8 +248,8 @@ def test_write_cards_syncs_before_and_after_and_reaches_the_server(
     assert any(deck["cards"] == 2 for deck in local_decks if deck["name"] == "Elektrotechnik")
     assert any(deck["cards"] == 2 for deck in remote_decks if deck["name"] == "Elektrotechnik")
     notices = [str(event.get("text")) for event in events if event.get("type") == "notice"]
-    assert "Sammlung vor dem Schreiben abgleichen …" in notices
-    assert "Sammlung nach dem Schreiben abgleichen …" in notices
+    assert "Synchronising collection before writing …" in notices
+    assert "Synchronising collection after writing …" in notices
 
 
 class _FullUploadCollection:
@@ -552,7 +552,7 @@ def test_sync_page_queues_a_live_job_and_never_renders_the_password(
 
     assert login.status_code == 303
     assert response.status_code == 303
-    assert "Synchronisierung abgeschlossen" in job_page
+    assert "Synchronisation complete" in job_page
     assert "full_download" in status
     assert SYNC_PASSWORD not in job_page
     assert SYNC_PASSWORD not in status
@@ -602,9 +602,9 @@ def test_collection_target_queues_a_review_write_job(
         source_page = client.get(f"/jobs/{source.id}")
 
     assert response.status_code == 200
-    assert "synchronisierte Sammlung" in source_page.text
-    assert "1 neue Karten geschrieben" in source_page.text
-    assert "APKG herunterladen" not in source_page.text
+    assert "synchronised collection" in source_page.text
+    assert "1 new cards written" in source_page.text
+    assert "Download APKG" not in source_page.text
 
 
 @pytest.mark.sync
@@ -653,5 +653,5 @@ def test_card_json_export_can_write_to_the_synchronized_collection(
     assert response.status_code == 303
     assert result["target"] == "collection"
     assert result["added"] == 1
-    assert "synchronisierte Sammlung geschrieben" in page.text
+    assert "Cards written to the synchronised collection" in page.text
     assert download.status_code == 404

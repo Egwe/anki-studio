@@ -6,7 +6,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.concurrency import run_in_threadpool
 
 from anki_studio.generator_config import load_generator_config
-from anki_studio.models_task import MODELS_KIND, MODELS_TITLE, structured_state
+from anki_studio.i18n import locale_from_request, translate_request
+from anki_studio.models_task import MODELS_KIND, structured_state
 
 router = APIRouter()
 
@@ -42,6 +43,10 @@ def download_models(request: Request) -> RedirectResponse:
         A redirect to the job page with live progress.
     """
     store = request.app.state.jobs
-    job = store.create_task(MODELS_TITLE, {"kind": MODELS_KIND})
+    locale = locale_from_request(request)
+    job = store.create_task(
+        translate_request(request, "Download models", de="Modelle herunterladen"),
+        {"kind": MODELS_KIND, "locale": locale},
+    )
     request.app.state.worker.submit(job)
     return RedirectResponse(f"/jobs/{job.id}", status_code=303)

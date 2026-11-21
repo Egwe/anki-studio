@@ -1,23 +1,23 @@
 {# Review and write area of a finished job (AS-005, AS-006). #}
 {% from "_review.html" import review_card, review_count with context %}
 <section id="review">
-  <h2>Karten prüfen</h2>
-  <p>Fragen und Antworten prüfen, bearbeiten oder abwählen. Geschrieben wird erst mit dem Knopf unten; jede Änderung läuft durch die Kartenprüfung des Generators, beim Schreiben auch durch seine Duplikaterkennung.</p>
+  <h2>{{ t('Review cards', de='Karten prüfen') }}</h2>
+  <p>{{ t('Review, edit, or deselect questions and answers. Nothing is written until you use the button below; every change passes the generator card validation and writing also uses its duplicate detection.', de='Fragen und Antworten prüfen, bearbeiten oder abwählen. Geschrieben wird erst mit dem Knopf unten; jede Änderung läuft durch die Kartenprüfung des Generators, beim Schreiben auch durch seine Duplikaterkennung.') }}</p>
   {% for entry in review.cards %}{{ review_card(job, entry) }}{% endfor %}
   <article id="write">
-    <header><strong>Schreiben</strong> · {{ review_count(review) }}</header>
+    <header><strong>{{ t('Write', de='Schreiben') }}</strong> · {{ review_count(review) }}</header>
     {% if write_error %}<p class="field-error" role="alert">{{ write_error }}</p>{% endif %}
     {% if pending_write %}
-    <p>Die Auswahl wird gerade in die synchronisierte Sammlung geschrieben. <a href="{{ url_for('job_page', job_id=pending_write.job_id) }}">Schreibauftrag ansehen</a></p>
+    <p>{{ t('The selection is currently being written to the synchronised collection.', de='Die Auswahl wird gerade in die synchronisierte Sammlung geschrieben.') }} <a href="{{ url_for('job_page', job_id=pending_write.job_id) }}">{{ t('View write job', de='Schreibauftrag ansehen') }}</a></p>
     {% else %}
     <form method="post" action="{{ url_for('write_job', job_id=job.id) }}">
-      <label for="deck">Deck</label>
+      <label for="deck">{{ t('Deck') }}</label>
       <input id="deck" name="deck" required value="{{ deck_value if deck_value is not none else review.deck }}"
              {% if write_error %}aria-invalid="true"{% endif %}>
-      <small>Ziel: {% if form.target == "collection" %}synchronisierte Anki-Sammlung; davor und danach wird sicher synchronisiert{% elif target_file %}hochgeladene APKG <code>{{ target_file }}</code> erweitern (Duplikate werden übersprungen){% else %}neue APKG-Datei{% endif %}.</small>
-      <button type="submit">Ausgewählte Karten schreiben</button>
+      <small>{{ t('Target:', de='Ziel:') }} {% if form.target == "collection" %}{{ t('synchronised Anki collection; it is safely synchronised before and after writing', de='synchronisierte Anki-Sammlung; davor und danach wird sicher synchronisiert') }}{% elif target_file %}{{ t('extend uploaded APKG', de='hochgeladene APKG') }} <code>{{ target_file }}</code> {{ t('(duplicates are skipped)', de='erweitern (Duplikate werden übersprungen)') }}{% else %}{{ t('new APKG file', de='neue APKG-Datei') }}{% endif %}.</small>
+      <button type="submit">{{ t('Write selected cards', de='Ausgewählte Karten schreiben') }}</button>
     </form>
     {% endif %}
-    <footer><a href="{{ url_for('download', job_id=job.id, kind='json') }}">Auswahl als Karten-JSON herunterladen</a>{% if has_source %} · <a href="{{ url_for('download', job_id=job.id, kind='source') }}">Aufbereiteten Text herunterladen</a>{% endif %}</footer>
+    <footer><a href="{{ url_for('download', job_id=job.id, kind='json') }}">{{ t('Download selection as card JSON', de='Auswahl als Karten-JSON herunterladen') }}</a>{% if has_source %} · <a href="{{ url_for('download', job_id=job.id, kind='source') }}">{{ t('Download processed text', de='Aufbereiteten Text herunterladen') }}</a>{% endif %}</footer>
   </article>
 </section>

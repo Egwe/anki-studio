@@ -1,25 +1,25 @@
 {% extends "base.html" %}
-{% block title %}Anmelden – Anki Studio{% endblock %}
+{% block title %}{{ t("Log in") }} – Anki Studio{% endblock %}
 {% block content %}
 <article class="login">
-  <header><strong>Anmelden</strong></header>
-  {% if changed %}<p role="status">Die Zugangseinstellungen wurden gespeichert. Bitte erneut anmelden.</p>{% endif %}
+  <header><strong>{{ t("Log in") }}</strong></header>
+  {% if changed %}<p role="status">{{ t("Your access settings have been saved. Please log in again.") }}</p>{% endif %}
   {% if password_set %}
   <form method="post" action="{{ url_for('login') }}">
     <input type="hidden" name="next" value="{{ next }}">
-    <label for="password">Passwort</label>
+    <label for="password">{{ t("Password") }}</label>
     <input id="password" name="password" type="password" autocomplete="current-password"
            required autofocus
            {% if error %}aria-invalid="true" aria-describedby="login-error"{% endif %}>
     {% if error %}<small id="login-error">{{ error }}</small>{% endif %}
-    <button type="submit">Anmelden</button>
+    <button type="submit">{{ t("Log in") }}</button>
   </form>
   {% else %}
-  <p>Es ist noch kein Passwort eingerichtet, deshalb ist keine Anmeldung möglich.</p>
+  <p>{{ t("No password has been set, so it is not possible to log in yet.") }}</p>
   <ol>
-    <li>Auf dem Server <code>anki-studio hash-password</code> ausführen.</li>
-    <li>Die ausgegebene Zeile <code>{{ hash_env }}=…</code> in die Umgebungsdatei eintragen, im Container <code>/etc/anki-studio/env</code>.</li>
-    <li>Den Dienst neu starten.</li>
+    <li>{{ t("Run <code>anki-studio hash-password</code> on the server.") }}</li>
+    <li>{{ t("Add the resulting line <code>{hash_env}=…</code> to the environment file, <code>/etc/anki-studio/env</code> in the container.", hash_env=hash_env) }}</li>
+    <li>{{ t("Restart the service.") }}</li>
   </ol>
   {% endif %}
 </article>

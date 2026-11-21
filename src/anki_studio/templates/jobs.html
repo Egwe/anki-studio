@@ -3,19 +3,19 @@
 {% block content %}
 <hgroup>
   <h1>Jobs</h1>
-  <p>Ein Job zur Zeit; weitere warten. Abgeschlossene Jobs werden nach der eingestellten Frist gelöscht.</p>
+  <p>{{ t('One job runs at a time; others wait. Completed jobs are deleted after the configured retention period.', de='Ein Job zur Zeit; weitere warten. Abgeschlossene Jobs werden nach der eingestellten Frist gelöscht.') }}</p>
 </hgroup>
 {% if jobs %}
 <div class="overflow-auto">
 <table class="striped">
   <thead>
-    <tr><th scope="col">Dokument</th><th scope="col">Status</th><th scope="col">Erstellt (UTC)</th><th scope="col">Hinweis</th></tr>
+    <tr><th scope="col">{{ t('Document', de='Dokument') }}</th><th scope="col">{{ t('Status', de='Status') }}</th><th scope="col">{{ t('Created (UTC)', de='Erstellt (UTC)') }}</th><th scope="col">{{ t('Note', de='Hinweis') }}</th></tr>
   </thead>
   <tbody>
     {% for job in jobs %}
     <tr>
       <td><a href="{{ url_for('job_page', job_id=job.id) }}">{{ job.source_name }}</a></td>
-      <td><span class="status status-{{ job.status.value }}">{{ status_labels[job.status.value] }}</span></td>
+      <td><span class="status status-{{ job.status.value }}">{{ status_label(job.status.value) }}</span></td>
       <td>{{ job.created_at.strftime("%d.%m.%Y %H:%M") }}</td>
       <td>{{ job.message or "" }}</td>
     </tr>
@@ -24,6 +24,6 @@
 </table>
 </div>
 {% else %}
-<p>Noch keine Jobs. <a href="{{ url_for('generate_page') }}">Karten generieren</a></p>
+<p>{{ t('No jobs yet.', de='Noch keine Jobs.') }} <a href="{{ url_for('generate_page') }}">{{ t('Generate cards') }}</a></p>
 {% endif %}
 {% endblock %}
