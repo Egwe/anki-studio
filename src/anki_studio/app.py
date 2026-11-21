@@ -14,6 +14,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from anki_studio.auth import SESSION_COOKIE, SESSION_MAX_AGE, LoginRequiredMiddleware
 from anki_studio.card_export import EXPORT_KIND, ExportRunner
 from anki_studio.collection_worker import CollectionWorker
+from anki_studio.collection_write import COLLECTION_WRITE_KIND, CollectionWriteRunner
 from anki_studio.credentials import SESSION_SECRET_ENV, Credentials, load_credentials
 from anki_studio.decks import DECKS_KIND, DecksRunner
 from anki_studio.generation import GENERATE_KIND, GenerationRunner, KindRunner
@@ -72,11 +73,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     runner = KindRunner(
         {
-            GENERATE_KIND: GenerationRunner(store, settings.generator_path),
+            GENERATE_KIND: GenerationRunner(
+                store, settings.generator_path, collection_worker, sync_service
+            ),
             MODELS_KIND: ModelsRunner(settings.generator_path),
             DECKS_KIND: DecksRunner(store),
-            EXPORT_KIND: ExportRunner(store, settings.generator_path),
+            EXPORT_KIND: ExportRunner(store, settings.generator_path, sync_service),
             SYNC_KIND: SyncRunner(sync_service),
+            COLLECTION_WRITE_KIND: CollectionWriteRunner(store, sync_service),
         }
     )
     worker = JobWorker(store, runner, timedelta(days=settings.job_retention_days))

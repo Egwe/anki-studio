@@ -81,9 +81,9 @@ mark { background: var(--mark); color: inherit; }
 
 <section id="ueberblick">
   <h2>Überblick</h2>
-  <p>Anki Studio ist die Web-Oberfläche für den Anki Flashcard Generator. Du lädst Dokumente hoch, wählst die Optionen und lässt eine KI daraus Karteikarten erzeugen. Später landen geprüfte Karten direkt in deiner Anki-Sammlung und damit auf allen Geräten; bis dahin bleiben sie als Datei im Job.</p>
+  <p>Anki Studio ist die Web-Oberfläche für den Anki Flashcard Generator. Du lädst Dokumente hoch, wählst die Optionen und lässt eine KI daraus Karteikarten erzeugen. Geprüfte Karten können als Datei oder nach einem sicheren Abgleich direkt in deiner Anki-Sammlung und damit auf allen Geräten landen.</p>
   <p>Anki Studio läuft nur im Heimnetz oder über NetBird, für einen Benutzer, und verlangt eine Anmeldung. API-Schlüssel lassen sich unter <strong>Einstellungen → Zugangsdaten</strong> verschlüsselt auf dem Server speichern; die Oberfläche zeigt sie anschließend nur noch als Status, nie als Wert. Schlüssel aus der Umgebungsdatei haben Vorrang.</p>
-  <div class="note">Stand dieses Handbuchs: Anmeldung, Zugangsdaten, Konfiguration, Generieren mit Live-Fortschritt, Kartenprüfung, Schreiben, Downloads, Deckbaum aus APKG, Karten-JSON-Export und sicherer Download einer lokalen Sammlung vom Sync-Server. Das direkte Schreiben geprüfter Karten in die Sammlung folgt noch.</div>
+  <div class="note">Stand dieses Handbuchs: Anmeldung, Zugangsdaten, Konfiguration, Generieren mit Live-Fortschritt, Kartenprüfung, Schreiben in APKG oder Sammlung, Downloads, Deckbaum aus APKG und synchronisierter Sammlung, Karten-JSON-Export und sicherer Sync.</div>
 </section>
 
 <section id="anmelden">
@@ -162,19 +162,19 @@ mark { background: var(--mark); color: inherit; }
   </table>
   <p><strong>Deck:</strong> Name des Zieldecks; <code>::</code> trennt Ebenen, etwa <code>Elektrotechnik::Kapitel 1</code>. Leer bedeutet: Wert der Konfiguration oder der Dateiname ohne Endung.</p>
   <p><strong>KI ordnet Karten Unterdecks zu:</strong> Das Deck wird zum übergeordneten Deck, etwa der Name einer Vorlesung, und die KI ordnet jede Karte einem Kapitel-Unterdeck zu. Beim Erweitern werden vorhandene Unterdecks erkannt und bevorzugt wiederverwendet; dafür gehen ihre Namen und einige Beispielfragen an das Modell.</p>
-  <p>Die Sammlung als Ziel (Karten direkt auf alle Geräte) folgt mit dem Sync.</p>
+  <p><strong>Synchronisierte Anki-Sammlung</strong> schreibt erst nach der Kartenprüfung. Das Deck-Feld schlägt nach einem Abgleich vorhandene Decks vor, akzeptiert aber auch einen neuen Namen. Der Generierungsjob gleicht die Sammlung zuerst ab, damit Unterdeck-Vorschläge aktuell sind.</p>
 </section>
 
 <section id="decks">
   <h2>Decks ansehen</h2>
-  <p>Unter <strong>Decks</strong> lädst du eine APKG-Datei bis 512 MiB hoch. Anki Studio liest daraus die Deckhierarchie und die Anzahl der Karten, die jeweils direkt in einem Deck liegen. Unterdecks werden eingerückt angezeigt.</p>
-  <p><strong>Deckbaum lesen</strong> startet einen Job. Nach dessen Abschluss führt ein Link auf der Job-Seite zum Ergebnis. Die hochgeladene APKG wird dabei nicht verändert. Der Deckbaum deiner synchronisierten Sammlung erscheint erst, wenn der Sync verfügbar ist.</p>
+  <p>Unter <strong>Decks</strong> siehst du nach einem erfolgreichen Sync die Deckhierarchie und direkte Kartenanzahl deiner lokalen Sammlung. Unterdecks werden eingerückt angezeigt. Vor dem ersten Abgleich weist die Seite auf den fehlenden Sync hin.</p>
+  <p>Zusätzlich lädst du eine APKG-Datei bis 512 MiB hoch. <strong>Deckbaum lesen</strong> startet einen Job; nach dessen Abschluss führt ein Link auf der Job-Seite zum Ergebnis. Die hochgeladene APKG wird dabei nicht verändert.</p>
 </section>
 
 <section id="export">
   <h2>Karten-JSON exportieren</h2>
   <p>Unter <strong>Export</strong> lädst du eine versionierte Karten-JSON (Version 1) aus Anki Studio oder dem Generator hoch, höchstens 100 MiB. Gib ein Ziel-Deck an; <code>::</code> trennt Ebenen. Bleibt das Feld leer, gilt das Standard-Deck der Generator-Konfiguration.</p>
-  <p><strong>APKG erzeugen</strong> startet einen Job. Der Generator prüft die Karten und erzeugt danach eine neue APKG-Datei zum Herunterladen. Bestehende APKG-Dateien und die Anki-Sammlung bleiben unverändert.</p>
+  <p>Wähle <strong>Neue APKG-Datei</strong> für einen Download oder <strong>Synchronisierte Anki-Sammlung</strong> für einen sicheren Import. <strong>Export starten</strong> legt dafür einen Job an. Beim Sammlungsziel gleicht Anki Studio vor und nach dem Schreiben ab; bei einer APKG bleibt die Sammlung unverändert.</p>
 </section>
 
 <section id="sync">
@@ -260,10 +260,10 @@ mark { background: var(--mark); color: inherit; }
 
 <section id="ergebnis">
   <h2>Schreiben und Ergebnis</h2>
-  <p>Im Kasten <strong>Schreiben</strong> steht das Deck, vorbelegt mit dem Deck des Jobs; <code>::</code> trennt Ebenen. <strong>Ausgewählte Karten schreiben</strong> schreibt die Auswahl in eine neue APKG-Datei oder, wenn du beim Generieren eine APKG hochgeladen hast, in diese Datei. Karten, deren Frage im Deck schon vorkommt, werden übersprungen; doppelte Karten der Auswahl werden zusammengefasst.</p>
+  <p>Im Kasten <strong>Schreiben</strong> steht das Deck, vorbelegt mit dem Deck des Jobs; <code>::</code> trennt Ebenen. <strong>Ausgewählte Karten schreiben</strong> schreibt die Auswahl in eine neue APKG-Datei, eine hochgeladene APKG oder – wenn beim Generieren gewählt – als eigenen Job in die Sammlung. Karten, deren Frage im Deck schon vorkommt, werden übersprungen; doppelte Karten der Auswahl werden zusammengefasst. Während eines Sammlungsschreibauftrags bleibt die Prüfung gesperrt, damit die Auswahl genau einmal geschrieben wird.</p>
   <p>Danach zeigt die Seite das <strong>Ergebnis</strong>: wie viele Karten neu sind, wie viele übersprungen wurden und wie sie sich auf die Unterdecks verteilen. Darunter liegen die Downloads:</p>
   <ul>
-    <li><strong>APKG herunterladen</strong> – in Anki Desktop über „Datei → Importieren“ einlesen.</li>
+    <li><strong>APKG herunterladen</strong> – bei APKG-Zielen in Anki Desktop über „Datei → Importieren“ einlesen.</li>
     <li><strong>Karten-JSON</strong> – die geschriebenen Karten im Format des Generators.</li>
     <li><strong>Aufbereiteter Text</strong> – nur im strukturierten PDF-Modus.</li>
   </ul>
@@ -281,7 +281,7 @@ mark { background: var(--mark); color: inherit; }
     <tr><td>Dateityp wird nicht unterstützt</td><td>Nur PDF, DOCX, HTML, Markdown und Text; zum Erweitern nur <code>.apkg</code>.</td></tr>
     <tr><td>… ist größer als 100 MiB</td><td>Dokument verkleinern oder aufteilen.</td></tr>
     <tr><td>Bitte die Übertragung bestätigen</td><td>Siehe <a href="#uebertragung">Datenübertragung bestätigen</a>.</td></tr>
-    <tr><td>Sync ist noch nicht vollständig eingerichtet</td><td>Endpunkt in der Server-Konfiguration sowie Benutzer und Passwort in der Umgebungsdatei prüfen.</td></tr>
+    <tr><td>Sync ist noch nicht vollständig eingerichtet</td><td>Endpunkt in der Server-Konfiguration sowie Benutzer und Passwort in der Umgebungsdatei prüfen. Ohne diese Angaben stehen Sammlung als Ziel und Sammlungsexport nicht bereit.</td></tr>
     <tr><td>Komplett-Upload / Komplett-Sync verlangt</td><td>Anki Studio führt das nicht automatisch aus. Nicht erneut versuchen, sondern die Sync-Lage prüfen.</td></tr>
     <tr><td>Unknown model profile</td><td>Das Profil steht nicht (mehr) in der Generator-Konfiguration.</td></tr>
     <tr><td>Unbekannter Host</td><td>Siehe <a href="#anmelden">Anmelden</a>, Abschnitt „Unbekannter Host“.</td></tr>
@@ -292,8 +292,7 @@ mark { background: var(--mark); color: inherit; }
 <section id="grenzen">
   <h2>Was noch fehlt</h2>
   <ul>
-    <li>Deckauswahl und Deckbaum der synchronisierten Sammlung.</li>
-    <li>Geprüfte Karten direkt in die Sammlung schreiben und danach synchronisieren.</li>
+    <li>Echter Test gegen den eigenen Sync-Server ausschließlich mit einem eigenen Testbenutzer.</li>
   </ul>
 </section>
 

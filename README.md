@@ -6,7 +6,7 @@ Anforderungen und ihr Status stehen in [requirements.md](./requirements.md), Arb
 
 ## Stand
 
-Der Web-MVP (Phase 2) steht: Nach der Anmeldung lassen sich API-Schlüssel eintragen, Modelle beim Provider auswählen, Dokumente hochladen und Karten erzeugen. Jede Datei wird ein Job mit Live-Fortschritt; danach werden die Karten geprüft, bearbeitet oder abgewählt und in eine neue oder hochgeladene APKG geschrieben, die sich wie Karten-JSON und aufbereiteter Text herunterladen lässt. Profile, Standardwerte und API-Schlüssel werden in der Oberfläche gepflegt. Der strukturierte PDF-Modus zeigt GPU und Modellbestand und lädt fehlende Modelle als Job. Hochgeladene APKGs lassen sich als Deckbaum lesen, und Karten-JSON lässt sich in eine neue APKG exportieren. Die Sync-Seite meldet die lokale Sammlung sicher am Server an und lädt eine leere lokale Kopie herunter; Schreiben in die Sammlung folgt im nächsten Paket.
+Der Web-MVP und die lokale Sync-Integration stehen: Nach der Anmeldung lassen sich API-Schlüssel eintragen, Modelle beim Provider auswählen, Dokumente hochladen und Karten erzeugen. Jede Datei wird ein Job mit Live-Fortschritt; danach werden die Karten geprüft, bearbeitet oder abgewählt und entweder in eine APKG oder nach sicherem Vor-/Nach-Sync in die lokale Anki-Sammlung geschrieben. Profile, Standardwerte und API-Schlüssel werden in der Oberfläche gepflegt. Der strukturierte PDF-Modus zeigt GPU und Modellbestand und lädt fehlende Modelle als Job. Decks lassen sich aus der zuletzt synchronisierten Sammlung oder einer APKG lesen, und Karten-JSON kann in eine APKG oder die Sammlung exportiert werden. Der echte Test gegen den eigenen Sync-Server benötigt weiterhin einen ausdrücklich freigegebenen Testbenutzer.
 
 Ausführlich: [docs/benutzerhandbuch.html](./docs/benutzerhandbuch.html) für die Bedienung, [docs/entwicklerhandbuch.html](./docs/entwicklerhandbuch.html) für Module, Abläufe und Tests. Beide Dateien lassen sich ohne Server im Browser öffnen.
 
@@ -91,7 +91,7 @@ Im Formular **Generieren** steht unter dem Profil das Feld **Modell** mit dem Kn
 
 ## Generieren und Jobs
 
-**Generieren** (`/generate`) zeigt alle Optionen von `anki-flashcards generate`. Felder, die leer bleiben, übernimmt der Generator aus seiner YAML; die Platzhalter zeigen die wirksamen Werte, berechnet vom Generator selbst. Selten genutzte Optionen sind eingeklappt, die Optionen des strukturierten PDF-Modus erscheinen nur in diesem Modus. Ziel ist eine neue APKG oder eine hochgeladene APKG (höchstens 512 MiB, nur mit einem Dokument), die erweitert wird; die Sammlung als Ziel folgt mit Phase 3.
+**Generieren** (`/generate`) zeigt alle Optionen von `anki-flashcards generate`. Felder, die leer bleiben, übernimmt der Generator aus seiner YAML; die Platzhalter zeigen die wirksamen Werte, berechnet vom Generator selbst. Selten genutzte Optionen sind eingeklappt, die Optionen des strukturierten PDF-Modus erscheinen nur in diesem Modus. Ziel ist eine neue APKG, eine hochgeladene APKG (höchstens 512 MiB, nur mit einem Dokument) oder die synchronisierte Sammlung. Für das Sammlungsziel schlägt das Deck-Feld nach einem Abgleich vorhandene Namen vor und akzeptiert neue; der Job synchronisiert vor der Generierung und liest vorhandene Unterdecks nur aus der lokalen Kopie.
 
 Geht Dokumentinhalt an einen Provider (`pdf_mode: native` oder Bild-Backend `profile` im strukturierten Modus), startet der Job nur mit ausdrücklicher Bestätigung (AS-003); der Server prüft das beim Absenden und beim Start des Jobs erneut.
 
@@ -99,21 +99,21 @@ Jede Datei wird ein eigener **Job**. Es läuft immer nur ein Job, weitere warten
 
 ## Karten prüfen, schreiben, herunterladen
 
-Ist ein Job fertig, zeigt seine Seite die Karten zur **Prüfung** (AS-005): Jede Karte lässt sich bearbeiten (Frage, Antwort, Unterdeck, Tags durch Leerzeichen getrennt), abwählen oder löschen; jede Änderung durchläuft die Kartenprüfung des Generators. **Ausgewählte Karten schreiben** schreibt sie mit dem gewählten Deck in eine neue APKG oder in die hochgeladene APKG; dabei überspringt die Duplikaterkennung des Generators bekannte Fragen. Danach zeigt die Seite das **Ergebnis** (AS-006) – neue und übersprungene Karten, Aufteilung nach Unterdecks – und bietet die APKG, die Auswahl als Karten-JSON und gegebenenfalls den aufbereiteten Text zum Download an. Geschrieben wird je Job genau einmal; der Prüfstand liegt in `review.json`, das Ergebnis in `result.json` im Job-Ordner, `cards.json` bleibt die unveränderte Ausgabe des Generators.
+Ist ein Job fertig, zeigt seine Seite die Karten zur **Prüfung** (AS-005): Jede Karte lässt sich bearbeiten (Frage, Antwort, Unterdeck, Tags durch Leerzeichen getrennt), abwählen oder löschen; jede Änderung durchläuft die Kartenprüfung des Generators. **Ausgewählte Karten schreiben** schreibt sie mit dem gewählten Deck in eine neue oder hochgeladene APKG oder als eigenen Job in die Sammlung. Beim Sammlungsziel wird die Auswahl bis zum Ende des Schreibjobs gesperrt, vor und nach dem offiziellen Generator-Schreibvorgang sicher synchronisiert und kein APKG-Download angeboten. Die Duplikaterkennung überspringt bekannte Fragen. Danach zeigt die Seite das **Ergebnis** (AS-006) – neue und übersprungene Karten, Aufteilung nach Unterdecks und beim Sammlungsziel das Ergebnis des Nach-Syncs – sowie die passenden Downloads. Geschrieben wird je Job genau einmal; der Prüfstand liegt in `review.json`, das Ergebnis in `result.json` im Job-Ordner, `cards.json` bleibt die unveränderte Ausgabe des Generators.
 
 Uploads werden vor dem Speichern geprüft: nur die Dokumenttypen des Generators, je höchstens 100 MiB, höchstens zehn Dateien; Anfragen ohne Längenangabe oder über der Grenze lehnt der Server ab, bevor er sie liest.
 
 ## Decks und Karten-JSON
 
-**Decks** (`/decks`) liest den Deckbaum einer hochgeladenen APKG (höchstens 512 MiB) mit den direkten Kartenanzahlen. Das Paket bleibt unverändert. Der Vorgang ist ein Job, damit das Öffnen temporärer Anki-Sammlungen immer seriell bleibt. Der Deckbaum der synchronisierten Sammlung folgt erst mit dem Sync.
+**Decks** (`/decks`) zeigt nach einem erfolgreichen Abgleich den Baum der synchronisierten Sammlung mit direkten Kartenanzahlen. Zusätzlich liest die Seite eine hochgeladene APKG (höchstens 512 MiB) als Job; das Paket bleibt unverändert. Jeder Zugriff auf die lokale Sammlung läuft seriell über ihren eigenen Worker.
 
-**Export** (`/export`) nimmt eine versionierte Karten-JSON (`schema_version: 1`) aus Anki Studio oder dem Generator entgegen (höchstens 100 MiB), prüft sie im Generator und erzeugt eine neue APKG. Ein leeres Zielfeld nimmt das Standard-Deck aus der Generator-YAML; `::` trennt Unterdecks. Dieser Export verändert weder eine vorhandene APKG noch die Anki-Sammlung.
+**Export** (`/export`) nimmt eine versionierte Karten-JSON (`schema_version: 1`) aus Anki Studio oder dem Generator entgegen (höchstens 100 MiB), prüft sie im Generator und schreibt sie als Job in eine neue APKG oder sicher in die Sammlung. Ein leeres Zielfeld nimmt das Standard-Deck aus der Generator-YAML; `::` trennt Unterdecks. Für das Sammlungsziel gelten derselbe Vor-/Nach-Sync und die Duplikaterkennung wie beim geprüften Generierungsjob.
 
 ## Synchronisierung
 
 **Sync** (`/sync`) zeigt Endpunkt, Benutzer, Passwortstatus und das Ergebnis des letzten Abgleichs, aber niemals das Passwort oder den vom Server ausgegebenen `hkey`. **Jetzt synchronisieren** legt einen Job an. Beim ersten Abgleich lädt Anki Studio eine leere lokale Sammlung vollständig vom Server und öffnet sie danach korrekt neu. Schrittweise Abgleiche laufen ohne Medien-Sync.
 
-Ein automatisch angeforderter Komplett-Upload findet nie statt. Verlangt der Server einen Komplett-Sync oder einen Komplett-Download bei lokalen, noch nicht bestätigten Änderungen, bricht Anki Studio ab und erklärt die Lage. Die lokale Sammlung liegt unter `<data_dir>/collection/`; der Sync-Status enthält keine Zugangsdaten oder `hkey`.
+Ein automatisch angeforderter Komplett-Upload findet nie statt. Verlangt der Server einen Komplett-Sync oder einen Komplett-Download bei lokalen, noch nicht bestätigten Änderungen, bricht Anki Studio ab und erklärt die Lage. Die lokale Sammlung liegt unter `<data_dir>/collection/`; der Sync-Status enthält keine Zugangsdaten oder `hkey`. Das Verhalten ist lokal gegen einen temporären Sync-Server getestet; echte Sync-Tests erfolgen ausschließlich mit einem eigenen freigegebenen Testbenutzer.
 
 ## Vorschau im Container
 
@@ -163,7 +163,7 @@ Alle Dateien liegen unter [src/anki_studio/static/vendor/](./src/anki_studio/sta
 
 ## Bekannte Grenzen
 
-- Geprüfte Karten lassen sich noch nicht direkt in die Anki-Sammlung schreiben; bis dahin über die heruntergeladene APKG importieren. Der Sync lädt und aktualisiert nur die lokale Kopie. Deployment nach AS-040 folgt in Phase 4.
+- Der echte Abgleich gegen den eigenen Sync-Server und die Sichtprüfung in AnkiDroid stehen nur mit einem eigenen freigegebenen Testbenutzer aus. Deployment nach AS-040 folgt in Phase 4.
 - Der strukturierte PDF-Modus läuft nur mit dem Extra `pdf`; ohne Docling bricht ein solcher Job mit einer Meldung des Generators ab. Ein laufender Modell-Download lässt sich nicht abbrechen, nur ein wartender.
 - Die Verbindung ist unverschlüsseltes HTTP; Betrieb nur im LAN und über NetBird. Das Cookie trägt deshalb kein `Secure`-Attribut, und auch API-Schlüssel gehen im LAN unverschlüsselt zum Server (über NetBird im verschlüsselten Tunnel).
 - Ein Backup mit Datenordner und Umgebungsdatei enthält die verschlüsselten Schlüssel zusammen mit dem Entschlüsselungsschlüssel.

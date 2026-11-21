@@ -10,7 +10,7 @@ from starlette.concurrency import run_in_threadpool
 
 from anki_studio.generation import SOURCE_TEXT_FILE
 from anki_studio.jobs import Job, JobStatus
-from anki_studio.review import has_cards, load_result, load_review
+from anki_studio.review import has_cards, load_result, load_review, pending_collection_write
 from anki_studio.sse import KEEPALIVE, sse_message
 
 POLL_SECONDS = 0.5
@@ -81,6 +81,7 @@ def job_context(request: Request, job: Job) -> dict[str, Any]:
         "progress": progress[-1] if progress and not job.status.finished else None,
         "review": load_review(store, job) if reviewable else None,
         "result": load_result(store, job) if reviewable else None,
+        "pending_write": pending_collection_write(store, job) if reviewable else None,
         "has_source": (store.job_dir(job.id) / SOURCE_TEXT_FILE).exists(),
         "write_error": None,
         "deck_value": None,

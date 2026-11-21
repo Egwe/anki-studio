@@ -13,7 +13,7 @@ from anki_flashcards.models import Card, save_cards
 from fastapi.testclient import TestClient
 
 from anki_studio.card_export import EXPORT_FILE, EXPORT_KIND, ExportRunner
-from anki_studio.decks import DECKS_KIND, DecksRunner, inspect_decks, load_decks
+from anki_studio.decks import DECKS_KIND, DecksRunner, deck_tree, inspect_decks, load_decks
 from anki_studio.jobs import JobStatus, JobStore
 from anki_studio.settings import StudioSettings
 from anki_studio.uploads import APKG, CARD_JSON
@@ -77,6 +77,26 @@ def test_inspect_decks_builds_a_nested_tree(tmp_path: Path) -> None:
     assert [(child.full_name, child.cards) for child in parent.children] == [
         ("Elektrotechnik::Grundlagen", 1)
     ]
+
+
+def test_deck_tree_accepts_open_collection_entries() -> None:
+    """The common tree builder keeps collection direct counts and parents.
+
+    Returns:
+        None.
+    """
+    tree = deck_tree(
+        [
+            {"name": "Elektrotechnik::Grundlagen", "cards": 3},
+            {"name": "Mathematik", "cards": 2},
+        ]
+    )
+
+    assert [(deck.full_name, deck.cards) for deck in tree] == [
+        ("Elektrotechnik", 0),
+        ("Mathematik", 2),
+    ]
+    assert tree[0].children[0].cards == 3
 
 
 def test_deck_runner_stores_the_inspection_result(store: JobStore, tmp_path: Path) -> None:
@@ -196,6 +216,19 @@ def test_decks_page_refuses_a_non_apkg_upload(auth_client: TestClient) -> None:
     assert response.status_code == 400
     assert "wird nicht unterstützt" in response.text
     assert auth_client.app.state.jobs.list_jobs() == []
+
+
+def test_decks_page_explains_that_collection_sync_is_needed(auth_client: TestClient) -> None:
+    """An untouched local collection is not presented as a deck source.
+
+    Args:
+        auth_client: Logged-in client without configured sync state.
+    """
+    response = auth_client.get("/decks")
+
+    assert response.status_code == 200
+    assert "Synchronisierte Sammlung" in response.text
+    assert "Noch nicht synchronisiert" in response.text
 
 
 def test_export_page_queues_new_apkg_and_downloads_it(auth_client: TestClient) -> None:

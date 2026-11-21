@@ -7,13 +7,17 @@
   <article id="write">
     <header><strong>Schreiben</strong> · {{ review_count(review) }}</header>
     {% if write_error %}<p class="field-error" role="alert">{{ write_error }}</p>{% endif %}
+    {% if pending_write %}
+    <p>Die Auswahl wird gerade in die synchronisierte Sammlung geschrieben. <a href="{{ url_for('job_page', job_id=pending_write.job_id) }}">Schreibauftrag ansehen</a></p>
+    {% else %}
     <form method="post" action="{{ url_for('write_job', job_id=job.id) }}">
       <label for="deck">Deck</label>
       <input id="deck" name="deck" required value="{{ deck_value if deck_value is not none else review.deck }}"
              {% if write_error %}aria-invalid="true"{% endif %}>
-      <small>Ziel: {% if target_file %}hochgeladene APKG <code>{{ target_file }}</code> erweitern (Duplikate werden übersprungen){% else %}neue APKG-Datei{% endif %}.</small>
+      <small>Ziel: {% if form.target == "collection" %}synchronisierte Anki-Sammlung; davor und danach wird sicher synchronisiert{% elif target_file %}hochgeladene APKG <code>{{ target_file }}</code> erweitern (Duplikate werden übersprungen){% else %}neue APKG-Datei{% endif %}.</small>
       <button type="submit">Ausgewählte Karten schreiben</button>
     </form>
+    {% endif %}
     <footer><a href="{{ url_for('download', job_id=job.id, kind='json') }}">Auswahl als Karten-JSON herunterladen</a>{% if has_source %} · <a href="{{ url_for('download', job_id=job.id, kind='source') }}">Aufbereiteten Text herunterladen</a>{% endif %}</footer>
   </article>
 </section>

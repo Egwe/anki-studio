@@ -45,7 +45,20 @@ def inspect_decks(package: Path) -> tuple[DeckNode, ...]:
     Raises:
         FlashcardError: If the package cannot be inspected by the generator.
     """
-    counts = _deck_counts(inspect_apkg(package))
+    return deck_tree(inspect_apkg(package))
+
+
+def deck_tree(entries: list[dict[str, Any]]) -> tuple[DeckNode, ...]:
+    """Turn generator deck entries from an APKG or collection into a tree.
+
+    Args:
+        entries: Direct card counts returned by ``inspect_apkg`` or the
+            generator's ``collection_decks`` public API.
+
+    Returns:
+        Top-level deck nodes with implicit parents and direct card counts.
+    """
+    counts = _deck_counts(entries)
     _add_missing_parents(counts)
     return _children("", counts)
 

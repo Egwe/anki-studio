@@ -1,5 +1,7 @@
 """Tests for safe local collection synchronization (AS-020–AS-025)."""
 
+import io
+import json
 import os
 import socket
 import subprocess
@@ -13,13 +15,16 @@ import pytest
 from anki import sync_pb2
 from anki.collection import Collection
 from anki_flashcards.apkg import collection_decks
-from anki_flashcards.models import Card
+from anki_flashcards.models import Card, save_cards
 from anki_flashcards.pipeline import write_collection
 from fastapi.testclient import TestClient
 
 from anki_studio.app import create_app
+from anki_studio.card_export import EXPORT_RESULT_FILE
 from anki_studio.collection_worker import CollectionWorker, CollectionWorkerError
 from anki_studio.credentials import Credentials
+from anki_studio.forms import GenerateForm
+from anki_studio.generation import CARDS_FILE, job_options
 from anki_studio.jobs import JobStatus
 from anki_studio.settings import StudioSettings
 from anki_studio.sync import SyncFailure, SyncService, SyncState, SyncStateStore, collection_paths
@@ -204,6 +209,48 @@ def test_full_download_refuses_a_collection_with_pending_local_changes(
     assert states.load().last_result == "failed"
 
 
+@pytest.mark.sync
+def test_write_cards_syncs_before_and_after_and_reaches_the_server(
+    tmp_path: Path, sync_server: str
+) -> None:
+    """A collection write is surrounded by safe normal syncs.
+
+    Args:
+        tmp_path: Temporary server and client data folders.
+        sync_server: Private loopback endpoint of the test sync server.
+    """
+    _seed_server(tmp_path, sync_server)
+    service, worker, states = _service(tmp_path / "writer", sync_server)
+    events: list[dict[str, object]] = []
+    try:
+        service.sync(events.append, lambda: False)
+        result, outcome = service.write_cards(
+            "Elektrotechnik",
+            [Card(front="Was ist Leistung?", back="Energie pro Zeit")],
+            events.append,
+            lambda: False,
+        )
+        local_decks = worker.run(collection_decks)
+    finally:
+        worker.stop()
+
+    reader, reader_worker, _ = _service(tmp_path / "reader", sync_server)
+    try:
+        reader.sync(lambda event: None, lambda: False)
+        remote_decks = reader_worker.run(collection_decks)
+    finally:
+        reader_worker.stop()
+
+    assert (result.added, result.skipped) == (1, 0)
+    assert outcome.result == "no_changes"
+    assert states.load().local_changes is False
+    assert any(deck["cards"] == 2 for deck in local_decks if deck["name"] == "Elektrotechnik")
+    assert any(deck["cards"] == 2 for deck in remote_decks if deck["name"] == "Elektrotechnik")
+    notices = [str(event.get("text")) for event in events if event.get("type") == "notice"]
+    assert "Sammlung vor dem Schreiben abgleichen …" in notices
+    assert "Sammlung nach dem Schreiben abgleichen …" in notices
+
+
 class _FullUploadCollection:
     """Minimal pylib boundary that asks Anki Studio for a full upload.
 
@@ -368,3 +415,102 @@ def test_sync_page_queues_a_live_job_and_never_renders_the_password(
     assert "full_download" in status
     assert SYNC_PASSWORD not in job_page
     assert SYNC_PASSWORD not in status
+
+
+@pytest.mark.sync
+def test_collection_target_queues_a_review_write_job(
+    tmp_path: Path, studio_settings: StudioSettings, sync_server: str
+) -> None:
+    """A collection-target review reserves cards and shows its final result.
+
+    Args:
+        tmp_path: Temporary remote collection data.
+        studio_settings: Private application paths and generator configuration.
+        sync_server: Private loopback endpoint of the temporary server.
+    """
+    _seed_server(tmp_path, sync_server)
+    settings = studio_settings.model_copy(update={"sync_endpoint": sync_server})
+    credentials = Credentials(
+        PASSWORD_HASH,
+        SESSION_SECRET,
+        secret_key=SECRET_KEY,
+        sync_username=SYNC_USER,
+        sync_password=SYNC_PASSWORD,
+    )
+    with TestClient(create_app(settings, credentials)) as client:
+        client.post("/login", data={"password": PASSWORD}, follow_redirects=False)
+        store = client.app.state.jobs
+        job = store.create(
+            io.BytesIO(b"# Leistung"),
+            "leistung.md",
+            10,
+            job_options(
+                GenerateForm.model_validate({"target": "collection", "deck": "Elektrotechnik"})
+            ),
+        )
+        save_cards(
+            store.job_dir(job.id) / CARDS_FILE,
+            [Card(front="Was ist Leistung?", back="Energie pro Zeit")],
+            deck="Elektrotechnik",
+        )
+        source = store.update(job.id, JobStatus.DONE)
+
+        response = client.post(f"/jobs/{source.id}/write", data={"deck": "Elektrotechnik"})
+        write_id = response.url.path.rsplit("/", 1)[-1]
+        wait_until(lambda: store.get(write_id).status is JobStatus.DONE)
+        source_page = client.get(f"/jobs/{source.id}")
+
+    assert response.status_code == 200
+    assert "synchronisierte Sammlung" in source_page.text
+    assert "1 neue Karten geschrieben" in source_page.text
+    assert "APKG herunterladen" not in source_page.text
+
+
+@pytest.mark.sync
+def test_card_json_export_can_write_to_the_synchronized_collection(
+    tmp_path: Path, studio_settings: StudioSettings, sync_server: str
+) -> None:
+    """The export form uses the same safe collection target as reviewed cards.
+
+    Args:
+        tmp_path: Temporary remote collection data.
+        studio_settings: Private application paths and generator configuration.
+        sync_server: Private loopback endpoint of the temporary server.
+    """
+    _seed_server(tmp_path, sync_server)
+    settings = studio_settings.model_copy(update={"sync_endpoint": sync_server})
+    credentials = Credentials(
+        PASSWORD_HASH,
+        SESSION_SECRET,
+        secret_key=SECRET_KEY,
+        sync_username=SYNC_USER,
+        sync_password=SYNC_PASSWORD,
+    )
+    payload = json.dumps(
+        {
+            "schema_version": 1,
+            "deck": "ignored",
+            "cards": [{"front": "Was ist Strom?", "back": "Ladung pro Zeit"}],
+        }
+    ).encode()
+    with TestClient(create_app(settings, credentials)) as client:
+        client.post("/login", data={"password": PASSWORD}, follow_redirects=False)
+        response = client.post(
+            "/export",
+            data={"target": "collection", "deck": "Elektrotechnik"},
+            files={"cards": ("karten.cards.json", io.BytesIO(payload), "application/json")},
+            follow_redirects=False,
+        )
+        job_id = response.headers["location"].rsplit("/", 1)[-1]
+        store = client.app.state.jobs
+        wait_until(lambda: store.get(job_id).status is JobStatus.DONE)
+        result_path = store.job_dir(job_id) / EXPORT_RESULT_FILE
+        result = json.loads(result_path.read_text(encoding="utf-8"))
+        page = client.get(f"/jobs/{job_id}")
+        download = client.get(f"/export/jobs/{job_id}/file")
+
+    assert response.status_code == 303
+    assert result["target"] == "collection"
+    assert result["added"] == 1
+    assert "synchronisierte Sammlung geschrieben" in page.text
+    assert download.status_code == 404

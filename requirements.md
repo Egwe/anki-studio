@@ -38,7 +38,7 @@ Die Entscheidungen zu Basis, Rolle, Generator-Einbindung, Backend, Frontend, Liv
 | 0b | Container-Bestandsaufnahme und GPU-Test | Container | **erledigt** (Abschnitt 5) |
 | 1 | Vorbereitung des Generators: R-170 bis R-176, Version 0.2.0 | Generator-Repo | **erledigt**: Generator 0.2.0, Git-Tag `v0.2.0`; R-170 bis R-176 dort umgesetzt (Übergabe Abschnitt 12) |
 | 2 | Web-MVP: Login, Generieren, Live-Fortschritt, Prüfen, APKG- und JSON-Download | anki-studio | **erledigt** (21.11.2026); dazu Zugangsdaten und Modellliste |
-| 3 | Sync: Anmeldung, lokale Sammlung, Deckauswahl, Schreiben und Synchronisieren | anki-studio | offen |
+| 3 | Sync: Anmeldung, lokale Sammlung, Deckauswahl, Schreiben und Synchronisieren | anki-studio | **lokal umgesetzt**; echter Lauf nur mit eigenem freigegebenem Testbenutzer noch offen |
 | 4 | Deployment im LXC: systemd, uv, Pfade, Backup | anki-studio | offen |
 | 5 | Optional: Karten durchsuchen und bearbeiten (AS-013) | anki-studio | offen |
 
@@ -50,9 +50,9 @@ Die Entscheidungen zu Basis, Rolle, Generator-Einbindung, Backend, Frontend, Liv
 Mehrere Dateien hochladen (PDF, DOCX, HTML, Markdown, Text; je höchstens 100 MiB wie im Generator). Pro Datei ein Job. Alle Optionen von `anki-flashcards generate` sind wählbar: Profil, Modell, Sprache, Limit, zusätzliche Anweisungen, Chunk-Größe, Timeout, API-Basis, PDF-Modus mit den Optionen des strukturierten Modus (Formeln, OCR erzwingen, nicht lesbare Elemente zulassen, CPU zulassen, Bild-Backend, Bild-Profil, aufbereiteten Text speichern), Unterdecks. Vorbelegung aus der YAML-Konfiguration; selten genutzte Optionen eingeklappt. Optionen des strukturierten Modus nur sichtbar, wenn dieser Modus gewählt ist.
 *Umsetzung:* `/generate` mit allen Optionen; Platzhalter und Vorbelegung berechnet der Generator selbst (`resolve_generate_settings`); `forms.GenerateForm` prüft Typen und Bereiche; je Datei ein Job (`tests/test_forms.py`, `tests/test_web_generate.py`, Browser-Test). *Abweichung, vom Projektinhaber am 21.11.2026 akzeptiert:* „Aufbereiteten Text speichern“ ist kein Schalter; im strukturierten Modus wird der Text immer als `source.md` im Job-Ordner gespeichert, weil die Bibliothek ein `source_text_dir` aus der YAML sonst nicht abschalten ließe und der Job-Ordner privat ist und mit dem Job gelöscht wird.
 
-**AS-002 – Ziel wählen · muss · teilweise**
+**AS-002 – Ziel wählen · muss · umgesetzt**
 Ziel ist entweder ein Deck der synchronisierten Sammlung (Auswahl aus vorhandenen Decks oder neuer Name, `::` für Unterdecks), eine neue APKG-Datei zum Download oder eine hochgeladene APKG zum Erweitern.
-*Umgesetzt:* neue APKG oder hochgeladene APKG (höchstens 512 MiB, nur mit einem Dokument) als Ziel des Jobs; Unterdeck-Kontext aus der APKG; Schreiben und Download nach der Prüfung (AS-005/AS-006). *Offen:* Sammlung als Ziel (Phase 3).
+*Umsetzung:* Neue APKG, hochgeladene APKG (höchstens 512 MiB, nur mit einem Dokument) oder die synchronisierte Sammlung sind Ziele eines Jobs. Das Deck-Feld schlägt nach einem Abgleich vorhandene Decks vor und akzeptiert neue Namen; ein Sammlungs-Job gleicht vor der Generierung ab und liest seinen Unterdeck-Kontext ausschließlich über den Sammlungs-Worker (`generation.py`, `routes/generate.py`, `tests/test_sync.py`).
 
 **AS-003 – Datenübertragung bestätigen · muss · umgesetzt**
 Bei `pdf_mode: native` und beim Bild-Backend `profile` muss der Benutzer vor dem Start ausdrücklich bestätigen, dass das Dokument beziehungsweise Bildausschnitte an den Provider gehen. Ohne Bestätigung startet der Job nicht. Während des Laufs kommen dieselben Ankündigungen als `Notice` mit `level == "transfer"` und werden hervorgehoben.
@@ -66,17 +66,17 @@ Job-Seite mit Live-Fortschritt aus den Generator-Ereignissen: Phase, Schritte, A
 Nach der Generierung erscheinen die Karten in einer Tabelle: Frage, Antwort, Unterdeck, Tags. Einzelne Karten lassen sich bearbeiten, löschen oder abwählen. Erst danach wird geschrieben. Bearbeitete Karten durchlaufen dieselbe Pydantic-Validierung des Generators (`Card`).
 *Umsetzung:* Kartenliste statt Tabelle (auf dem Handy bedienbar) mit Bearbeiten, Abwählen und Löschen über htmx; Prüfstand in `review.json`; Schreiben mit `deduplicate_cards` und `write_apkg` des Generators (`review.py`, `routes/review.py`; `tests/test_review.py`, `tests/test_web_review.py`, Chrome-Test).
 
-**AS-006 – Ergebnis · muss · teilweise**
+**AS-006 – Ergebnis · muss · umgesetzt**
 Nach dem Schreiben: hinzugefügte und übersprungene Karten, Aufteilung nach Unterdecks, Sync-Ergebnis. Downloads: APKG, Karten-JSON, aufbereiteter Text (falls erzeugt).
-*Umgesetzt:* hinzugefügte und übersprungene Karten, Aufteilung nach Unterdecks, Downloads von APKG, Karten-JSON und aufbereitetem Text. *Offen:* Sync-Ergebnis (Phase 3).
+*Umsetzung:* Das Ergebnis zeigt hinzugefügte und übersprungene Karten sowie die Aufteilung nach Unterdecks. Für APKG-Ziele stehen APKG, Karten-JSON und gegebenenfalls aufbereiteter Text zum Download bereit; ein Sammlungsziel zeigt zusätzlich das Ergebnis des Nach-Syncs und bietet bewusst keine APKG an (`review.py`, `collection_write.py`, `tests/test_sync.py`).
 
-**AS-007 – Decks · muss · teilweise**
+**AS-007 – Decks · muss · umgesetzt**
 Deckbaum der synchronisierten Sammlung mit Kartenanzahl. Ebenso für eine hochgeladene APKG (entspricht `anki-flashcards decks`).
-*Umgesetzt:* `/decks` nimmt eine APKG bis 512 MiB als Job entgegen, liest sie ausschließlich mit `inspect_apkg` des Generators und zeigt danach Deckhierarchie und direkte Kartenanzahlen. Das Paket bleibt unverändert (`decks.py`, `routes/decks.py`, `tests/test_decks_export.py`). *Offen:* Deckbaum der synchronisierten Sammlung (Phase 3).
+*Umsetzung:* `/decks` zeigt nach einem erfolgreichen Abgleich den Deckbaum der lokalen, synchronisierten Sammlung mit direkten Kartenanzahlen. Zusätzlich nimmt die Seite eine APKG bis 512 MiB als Job entgegen, liest sie ausschließlich mit `inspect_apkg` des Generators und zeigt deren Baum. Alle Sammlungszugriffe laufen über `CollectionWorker`; das Paket bleibt unverändert (`decks.py`, `routes/decks.py`, `tests/test_decks_export.py`).
 
-**AS-008 – Export · muss · teilweise**
+**AS-008 – Export · muss · umgesetzt**
 Karten-JSON hochladen und als APKG ausgeben oder in die Sammlung schreiben (entspricht `anki-flashcards export`).
-*Umgesetzt:* `/export` nimmt versionierte Karten-JSON bis 100 MiB entgegen, prüft sie über `resolve_export_settings` und `run_export` des Generators und erzeugt als Job eine neue APKG zum Download. Deckname oder YAML-Standard werden dabei verwendet (`card_export.py`, `routes/export.py`, `tests/test_decks_export.py`). *Offen:* Schreiben in die synchronisierte Sammlung (Phase 3).
+*Umsetzung:* `/export` nimmt versionierte Karten-JSON bis 100 MiB entgegen, prüft sie mit öffentlichen Generator-Schnittstellen und schreibt sie als Job entweder in eine neue APKG oder nach sicherem Vor-/Nach-Sync in die lokale Sammlung. Deckname oder YAML-Standard werden dabei verwendet (`card_export.py`, `routes/export.py`, `tests/test_sync.py`).
 
 **AS-009 – Konfiguration · muss · umgesetzt**
 Wirksame Werte mit Herkunft anzeigen (entspricht `config show`). Profile und Standardwerte der YAML bearbeiten, validiert über das Schema des Generators und atomar gespeichert. API-Schlüssel erscheinen nur als „gesetzt“ oder „fehlt“.
@@ -87,8 +87,9 @@ Wirksame Werte mit Herkunft anzeigen (entspricht `config show`). Profile und Sta
 Docling- und Bildmodelle herunterladen (entspricht `models download`), mit Fortschritt; anzeigen, ob eine GPU erkannt wird.
 *Umsetzung:* „Einstellungen → Modelle und GPU“ liest die wirksame Generator-Konfiguration und zeigt Docling, nutzbaren Beschleuniger beziehungsweise ein CUDA-Architekturproblem, Formel-Batch-Größe, Modellordner und benötigte Komponenten mit ihrem Manifest-Status. „Fehlende Modelle herunterladen“ legt eine aufgabenartige Job-Art `models` an; `ModelsRunner` ruft `prepare_models` des Generators auf und reicht seine Hinweise über die vorhandene SSE-Job-Seite weiter. Belegt durch `tests/test_structured.py`; die reguläre Suite lädt weder Modelle noch PyTorch oder Netzwerkdaten.
 
-**AS-011 – Sync-Status · muss · offen**
+**AS-011 – Sync-Status · muss · umgesetzt**
 Seite mit Endpunkt, angemeldetem Benutzer, Zeitpunkt und Ergebnis des letzten Syncs, Knopf „Jetzt synchronisieren“.
+*Umsetzung:* `/sync` zeigt den nicht geheimen Endpunkt, Benutzerstatus, Zeitpunkt, Ergebnis und Server-Hinweis des letzten Abgleichs und legt per Knopf einen Sync-Job an. Passwort und `hkey` erscheinen nicht (`routes/sync.py`, `templates/sync.html`, `tests/test_sync.py`).
 
 **AS-012 – Gestaltung · muss · teilweise**
 Schlicht und aufgeräumt, gut lesbar, Dark Mode, auf Desktop und Handy bedienbar. Keine externen Ressourcen zur Laufzeit.
@@ -119,7 +120,7 @@ Endpunkt in der Konfiguration von Anki Studio, Benutzername und Passwort in der 
 Ist die lokale Kopie leer, antwortet `sync_collection` mit `FULL_DOWNLOAD`. Anki Studio lädt die Sammlung dann herunter: `col.close_for_full_sync()`, `col.full_upload_or_download(auth=auth, server_usn=None, upload=False)`, danach **`col.reopen(after_full_sync=True)`**. Ein einfaches `reopen()` scheitert mit `CollectionAlreadyOpen` (im Prototyp beobachtet).
 *Umsetzung:* `SyncService` führt genau diese Reihenfolge über den Sammlungs-Worker aus und speichert erst danach den nicht geheimen Status (`tests/test_sync.py` gegen lokalen `anki.syncserver`).
 
-**AS-022 – Normaler Sync · muss · teilweise**
+**AS-022 – Normaler Sync · muss · umgesetzt**
 Vor jedem Schreiben in die Sammlung und danach `col.sync_collection(auth, sync_media=False)`. Diese Funktion führt den schrittweisen Sync selbst aus; das Feld `required` sagt, was **danach noch** nötig ist (`SyncCollectionResponse.ChangesRequired`):
 
 | `required` | Bedeutung nach `sync_collection` | Reaktion |
@@ -131,7 +132,7 @@ Vor jedem Schreiben in die Sammlung und danach `col.sync_collection(auth, sync_m
 | `NORMAL_SYNC` | gehört zu `sync_status()`, nicht zum Ergebnis von `sync_collection` | – |
 
 Liefert der Server `new_endpoint`, wird dieser übernommen. `server_message` wird angezeigt, falls nicht leer.
-*Umgesetzt:* Sync-Job mit `sync_collection(auth, sync_media=False)`, Statusseite, Übernahme eines neuen Endpunkts und Server-Hinweis. *Offen:* Abgleich unmittelbar vor und nach dem Schreiben geprüfter Karten in die Sammlung.
+*Umsetzung:* Der Sync-Job ruft `sync_collection(auth, sync_media=False)` auf, übernimmt einen neuen Endpunkt und zeigt den Server-Hinweis. `SyncService.write_cards` führt auf demselben Sammlungs-Worker einen Abgleich vor dem Generator-Schreibvorgang und einen weiteren danach aus; eine lokale Änderungsmarkierung entsteht unmittelbar vor dem Schreiben. Der Ablauf ist gegen den temporären lokalen `anki.syncserver` getestet (`tests/test_sync.py`).
 
 **AS-023 – Kein automatischer Komplett-Upload · muss · umgesetzt**
 Ein Komplett-Upload überschreibt die Daten auf dem Server und damit auf allen Geräten. Er findet niemals automatisch statt. Verlangt der Server einen Komplett-Sync, während die lokale Kopie eigene, noch nicht gesendete Änderungen hat, bricht Anki Studio ab und erklärt die Lage. Ein Komplett-Download ist nur erlaubt, wenn lokal nichts verloren geht.
@@ -179,7 +180,7 @@ API-Schlüssel der Provider lassen sich in der Oberfläche setzen, ersetzen und 
 
 **AS-034 – Tests · muss · teilweise**
 Reguläre Tests laufen ohne Netzwerk, ohne echten Sync-Server, ohne API-Schlüssel und ohne GPU. KI-Aufrufe werden wie im Generator simuliert (Patch-Ziel `anki_flashcards.pipeline.generate_cards` usw. oder `report`/`cancel`-Argumente). Für Sync-Tests eignet sich ein lokal gestarteter `python -m anki.syncserver` mit Testbenutzer auf `127.0.0.1` (Prototyp in Abschnitt 7.1 der Übergabe).
-*Umgesetzt:* Testgerüst mit pytest und FastAPI-`TestClient`, ohne Netzwerk, GPU, Schlüssel und externen Sync-Server; simulierte KI-Läufe über gepatchte `pipeline.generate_cards` beziehungsweise `pipeline.generate_native_cards` in `tests/test_generation.py`, `tests/test_web_generate.py` und `tests/test_live.py`; markierte Sync-Integrationstests starten einen temporären `anki.syncserver` ausschließlich auf `127.0.0.1` (`tests/test_sync.py`). *Offen:* Tests des Schreibens geprüfter Karten in die Sammlung.
+*Umgesetzt:* Testgerüst mit pytest und FastAPI-`TestClient`, ohne Netzwerk, GPU, Schlüssel und externen Sync-Server; simulierte KI-Läufe über gepatchte `pipeline.generate_cards` beziehungsweise `pipeline.generate_native_cards` in `tests/test_generation.py`, `tests/test_web_generate.py` und `tests/test_live.py`; markierte Sync-Integrationstests starten einen temporären `anki.syncserver` ausschließlich auf `127.0.0.1`. Sie belegen Erst-Download, Vor-/Nach-Sync und Schreiben geprüfter Karten sowie Karten-JSON in die Sammlung (`tests/test_sync.py`).
 
 ### 4.4 Deployment (R-201 des Generators)
 
@@ -310,7 +311,8 @@ Jedes Paket ist ein Branch mit kleinen Commits, wird nach grünen Prüfungen mit
 | P8 | `feature/structured-mode` | Extra `pdf` mit PyTorch `cu126`, Modelle laden, GPU-Anzeige | AS-041, AS-010 | teilweise: Code und Tests erledigt; echter Lauf der aktualisierten Vorschau noch offen |
 | P9 | `feature/decks-export` | Decks einer APKG, Export Karten-JSON → APKG | AS-007, AS-008 (APKG-Teile) | **teilweise erledigt**: APKG-Deckbaum und neuer APKG-Export umgesetzt; Sammlungsteile bleiben Phase 3 |
 | P10 | `codex/sync-foundation` | Sync-Anmeldung, lokaler Sammlungs-Worker, sicherer Erst- und Normal-Sync, Statusseite | AS-020–AS-025, AS-011, AS-031, AS-034 | **teilweise erledigt**: Sync-Grundlage und lokale Integrationstests umgesetzt; Sammlung als Schreibziel, Deckbaum und Export folgen |
-| Phase 3 | `feature/sync-…` | Sync-Client, Sammlung als Ziel, Sync-Status; braucht einen Testbenutzer des Projektinhabers | AS-020–AS-025, AS-002, AS-006, AS-007, AS-008, AS-011 | offen |
+| P11 | `codex/collection-target` | Sammlung als Ziel für Generierung, Prüfung und Karten-JSON; Sammlung-Deckbaum; Vor-/Nach-Sync | AS-002, AS-006–AS-008, AS-011, AS-022, AS-034 | **lokal erledigt**: 127.0.0.1-Integrationstests; echter Testbenutzer bleibt offen |
+| Phase 3 | `codex/collection-target` | Sync-Client, Sammlung als Ziel, Sync-Status | AS-020–AS-025, AS-002, AS-006, AS-007, AS-008, AS-011 | **lokal umgesetzt**; echter Server-Test mit Testbenutzer offen |
 | Phase 4 | `feature/deploy-…` | Installation und Update nach AS-040, Backup | AS-040, AS-042 | offen |
 
 **Übernahme durch eine andere Person oder KI:** `AGENTS.md` lesen, dann `git log --oneline --first-parent main` für die erledigten Pakete und diese Tabelle für das nächste. Prüfungen: `uv sync`, `ruff check`, `ruff format --check`, `pytest` (README). Die Vorschau aktualisiert `ssh ct-anki-studio 'bash -s' < deploy/preview.sh`.

@@ -41,6 +41,14 @@ class Target(StrEnum):
 
     NEW_APKG = "new_apkg"
     EXTEND_APKG = "extend_apkg"
+    COLLECTION = "collection"
+
+
+class ExportTarget(StrEnum):
+    """Name where an uploaded card JSON is exported."""
+
+    NEW_APKG = "new_apkg"
+    COLLECTION = "collection"
 
 
 def _blank_to_none(value: Any) -> Any:
@@ -64,7 +72,8 @@ class GenerateForm(BaseModel):
     """Hold the validated fields of the generation form.
 
     Attributes:
-        target: New APKG or extension of an uploaded APKG.
+        target: New APKG, extension of an uploaded APKG, or local synced
+            collection.
         deck: Target deck, ``::`` for subdecks; empty uses YAML or file name.
         profile: Model profile name; empty uses the YAML default.
         model: ``provider/model``; empty uses the profile.
@@ -140,12 +149,14 @@ class ExportForm(BaseModel):
     """Hold the deck selected for a card-JSON export.
 
     Attributes:
-        deck: Target deck of the new APKG; empty lets the generator YAML
-            provide its generation default.
+        target: New APKG or the local synchronized collection.
+        deck: Target deck; empty lets the generator YAML provide its
+            generation default.
     """
 
     model_config = ConfigDict(str_strip_whitespace=True, frozen=True)
 
+    target: ExportTarget = ExportTarget.NEW_APKG
     deck: str = Field(default="", max_length=200)
 
     @field_validator("deck")
