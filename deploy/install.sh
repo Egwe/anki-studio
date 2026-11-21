@@ -72,6 +72,9 @@ update_checkout() {
   log "geprüften Stand von $BRANCH holen"
   git -C "$APP_DIR" fetch --quiet origin "$BRANCH"
   git -C "$APP_DIR" checkout --quiet --detach "origin/$BRANCH"
+  # Program files contain no configuration or user data; the service account
+  # needs read and execute access even when root has a restrictive umask.
+  chmod -R a+rX "$APP_DIR"
   log "Commit $(git -C "$APP_DIR" log -1 --format='%h %s')"
 }
 

@@ -135,6 +135,24 @@ Das Skript ist idempotent und erledigt Folgendes:
 
 Der Dienst läuft ohne Root-Rechte mit einem dynamischen systemd-Benutzer; Daten landen in `/var/lib/anki-studio`. Die Oberfläche ist dann im LAN unter `http://<Container-Adresse>:8000` erreichbar. Weitere Namen, etwa der NetBird-Name, kommen von Hand in `allowed_hosts` der `/etc/anki-studio/studio.yaml`; danach den Dienst neu starten. Das Passwort setzt der Befehl im Abschnitt „Anmeldung“. Im Container wird kein Code bearbeitet (AGENTS.md Abschnitt 8).
 
+## Reguläre Installation und Update
+
+Nach einem geprüften und auf das öffentliche `main` gepushten Stand installiert der Projektinhaber die reguläre Instanz einmalig mit:
+
+```bash
+ssh ct-anki-studio 'bash -s' < deploy/install.sh
+```
+
+`deploy/install.sh` installiert bei Bedarf git und die festgelegte uv-Version, checkt ausschließlich `origin/main` nach `/opt/anki-studio` aus, installiert die lockfile-genauen Abhängigkeiten und richtet `anki-studio` als eigenen Systembenutzer ein. Es erhält `/etc/anki-studio/env`, `/etc/anki-studio/studio.yaml` und `/var/lib/anki-studio` unverändert, ergänzt fehlende Session- und Verschlüsselungsschlüssel und startet den gehärteten systemd-Dienst `anki-studio`. Ein Update desselben geprüften `main`-Workflows erfolgt mit:
+
+```bash
+ssh ct-anki-studio 'bash -s' < deploy/update.sh
+```
+
+`deploy/update.sh` verweigert einen fehlenden oder lokalen veränderten Produktionscheckout und ruft dann den idempotenten Installer auf. Beide Skripte prüfen zum Schluss `/healthz`. Die reguläre Installation wird erst ausgeführt, wenn dieser Codex-Stand nach `main` übernommen wurde; die bestehende `anki-studio-preview`-Vorschau bleibt davon getrennt.
+
+Für die Arbeit auf einem lokalen Codex-Zweig gibt es zusätzlich `deploy/codex-preview.sh`. Es überträgt ausschließlich den **committeten, sauberen** lokalen Stand als `git archive` in einen eigenen Checkout, Datenordner, Systembenutzer und Dienst `anki-studio-codex-preview`; die Vorschau hat keinen Sync-Endpunkt und entfernt die Sync-Credentials aus ihrer Dienstumgebung. Sie wurde im Container zweimal erfolgreich mit Health-Check ausgeführt und ändert weder `main` noch `anki-studio-preview`.
+
 ## Tests und Prüfungen
 
 ```bash
@@ -168,4 +186,4 @@ Alle Dateien liegen unter [src/anki_studio/static/vendor/](./src/anki_studio/sta
 - Die Verbindung ist unverschlüsseltes HTTP; Betrieb nur im LAN und über NetBird. Das Cookie trägt deshalb kein `Secure`-Attribut, und auch API-Schlüssel gehen im LAN unverschlüsselt zum Server (über NetBird im verschlüsselten Tunnel).
 - Ein Backup mit Datenordner und Umgebungsdatei enthält die verschlüsselten Schlüssel zusammen mit dem Entschlüsselungsschlüssel.
 - Die Verzögerung nach falschen Passwörtern bremst nur einzelne Versuche; parallele Versuche werden nicht gezählt oder gesperrt.
-- Die Vorschau im Container ersetzt nicht die Installation nach AS-040: kein eigener Systembenutzer, kein Update-Skript mit Versionswahl, keine Backups.
+- Die regulären Installations- und Update-Skripte sind lokal geprüft und die isolierte Codex-Vorschau ist im Container geprüft. Die eigentliche Produktionsinstallation bleibt bis zur Übernahme nach `main` aus; ein hostseitiger vzdump-Backupablauf (AS-042) braucht eine gesonderte Freigabe für den Proxmox-Host.
