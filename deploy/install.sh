@@ -122,7 +122,7 @@ ensure_env_file() {
 }
 
 ensure_directories() {
-  install -d -m 0750 "$CONFIG_DIR"
+  install -d -o root -g "$GROUP" -m 0750 "$CONFIG_DIR"
   install -d -o "$USER" -g "$GROUP" -m 0750 "$DATA_DIR"
   ensure_studio_yaml
   ensure_env_file

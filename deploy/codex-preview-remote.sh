@@ -58,7 +58,7 @@ host_list() {
 
 ensure_config() {
   local studio="$CONFIG_DIR/studio.yaml"
-  install -d -m 0750 "$CONFIG_DIR"
+  install -d -o root -g "$GROUP" -m 0750 "$CONFIG_DIR"
   install -d -o "$USER" -g "$GROUP" -m 0750 "$DATA_DIR" "$UV_CACHE"
   [[ -e "$studio" ]] && return
   log "$studio anlegen (Sync absichtlich deaktiviert)"
