@@ -60,6 +60,7 @@ mark { background: var(--mark); color: inherit; }
   <a href="#startseite">Startseite</a>
   <a href="#konfiguration">Konfiguration</a>
   <a href="#zugangsdaten">Zugangsdaten</a>
+  <a href="#gpu">Modelle und GPU</a>
   <a href="#generieren">Karten generieren</a>
   <a href="#ziel">Ziel und Deck</a>
   <a href="#modell">Modell</a>
@@ -128,6 +129,19 @@ mark { background: var(--mark); color: inherit; }
   <div class="note warn">Im Heimnetz geht der Schlüssel wie das Login-Passwort unverschlüsselt per HTTP zum Server; über NetBird läuft er im verschlüsselten Tunnel. Ein Backup des Containers enthält die verschlüsselten Schlüssel zusammen mit dem Schlüssel zum Entschlüsseln.</div>
 </section>
 
+<section id="gpu">
+  <h2>Modelle und GPU</h2>
+  <p>Der PDF-Modus <code>structured</code> bereitet PDFs auf dem Server auf und braucht dafür Docling, die GPU und einmal heruntergeladene Modelle. <strong>Einstellungen → Modelle und GPU</strong> zeigt den Zustand:</p>
+  <table>
+    <tr><th>Zeile</th><th>Bedeutung</th></tr>
+    <tr><td>Docling</td><td>Ob die Bibliothek für die Aufbereitung installiert ist.</td></tr>
+    <tr><td>GPU</td><td>„cuda nutzbar“, oder warum nicht – etwa wenn die installierte PyTorch-Fassung die Grafikkarte nicht mehr unterstützt.</td></tr>
+    <tr><td>Formeln je Aufruf</td><td>Für die Quadro K1200 mit 4 GiB muss hier 1 stehen (unter <a href="#konfiguration">Konfiguration</a> einstellbar), sonst bleiben Formeln unlesbar.</td></tr>
+    <tr><td>Modelle</td><td>Welche Modelle die Konfiguration braucht und welche schon da sind.</td></tr>
+  </table>
+  <p><strong>Fehlende Modelle herunterladen</strong> startet einen Job; sein Fortschritt erscheint live wie beim Generieren. Danach arbeitet der Modus ohne Internet. Ein laufender Download lässt sich nicht abbrechen.</p>
+</section>
+
 <section id="generieren">
   <h2>Karten generieren</h2>
   <p>Unter <strong>Generieren</strong> wählst du ein oder mehrere Dokumente: PDF, DOCX, HTML, Markdown oder Text, je höchstens 100 MiB, bis zu zehn Dateien. <strong>Jede Datei wird ein eigener Job</strong> mit denselben Optionen.</p>
@@ -180,7 +194,7 @@ mark { background: var(--mark); color: inherit; }
     <tr><td><code>native</code></td><td>Das Modell des Providers liest die Original-PDF (nur freigegebene OpenAI-Modelle).</td><td><strong>Das ganze Dokument wird hochgeladen.</strong></td></tr>
   </table>
   <p>„Wirksam“ unter dem Auswahlfeld zeigt, welcher Modus mit dem gewählten Profil gilt. Nur im Modus <code>structured</code> erscheinen dessen Optionen: Formeln erkennen, jede Seite per OCR lesen, nicht lesbare Elemente als Platzhalter zulassen, ohne GPU arbeiten und die Bildbeschreibung (<code>local</code>, <code>profile</code> mit Bild-Profil oder <code>none</code>).</p>
-  <div class="note warn">Auf der Quadro K1200 des Servers scheitert die Formelerkennung derzeit am Grafikspeicher. Der Generator bricht dann mit einer Liste nicht lesbarer Formeln ab. Ohne Formeln läuft der Modus zuverlässig. Den strukturierten Modus selbst richtet Anki Studio erst noch ein (siehe <a href="#grenzen">Was noch fehlt</a>).</div>
+  <div class="note warn">Auf der Quadro K1200 des Servers braucht die Formelerkennung „Formeln je Aufruf: 1“ (<a href="#konfiguration">Konfiguration</a>), sonst reicht der Grafikspeicher nicht. Die Modelle lädt <a href="#gpu">Modelle und GPU</a> herunter.</div>
   <p>Der aufbereitete Text wird im strukturierten Modus immer im Job gespeichert (<code>source.md</code>) und mit dem Job gelöscht.</p>
 </section>
 
@@ -256,7 +270,6 @@ mark { background: var(--mark); color: inherit; }
   <ul>
     <li>Sync mit der Anki-Sammlung, Deckauswahl aus der Sammlung, Sync-Status.</li>
     <li>Decks, Export und Modelle als eigene Seiten.</li>
-    <li>Der strukturierte PDF-Modus auf der GPU des Servers (PyTorch und Docling werden noch nicht mitinstalliert).</li>
   </ul>
 </section>
 

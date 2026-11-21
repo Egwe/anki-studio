@@ -72,6 +72,12 @@ Die Generator-YAML liegt im Datenordner, damit Anki Studio sie schreiben und sp�
 
 Unter **Einstellungen → Konfiguration** (AS-009, AS-016) stehen die wirksamen Werte mit ihrer Herkunft (wie `anki-flashcards config show`), alle Profile und die Standardwerte. Profile lassen sich anlegen, bearbeiten (Modell – mit „Modelle laden“ auch vor dem Speichern –, API-Basis, Schlüsselvariable, Timeout, PDF-Modus, Bildfähigkeit, Optionen als `name: wert`-Zeilen), auf die Vorlage zurücksetzen (Standardprofile) oder löschen (eigene, nicht verwendete Profile). Das Formular **Standardwerte** setzt Standardprofil, Kartenwerte und die strukturierte PDF-Aufbereitung einschließlich `formula_batch_size`. Die ganze Datei lässt sich herunterladen und durch eine hochgeladene ersetzen. Jede Änderung prüft das Schema des Generators; gespeichert wird atomar mit seinem `save_config`, wobei Kommentare der Datei verloren gehen.
 
+## Strukturierter PDF-Modus auf der GPU
+
+Für `pdf_mode: structured` installiert das optionale Extra `pdf` Docling über den Generator und PyTorch 2.14.1 aus dem CUDA-12.6-Index – dem Build, der die Quadro K1200 (`sm_50`) noch unterstützt (requirements.md, Abschnitt 5.3). Lokal bleibt das Extra weg (`uv sync`); im Container installiert es die Vorschau (`uv sync --extra pdf`, rund 6 GB). Der Lock gilt deshalb nur für Linux x86_64.
+
+**Einstellungen → Modelle und GPU** (AS-010) zeigt, ob Docling installiert ist, ob PyTorch die GPU nutzen kann (sonst mit Begründung aus der Architekturprüfung des Generators), die Batch-Größe der Formelerkennung, den Modellordner und welche Modelle die Konfiguration braucht und welche vorhanden sind. **Fehlende Modelle herunterladen** lädt sie als Job mit Live-Fortschritt (rund 1,9 GB von Hugging Face). Für die K1200 gehört unter **Konfiguration → Standardwerte** bei „Formeln je Aufruf“ eine `1` hinein.
+
 ## Zugangsdaten (API-Schlüssel)
 
 Unter **Einstellungen → Zugangsdaten** stehen alle Variablen, die Profile der Generator-YAML als `api_key_env` nennen, mit den Profilen, die sie nutzen, und ihrem Status: „aus der Umgebungsdatei“ (hat Vorrang, dort nicht änderbar), „gespeichert“ (mit Datum) oder „fehlt“. Ein eingegebener Schlüssel wird verschlüsselt in `<data_dir>/secrets.enc` gespeichert (Fernet, Rechte 0600) und nie wieder angezeigt; er lässt sich ersetzen oder löschen. Anki Studio übernimmt gespeicherte Schlüssel beim Start und nach jeder Änderung in die Umgebung des eigenen Prozesses, aus der Generator und LiteLLM sie lesen. Erlaubt sind nur Namen mit der Endung `_API_KEY`, `_TOKEN` oder `_KEY` außerhalb von `ANKI_STUDIO_*`; das Journal nennt nur den Namen. Sicherheitskonzept und Grenzen: AS-035 in [requirements.md](./requirements.md).
@@ -106,7 +112,7 @@ Das Skript ist idempotent und erledigt Folgendes:
 
 - installiert bei Bedarf `git` (apt) und uv 0.13.7 (mit Prüfsumme) nach `/usr/local/bin`,
 - holt `main` aus GitHub als Git-Checkout nach `/opt/anki-studio`,
-- installiert die Abhängigkeiten mit `uv sync --locked --no-dev` und dem System-Python 3.13 (Cache in `/var/cache/anki-studio/uv`),
+- installiert die Abhängigkeiten mit `uv sync --locked --no-dev --extra pdf` (mit Docling und PyTorch für die GPU) und dem System-Python 3.13 (Cache in `/var/cache/anki-studio/uv`),
 - erzeugt in `/etc/anki-studio/env` einen fehlenden `ANKI_STUDIO_SECRET_KEY`,
 - ergänzt in `studio.yaml` einen fehlenden Eintrag `data_dir` (`/var/lib/anki-studio`) und entfernt den Eintrag `generator_config` und die Minimaldatei in `/etc`, die frühere Versionen des Skripts angelegt haben; die Generator-YAML liegt seitdem in `/var/lib/anki-studio/generator.yaml` und wird von Anki Studio selbst gepflegt,
 - legt `/etc/anki-studio/studio.yaml` (Host `0.0.0.0`, Port 8000) und `/etc/anki-studio/env` (0600) an, falls sie fehlen, und ergänzt fehlende Einträge: `allowed_hosts` mit Hostname und Adressen des Containers sowie einen zufälligen `ANKI_STUDIO_SESSION_SECRET`; vorhandene Werte bleiben unverändert,
@@ -143,7 +149,7 @@ Alle Dateien liegen unter [src/anki_studio/static/vendor/](./src/anki_studio/sta
 ## Bekannte Grenzen
 
 - Karten landen noch nicht direkt in der Anki-Sammlung (Sync, Phase 3); bis dahin über die heruntergeladene APKG importieren. Deployment nach AS-040 folgt in Phase 4.
-- Der strukturierte PDF-Modus braucht das Extra `pdf` mit PyTorch aus dem `cu126`-Index; Anki Studio installiert es noch nicht (AS-041). Ohne Docling bricht ein solcher Job mit einer Meldung des Generators ab.
+- Der strukturierte PDF-Modus läuft nur mit dem Extra `pdf`; ohne Docling bricht ein solcher Job mit einer Meldung des Generators ab. Ein laufender Modell-Download lässt sich nicht abbrechen, nur ein wartender.
 - Die Verbindung ist unverschlüsseltes HTTP; Betrieb nur im LAN und über NetBird. Das Cookie trägt deshalb kein `Secure`-Attribut, und auch API-Schlüssel gehen im LAN unverschlüsselt zum Server (über NetBird im verschlüsselten Tunnel).
 - Ein Backup mit Datenordner und Umgebungsdatei enthält die verschlüsselten Schlüssel zusammen mit dem Entschlüsselungsschlüssel.
 - Die Verzögerung nach falschen Passwörtern bremst nur einzelne Versuche; parallele Versuche werden nicht gezählt oder gesperrt.

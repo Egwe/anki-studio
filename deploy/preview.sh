@@ -68,7 +68,7 @@ update_checkout() {
 sync_environment() {
   log "Abhängigkeiten aus uv.lock installieren"
   mkdir -p "$UV_CACHE"
-  (cd "$APP_DIR" && UV_CACHE_DIR="$UV_CACHE" UV_PYTHON_DOWNLOADS=never uv sync --quiet --locked --no-dev)
+  (cd "$APP_DIR" && UV_CACHE_DIR="$UV_CACHE" UV_PYTHON_DOWNLOADS=never uv sync --quiet --locked --no-dev --extra pdf)
 }
 
 host_list() {

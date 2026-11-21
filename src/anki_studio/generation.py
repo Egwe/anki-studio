@@ -6,6 +6,7 @@ always passed explicitly, so ``input_dir``, ``output_dir``,
 ``source_text_dir`` and ``generation.json_output`` of the YAML are not used.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,7 @@ from anki_studio.jobs import Job, JobStore
 from anki_studio.worker import CancelCheck
 from anki_studio.worker import Reporter as JobReporter
 
+GENERATE_KIND = "generate"
 CARDS_FILE = "cards.json"
 SOURCE_TEXT_FILE = "source.md"
 TARGET_DIR = "target"
@@ -62,9 +64,9 @@ def job_options(form: GenerateForm, target_file: str | None = None) -> dict[str,
         target_file: Name of the uploaded APKG to extend, or None.
 
     Returns:
-        ``{"form": ..., "target_file": ...}``.
+        ``{"kind": "generate", "form": ..., "target_file": ...}``.
     """
-    return {"form": form.model_dump(mode="json"), "target_file": target_file}
+    return {"kind": GENERATE_KIND, "form": form.model_dump(mode="json"), "target_file": target_file}
 
 
 def job_paths(store: JobStore, job: Job) -> JobPaths:
@@ -214,6 +216,44 @@ class GenerationRunner:
         run = produce_cards(settings, context, report=reporter, cancel=cancel)
         save_cards(paths.cards, run.cards, deck=settings.deck, source=job.source_name)
         report({"type": "cards_saved", "count": len(run.cards), "deck": settings.deck})
+
+
+class KindRunner:
+    """Pick the runner of a job by its ``kind`` option.
+
+    Jobs without ``kind`` are generation jobs (created before kinds existed).
+
+    Attributes:
+        runners: Kind name to runner.
+    """
+
+    def __init__(self, runners: dict[str, Callable[[Job, JobReporter, CancelCheck], None]]) -> None:
+        """Remember the runners.
+
+        Args:
+            runners: Kind name to runner.
+        """
+        self.runners = runners
+
+    def __call__(self, job: Job, report: JobReporter, cancel: CancelCheck) -> None:
+        """Run a job with the runner of its kind.
+
+        Args:
+            job: The running job.
+            report: Receives JSON-safe events.
+            cancel: Cancellation check.
+
+        Returns:
+            None.
+
+        Raises:
+            FlashcardError: If the kind is unknown or the runner fails.
+        """
+        kind = job.options.get("kind", GENERATE_KIND)
+        runner = self.runners.get(kind)
+        if runner is None:
+            raise FlashcardError(f"Unbekannte Job-Art: {kind}")
+        runner(job, report, cancel)
 
 
 def _event_reporter(report: JobReporter) -> Reporter:

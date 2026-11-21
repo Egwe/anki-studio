@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Modelle und GPU – Anki Studio{% endblock %}
+{% block content %}
+<hgroup>
+  <h1>Modelle und GPU</h1>
+  <p>Der strukturierte PDF-Modus bereitet PDFs auf dem Server mit Docling auf: Text in Bildern, Tabellen, Formeln, Abbildungen. Er braucht Docling, eine nutzbare GPU und einmal heruntergeladene Modelle.</p>
+</hgroup>
+{% if error %}
+<article class="alert">Generator-Konfiguration nicht nutzbar: {{ error }}</article>
+{% else %}
+<article>
+  <header><strong>Zustand</strong></header>
+  <dl class="components">
+    <dt>Docling</dt>
+    <dd>{% if state.docling %}installiert{% else %}nicht installiert (Extra <code>pdf</code>){% endif %}</dd>
+    <dt>GPU</dt>
+    <dd>{% if state.device %}<span class="status status-done">{{ state.device }}</span> nutzbar{% elif state.gpu_problem %}nicht nutzbar{% elif state.docling %}keine gefunden{% else %}nicht geprüft{% endif %}</dd>
+    <dt>Formeln je Aufruf</dt>
+    <dd>{{ formula_batch_size or "Standard von Docling (5)" }}</dd>
+    <dt>Modellordner</dt>
+    <dd><code>{{ state.models_dir }}</code></dd>
+  </dl>
+  {% if state.gpu_problem %}<p class="field-error">{{ state.gpu_problem }}</p>{% endif %}
+  {% if not state.docling %}<p><small>Ohne Docling bleiben die PDF-Modi <code>local</code> und <code>native</code>. Installiert wird das Extra mit <code>uv sync --extra pdf</code>; die Vorschau im Container macht das selbst.</small></p>{% endif %}
+</article>
+<article>
+  <header><strong>Modelle</strong></header>
+  <ul class="events">
+    {% for component in state.components %}
+    <li>{% if component.downloaded %}<strong>vorhanden</strong>{% else %}fehlt{% endif %} · <code>{{ component.name }}</code></li>
+    {% endfor %}
+  </ul>
+  <footer>
+    <form method="post" action="{{ url_for('download_models') }}">
+      <button type="submit" {% if not state.docling %}disabled{% endif %}>Fehlende Modelle herunterladen</button>
+    </form>
+    <small>Rund 1,9 GB von Hugging Face; der Download läuft als Job mit Live-Fortschritt. Welche Modelle nötig sind, folgt aus der Konfiguration (Formeln, Bildbeschreibung).</small>
+  </footer>
+</article>
+{% endif %}
+{% endblock %}

@@ -13,13 +13,24 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from anki_studio.auth import SESSION_COOKIE, SESSION_MAX_AGE, LoginRequiredMiddleware
 from anki_studio.credentials import SESSION_SECRET_ENV, Credentials, load_credentials
-from anki_studio.generation import GenerationRunner
+from anki_studio.generation import GENERATE_KIND, GenerationRunner, KindRunner
 from anki_studio.generator_config import ensure_generator_config
 from anki_studio.headers import SecurityHeadersMiddleware
 from anki_studio.hosts import HostCheckMiddleware
 from anki_studio.jobs import JobStore
 from anki_studio.limits import BodyLimitMiddleware
-from anki_studio.routes import config, generate, jobs, keys, login, models, pages, review
+from anki_studio.models_task import MODELS_KIND, ModelsRunner
+from anki_studio.routes import (
+    config,
+    generate,
+    jobs,
+    keys,
+    login,
+    models,
+    pages,
+    review,
+    structured,
+)
 from anki_studio.secret_store import STORE_FILE, SecretStore, SecretStoreError
 from anki_studio.settings import StudioSettings
 from anki_studio.templating import STATIC_DIR, create_templates
@@ -46,7 +57,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     _ensure_generator_config(settings)
     _open_secret_store(app)
     store = JobStore(settings.data_dir / "jobs")
-    runner = GenerationRunner(store, settings.generator_path)
+    runner = KindRunner(
+        {
+            GENERATE_KIND: GenerationRunner(store, settings.generator_path),
+            MODELS_KIND: ModelsRunner(settings.generator_path),
+        }
+    )
     worker = JobWorker(store, runner, timedelta(days=settings.job_retention_days))
     worker.start()
     app.state.jobs = store
@@ -141,7 +157,7 @@ def create_app(
     app.state.templates = create_templates()
     app.state.http_transport = None
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-    for module in (login, pages, generate, jobs, keys, models, review, config):
+    for module in (login, pages, generate, jobs, keys, models, review, config, structured):
         app.include_router(module.router)
     app.add_middleware(LoginRequiredMiddleware)
     app.add_middleware(
