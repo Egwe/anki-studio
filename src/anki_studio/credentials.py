@@ -2,7 +2,9 @@
 
 Secrets never appear in ``studio.yaml``: in the container they come from
 ``/etc/anki-studio/env`` (systemd ``EnvironmentFile``), locally from a
-``.env`` file passed with ``uv run --env-file .env``.
+``.env`` file passed with ``uv run --env-file .env``.  Values changed in the
+interface come from the optional ``runtime.env`` and take precedence
+(``runtime_env``).
 """
 
 import secrets
@@ -18,6 +20,7 @@ from anki_studio.runtime_env import (
     RUNTIME_SYNC_PASSWORD_ENV,
     RUNTIME_SYNC_USERNAME_ENV,
     RuntimeEnvironmentError,
+    read_secret,
     read_value,
 )
 
@@ -74,32 +77,42 @@ def load_credentials(environ: Mapping[str, str]) -> Credentials:
 
     Raises:
         CredentialsError: If the password hash is malformed, the session key
-            is shorter than 32 characters, or the encryption key is no valid
-            Fernet key.
+            is shorter than 32 characters, the encryption key is no valid
+            Fernet key, or a runtime value is malformed or undecryptable.
     """
+    secret_key = environ.get(SECRET_KEY_ENV, "").strip() or None
+    if secret_key is not None:
+        _check_fernet_key(secret_key)
     try:
         password_hash = (
-            _runtime_or_environment(environ, RUNTIME_PASSWORD_HASH_ENV, PASSWORD_HASH_ENV).strip()
+            _prefer(
+                read_value(environ, RUNTIME_PASSWORD_HASH_ENV), environ, PASSWORD_HASH_ENV
+            ).strip()
             or None
         )
         sync_username = (
-            _runtime_or_environment(environ, RUNTIME_SYNC_USERNAME_ENV, SYNC_USERNAME_ENV).strip()
+            _prefer(
+                read_value(environ, RUNTIME_SYNC_USERNAME_ENV), environ, SYNC_USERNAME_ENV
+            ).strip()
             or None
         )
         sync_password = (
-            _runtime_or_environment(environ, RUNTIME_SYNC_PASSWORD_ENV, SYNC_PASSWORD_ENV).strip()
+            _prefer(
+                read_secret(environ, RUNTIME_SYNC_PASSWORD_ENV, secret_key),
+                environ,
+                SYNC_PASSWORD_ENV,
+            )
             or None
         )
-        session_secret = _runtime_or_environment(
-            environ, RUNTIME_SESSION_SECRET_ENV, SESSION_SECRET_ENV
+        session_secret = _prefer(
+            read_secret(environ, RUNTIME_SESSION_SECRET_ENV, secret_key),
+            environ,
+            SESSION_SECRET_ENV,
         ).strip()
     except RuntimeEnvironmentError as error:
         raise CredentialsError(str(error)) from error
     if password_hash is not None:
         _check_hash(password_hash)
-    secret_key = environ.get(SECRET_KEY_ENV, "").strip() or None
-    if secret_key is not None:
-        _check_fernet_key(secret_key)
     if not session_secret:
         return Credentials(
             password_hash,
@@ -122,24 +135,19 @@ def load_credentials(environ: Mapping[str, str]) -> Credentials:
     )
 
 
-def _runtime_or_environment(
-    environ: Mapping[str, str], runtime_name: str, environment_name: str
-) -> str:
-    """Prefer an explicit encoded runtime value over the base environment.
+def _prefer(runtime_value: str | None, environ: Mapping[str, str], environment_name: str) -> str:
+    """Prefer an explicit runtime value over the base environment.
 
     Args:
+        runtime_value: Decoded value from ``runtime.env``, or None if absent;
+            an empty string clears the base value on purpose.
         environ: Process environment supplied by systemd or a test.
-        runtime_name: Name of the optional encoded runtime variable.
         environment_name: Name of the administrator-managed base variable.
 
     Returns:
         The runtime value if present, otherwise the base value or an empty
         string.
-
-    Raises:
-        RuntimeEnvironmentError: If the runtime value is malformed.
     """
-    runtime_value = read_value(environ, runtime_name)
     if runtime_value is not None:
         return runtime_value
     return environ.get(environment_name, "")

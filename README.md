@@ -81,9 +81,9 @@ Unter **Einstellungen → Zugangsdaten** stehen alle Variablen, die Profile der 
 
 ## Zugang und Sync
 
-**Einstellungen → Zugang und Sync** ändert das Login-Passwort und richtet die Anki-Sync-Verbindung ein oder deaktiviert sie. Für eine aktive Verbindung sind Endpunkt, Benutzername und Passwort immer gemeinsam erforderlich; der Endpunkt akzeptiert nur vollständige HTTP(S)-Adressen ohne eingebettete Zugangsdaten. Das Passwort wird nach dem Speichern nie wieder angezeigt.
+**Einstellungen → Zugang und Sync** ändert das Login-Passwort (nur mit dem aktuellen Passwort) und richtet die Anki-Sync-Verbindung ein oder deaktiviert sie. Für eine aktive Verbindung sind Endpunkt, Benutzername und Passwort nötig; der Endpunkt akzeptiert nur vollständige HTTP(S)-Adressen ohne eingebettete Zugangsdaten. Bleibt das Passwortfeld leer und der Benutzername gleich, gilt das gespeicherte Passwort weiter, etwa wenn sich nur der Endpunkt ändert. Das Passwort wird nach dem Speichern nie wieder angezeigt.
 
-Anki Studio schreibt diese täglichen Werte atomar und mit Rechten `0600` in `<data_dir>/runtime.env`, eine zusätzliche systemd-`EnvironmentFile`. Ihre URL-sicher Base64-kodierten Werte überschreiben die anfänglichen Umgebungswerte beim nächsten Start; die Dateirechte, nicht die Kodierung, schützen die Geheimnisse. Der Dienst startet danach kontrolliert neu. Eine Passwortänderung dreht zusätzlich den Session-Schlüssel, beendet also alle bestehenden Anmeldungen. API-Schlüssel bleiben im getrennten verschlüsselten Schlüsselspeicher.
+Anki Studio schreibt diese täglichen Werte atomar und mit Rechten `0600` in `<data_dir>/runtime.env`, eine zusätzliche systemd-`EnvironmentFile`; ihre Werte überschreiben die anfänglichen Umgebungswerte beim nächsten Start. Login-Hash, Endpunkt und Benutzername stehen dort nur Base64-kodiert, Session-Schlüssel und Sync-Passwort verschlüsselt wie die API-Schlüssel (Fernet mit `ANKI_STUDIO_SECRET_KEY`). Ohne diesen Schlüssel lehnt die Seite das Speichern ab. Der Dienst startet danach kontrolliert neu. Eine Passwortänderung dreht zusätzlich den Session-Schlüssel, beendet also alle bestehenden Anmeldungen. API-Schlüssel bleiben im getrennten verschlüsselten Schlüsselspeicher.
 
 ## Modelle des Providers
 

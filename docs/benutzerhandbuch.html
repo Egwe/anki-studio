@@ -136,8 +136,10 @@ mark { background: var(--mark); color: inherit; }
 <section id="zugang-sync">
   <h2>Zugang und Sync</h2>
   <p>Unter <strong>Einstellungen → Zugang und Sync</strong> änderst du das Login-Passwort und richtest die Verbindung zu deinem Anki-Sync-Server ein. Das geht im täglichen Betrieb vollständig im Browser; für Installation, Updates und Notfälle bleibt der Container-Zugang zuständig.</p>
-  <p>Für eine Sync-Verbindung das Häkchen setzen und Endpunkt, Benutzername und Passwort eintragen. Der Endpunkt muss mit <code>http://</code> oder <code>https://</code> beginnen und darf weder Benutzername noch Passwort enthalten. Passwort und Sync-Anmeldeschlüssel werden nach dem Speichern nie angezeigt. Zum Abschalten das Häkchen entfernen und speichern.</p>
-  <p>Nach jeder Änderung startet Anki Studio kontrolliert neu. Nach einem neuen Login-Passwort musst du dich erneut anmelden; alle früheren Sitzungen enden. Die Oberfläche speichert die täglichen Zugänge nur als private Laufzeit-Umgebung des Dienstes, nicht in der Konfiguration, einem Job oder einem Log.</p>
+  <p>Ein neues Login-Passwort braucht das <strong>aktuelle Passwort</strong>, das neue Passwort (mindestens 8 Zeichen) und seine Wiederholung. Ist das aktuelle Passwort falsch, bleibt alles unverändert.</p>
+  <p>Für eine Sync-Verbindung das Häkchen setzen und Endpunkt, Benutzername und Passwort eintragen. Der Endpunkt muss mit <code>http://</code> oder <code>https://</code> beginnen und darf weder Benutzername noch Passwort enthalten. Ist schon ein Passwort gespeichert, zeigt das Feld „gespeichert – leer lassen, um es zu behalten“: Bleibt es leer und der Benutzername gleich, gilt das gespeicherte Passwort weiter, etwa wenn sich nur der Endpunkt ändert. Für einen anderen Benutzernamen ist das Passwort Pflicht. Passwort und Sync-Anmeldeschlüssel werden nach dem Speichern nie angezeigt. Zum Abschalten das Häkchen entfernen und speichern.</p>
+  <p>Nach jeder Änderung startet Anki Studio kontrolliert neu. Nach einem neuen Login-Passwort musst du dich erneut anmelden; alle früheren Sitzungen enden. Die Oberfläche speichert die täglichen Zugänge nur als private Laufzeit-Umgebung des Dienstes, nicht in der Konfiguration, einem Job oder einem Log; das Sync-Passwort liegt dort verschlüsselt wie die API-Schlüssel.</p>
+  <p>Schlägt ein Sync fehl, nennt der Job den Grund des Sync-Servers, etwa ein falsches Passwort oder einen nicht erreichbaren Server.</p>
 </section>
 
 <section id="gpu">
