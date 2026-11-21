@@ -14,6 +14,8 @@ from urllib.parse import urlsplit
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
+from anki_studio.runtime_env import RUNTIME_SYNC_ENDPOINT_ENV, RuntimeEnvironmentError, read_value
+
 CONFIG_ENV = "ANKI_STUDIO_CONFIG"
 FORBIDDEN_HOST_CHARACTERS = frozenset("/*[]@ \t")
 SYNC_SCHEMES = frozenset({"http", "https"})
@@ -100,21 +102,37 @@ class StudioSettings(BaseModel):
             ValueError: If the endpoint is blank, has another scheme, lacks a
                 host, embeds credentials, or includes query/fragment data.
         """
-        if endpoint is None:
-            return None
-        candidate = endpoint.strip()
-        parsed = urlsplit(candidate)
-        if (
-            not candidate
-            or parsed.scheme not in SYNC_SCHEMES
-            or not parsed.netloc
-            or parsed.username is not None
-            or parsed.password is not None
-            or parsed.query
-            or parsed.fragment
-        ):
-            raise ValueError("muss eine HTTP(S)-Adresse ohne Zugangsdaten sein")
-        return candidate
+        return validate_sync_endpoint(endpoint)
+
+
+def validate_sync_endpoint(endpoint: str | None) -> str | None:
+    """Accept a complete HTTP(S) sync-server endpoint without credentials.
+
+    Args:
+        endpoint: Candidate endpoint, or None to disable synchronization.
+
+    Returns:
+        Trimmed endpoint without query or fragment, or None.
+
+    Raises:
+        ValueError: If the endpoint is blank, has another scheme, lacks a
+            host, embeds credentials, or includes query/fragment data.
+    """
+    if endpoint is None:
+        return None
+    candidate = endpoint.strip()
+    parsed = urlsplit(candidate)
+    if (
+        not candidate
+        or parsed.scheme not in SYNC_SCHEMES
+        or not parsed.netloc
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("muss eine HTTP(S)-Adresse ohne Zugangsdaten sein")
+    return candidate
 
 
 def settings_path(explicit: Path | None) -> Path | None:
@@ -148,13 +166,29 @@ def load_settings(path: Path | None) -> StudioSettings:
             contains unknown keys or invalid values.
     """
     if path is None:
-        return _with_absolute_paths(StudioSettings(), Path.cwd())
-    data = _read_mapping(path)
+        settings = StudioSettings()
+        base = Path.cwd()
+    else:
+        data = _read_mapping(path)
+        try:
+            settings = StudioSettings.model_validate(data)
+        except ValidationError as error:
+            raise SettingsError(f"Ungültige Einstellungen in {path}: {_describe(error)}") from error
+        base = path.absolute().parent
     try:
-        settings = StudioSettings.model_validate(data)
-    except ValidationError as error:
-        raise SettingsError(f"Ungültige Einstellungen in {path}: {_describe(error)}") from error
-    return _with_absolute_paths(settings, path.absolute().parent)
+        endpoint = read_value(os.environ, RUNTIME_SYNC_ENDPOINT_ENV)
+    except RuntimeEnvironmentError as error:
+        raise SettingsError(str(error)) from error
+    if endpoint is not None:
+        try:
+            settings = settings.model_copy(
+                update={"sync_endpoint": validate_sync_endpoint(endpoint or None)}
+            )
+        except ValueError as error:
+            raise SettingsError(
+                f"Ungültige Laufzeit-Einstellung: sync_endpoint: {error}"
+            ) from error
+    return _with_absolute_paths(settings, base)
 
 
 def _with_absolute_paths(settings: StudioSettings, base: Path) -> StudioSettings:

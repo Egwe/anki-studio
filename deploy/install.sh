@@ -145,8 +145,9 @@ Group=$GROUP
 WorkingDirectory=$APP_DIR
 Environment=ANKI_STUDIO_CONFIG=$CONFIG_DIR/studio.yaml
 EnvironmentFile=$CONFIG_DIR/env
+EnvironmentFile=-$DATA_DIR/runtime.env
 ExecStart=$APP_DIR/.venv/bin/anki-studio serve
-Restart=on-failure
+Restart=always
 RestartSec=2
 UMask=0077
 NoNewPrivileges=yes

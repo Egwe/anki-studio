@@ -12,6 +12,14 @@ from dataclasses import dataclass, field
 from cryptography.fernet import Fernet
 
 from anki_studio.passwords import PasswordHashError, parse_hash
+from anki_studio.runtime_env import (
+    RUNTIME_PASSWORD_HASH_ENV,
+    RUNTIME_SESSION_SECRET_ENV,
+    RUNTIME_SYNC_PASSWORD_ENV,
+    RUNTIME_SYNC_USERNAME_ENV,
+    RuntimeEnvironmentError,
+    read_value,
+)
 
 PASSWORD_HASH_ENV = "ANKI_STUDIO_PASSWORD_HASH"
 SESSION_SECRET_ENV = "ANKI_STUDIO_SESSION_SECRET"
@@ -69,15 +77,29 @@ def load_credentials(environ: Mapping[str, str]) -> Credentials:
             is shorter than 32 characters, or the encryption key is no valid
             Fernet key.
     """
-    password_hash = environ.get(PASSWORD_HASH_ENV, "").strip() or None
+    try:
+        password_hash = (
+            _runtime_or_environment(environ, RUNTIME_PASSWORD_HASH_ENV, PASSWORD_HASH_ENV).strip()
+            or None
+        )
+        sync_username = (
+            _runtime_or_environment(environ, RUNTIME_SYNC_USERNAME_ENV, SYNC_USERNAME_ENV).strip()
+            or None
+        )
+        sync_password = (
+            _runtime_or_environment(environ, RUNTIME_SYNC_PASSWORD_ENV, SYNC_PASSWORD_ENV).strip()
+            or None
+        )
+        session_secret = _runtime_or_environment(
+            environ, RUNTIME_SESSION_SECRET_ENV, SESSION_SECRET_ENV
+        ).strip()
+    except RuntimeEnvironmentError as error:
+        raise CredentialsError(str(error)) from error
     if password_hash is not None:
         _check_hash(password_hash)
     secret_key = environ.get(SECRET_KEY_ENV, "").strip() or None
     if secret_key is not None:
         _check_fernet_key(secret_key)
-    sync_username = environ.get(SYNC_USERNAME_ENV, "").strip() or None
-    sync_password = environ.get(SYNC_PASSWORD_ENV, "").strip() or None
-    session_secret = environ.get(SESSION_SECRET_ENV, "").strip()
     if not session_secret:
         return Credentials(
             password_hash,
@@ -98,6 +120,29 @@ def load_credentials(environ: Mapping[str, str]) -> Credentials:
         sync_username=sync_username,
         sync_password=sync_password,
     )
+
+
+def _runtime_or_environment(
+    environ: Mapping[str, str], runtime_name: str, environment_name: str
+) -> str:
+    """Prefer an explicit encoded runtime value over the base environment.
+
+    Args:
+        environ: Process environment supplied by systemd or a test.
+        runtime_name: Name of the optional encoded runtime variable.
+        environment_name: Name of the administrator-managed base variable.
+
+    Returns:
+        The runtime value if present, otherwise the base value or an empty
+        string.
+
+    Raises:
+        RuntimeEnvironmentError: If the runtime value is malformed.
+    """
+    runtime_value = read_value(environ, runtime_name)
+    if runtime_value is not None:
+        return runtime_value
+    return environ.get(environment_name, "")
 
 
 def new_secret_key() -> str:
