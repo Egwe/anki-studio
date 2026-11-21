@@ -184,9 +184,10 @@ Reguläre Tests laufen ohne Netzwerk, ohne echten Sync-Server, ohne API-Schlüss
 
 ### 4.4 Deployment (R-201 des Generators)
 
-**AS-040 – Installation · muss · offen**
+**AS-040 – Installation · muss · teilweise**
 Im LXC „anki-studio“: eigener Systembenutzer statt root; Programm mit uv in `/opt/anki-studio`; Daten in `/var/lib/anki-studio`; Konfiguration `/etc/anki-studio/config.yaml` (Generator-YAML) und `/etc/anki-studio/studio.yaml` (Endpunkt, Datenpfade, Port); Secrets in `/etc/anki-studio/env` (0600) als `EnvironmentFile`; systemd-Unit mit uvicorn. Ein Installations- und Update-Skript im Repo (`deploy/`).
 *Änderung 21.11.2026:* Die Generator-YAML liegt im Datenordner (`/var/lib/anki-studio/generator.yaml`), weil sie über die Oberfläche bearbeitet wird (AS-015, AS-016); `/etc/anki-studio` enthält nur `studio.yaml` und `env`.
+*Umsetzung:* `deploy/install.sh` und `deploy/update.sh` verwenden ausschließlich den veröffentlichten `main`-Zweig, richten einen eigenen Systembenutzer, `/opt/anki-studio`, `/var/lib/anki-studio`, `/etc/anki-studio/{studio.yaml,env}` (0600) und eine gehärtete systemd-Unit ein, bewahren Konfiguration und Daten und prüfen `/healthz`. Eine isolierte Codex-Vorschau mit eigenem Nutzer, Dienst und Datenordner ist im Container zweimal erfolgreich ausgeführt worden. *Offen:* reguläre Installation erst nach der Übernahme dieses Stands in `main`; sie wird nicht vom Codex-Zweig aus ausgelöst.
 
 **AS-041 – GPU · soll · teilweise**
 Strukturierter Modus mit der durchgereichten GPU, sofern der GPU-Test (Abschnitt 5.3) sie als nutzbar bestätigt. Sonst dokumentieren, welche Ausweichwege gelten.
@@ -194,6 +195,7 @@ Strukturierter Modus mit der durchgereichten GPU, sofern der GPU-Test (Abschnitt
 
 **AS-042 – Backup · soll · offen**
 vzdump beider Container. Maßgeblich sind die Daten des Sync-Servers; die Sammlung von Anki Studio ist eine Kopie und lässt sich neu herunterladen.
+*Offen:* `vzdump` ist eine Aktion auf dem Proxmox-Host, der nicht Teil des freigegebenen Containers ist. Dafür braucht es eine eigene Freigabe des Projektinhabers; weder das Installationsskript noch die Codex-Vorschau verändert den Host.
 
 **AS-043 – Community-Script · kann · offen**
 Daraus ein eigenes Proxmox-Community-Script (`ct/` + `install/`) machen. Zurückgestellt bis nach Phase 4.
@@ -312,6 +314,7 @@ Jedes Paket ist ein Branch mit kleinen Commits, wird nach grünen Prüfungen mit
 | P9 | `feature/decks-export` | Decks einer APKG, Export Karten-JSON → APKG | AS-007, AS-008 (APKG-Teile) | **teilweise erledigt**: APKG-Deckbaum und neuer APKG-Export umgesetzt; Sammlungsteile bleiben Phase 3 |
 | P10 | `codex/sync-foundation` | Sync-Anmeldung, lokaler Sammlungs-Worker, sicherer Erst- und Normal-Sync, Statusseite | AS-020–AS-025, AS-011, AS-031, AS-034 | **teilweise erledigt**: Sync-Grundlage und lokale Integrationstests umgesetzt; Sammlung als Schreibziel, Deckbaum und Export folgen |
 | P11 | `codex/collection-target` | Sammlung als Ziel für Generierung, Prüfung und Karten-JSON; Sammlung-Deckbaum; Vor-/Nach-Sync | AS-002, AS-006–AS-008, AS-011, AS-022, AS-034 | **lokal erledigt**: 127.0.0.1-Integrationstests; echter Testbenutzer bleibt offen |
+| P12 | `codex/deployment-foundation` | reguläre Installations-/Update-Skripte und isolierte Codex-Vorschau | AS-040, AS-041 (Vorschau), AS-042 | **teilweise erledigt**: Skripte und Codex-Vorschau im Container geprüft; reguläre Installation und Proxmox-Backup bewusst noch nicht ausgeführt |
 | Phase 3 | `codex/collection-target` | Sync-Client, Sammlung als Ziel, Sync-Status | AS-020–AS-025, AS-002, AS-006, AS-007, AS-008, AS-011 | **lokal umgesetzt**; echter Server-Test mit Testbenutzer offen |
 | Phase 4 | `feature/deploy-…` | Installation und Update nach AS-040, Backup | AS-040, AS-042 | offen |
 
