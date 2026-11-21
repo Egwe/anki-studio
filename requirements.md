@@ -37,7 +37,7 @@ Die Entscheidungen zu Basis, Rolle, Generator-Einbindung, Backend, Frontend, Liv
 | 0 | Sync-Prototyp | lokal und gegen den echten Server | lokal erledigt (Übergabe Abschnitt 7.1); gegen den echten Server mit Testbenutzer offen |
 | 0b | Container-Bestandsaufnahme und GPU-Test | Container | **erledigt** (Abschnitt 5) |
 | 1 | Vorbereitung des Generators: R-170 bis R-176, Version 0.2.0 | Generator-Repo | **erledigt**: Generator 0.2.0, Git-Tag `v0.2.0`; R-170 bis R-176 dort umgesetzt (Übergabe Abschnitt 12) |
-| 2 | Web-MVP: Login, Generieren, Live-Fortschritt, Prüfen, APKG- und JSON-Download | anki-studio | offen |
+| 2 | Web-MVP: Login, Generieren, Live-Fortschritt, Prüfen, APKG- und JSON-Download | anki-studio | **erledigt** (21.11.2026); dazu Zugangsdaten und Modellliste |
 | 3 | Sync: Anmeldung, lokale Sammlung, Deckauswahl, Schreiben und Synchronisieren | anki-studio | offen |
 | 4 | Deployment im LXC: systemd, uv, Pfade, Backup | anki-studio | offen |
 | 5 | Optional: Karten durchsuchen und bearbeiten (AS-013) | anki-studio | offen |
@@ -62,11 +62,13 @@ Bei `pdf_mode: native` und beim Bild-Backend `profile` muss der Benutzer vor dem
 Job-Seite mit Live-Fortschritt aus den Generator-Ereignissen: Phase, Schritte, Abschnitte, Anzahl einzigartiger Karten, Hinweise und Warnungen, Statistik der Aufbereitung. Ein Job lässt sich abbrechen (R-172 des Generators).
 *Umsetzung:* Job-Seite mit Phase, Schritten, Abschnitten, Kartenzahl, Hinweisen, Warnungen und Statistik aus `events.jsonl`; Live-Übertragung per Server-Sent Events (`/jobs/<id>/events`, htmx-SSE-Erweiterung) mit Fortsetzung nach Verbindungsabbruch; Abbrechen für wartende und laufende Jobs. Belegt durch `tests/test_live.py`, `tests/test_worker.py` und einen Chrome-Test mit simuliertem Ollama (zehn Abschnitte, Fortschritt live, Abschluss ohne Neuladen).
 
-**AS-005 – Karten prüfen · muss · offen**
+**AS-005 – Karten prüfen · muss · umgesetzt**
 Nach der Generierung erscheinen die Karten in einer Tabelle: Frage, Antwort, Unterdeck, Tags. Einzelne Karten lassen sich bearbeiten, löschen oder abwählen. Erst danach wird geschrieben. Bearbeitete Karten durchlaufen dieselbe Pydantic-Validierung des Generators (`Card`).
+*Umsetzung:* Kartenliste statt Tabelle (auf dem Handy bedienbar) mit Bearbeiten, Abwählen und Löschen über htmx; Prüfstand in `review.json`; Schreiben mit `deduplicate_cards` und `write_apkg` des Generators (`review.py`, `routes/review.py`; `tests/test_review.py`, `tests/test_web_review.py`, Chrome-Test).
 
-**AS-006 – Ergebnis · muss · offen**
+**AS-006 – Ergebnis · muss · teilweise**
 Nach dem Schreiben: hinzugefügte und übersprungene Karten, Aufteilung nach Unterdecks, Sync-Ergebnis. Downloads: APKG, Karten-JSON, aufbereiteter Text (falls erzeugt).
+*Umgesetzt:* hinzugefügte und übersprungene Karten, Aufteilung nach Unterdecks, Downloads von APKG, Karten-JSON und aufbereitetem Text. *Offen:* Sync-Ergebnis (Phase 3).
 
 **AS-007 – Decks · muss · offen**
 Deckbaum der synchronisierten Sammlung mit Kartenanzahl. Ebenso für eine hochgeladene APKG (entspricht `anki-flashcards decks`).
@@ -145,9 +147,9 @@ Ein Passwort; nur sein Hash steht in der Umgebungsdatei. Session-Cookie `HttpOnl
 Login-Hash, Session-Schlüssel, Schlüssel der Verschlüsselung und Sync-Zugangsdaten nur in der Umgebungsdatei. API-Schlüssel der Provider in der Umgebungsdatei oder, über die Oberfläche eingegeben, verschlüsselt im Datenordner (AS-035; Änderung vom 21.11.2026, ursprünglich nur Umgebungsdatei). Die YAML enthält wie im Generator nur Variablennamen (`api_key_env`). Keine Secrets in Logs, Job-Dateien, Fehlermeldungen oder der Oberfläche.
 *Umgesetzt:* Login-Hash, Session- und Verschlüsselungsschlüssel kommen nur aus der Umgebung; Fehlermeldungen nennen die Variable, nie den Wert; `repr` blendet die Werte aus (`tests/test_credentials.py`); API-Schlüssel nach AS-035. *Offen:* Sync-Zugangsdaten (mit AS-020).
 
-**AS-032 – Jobs · muss · teilweise**
+**AS-032 – Jobs · muss · umgesetzt**
 Ein Job läuft zur Zeit (eine GPU, ein Benutzer); weitere warten in einer Warteschlange. Jeder Job hat einen Ordner mit Upload, Ereignisprotokoll, Karten-JSON und Ergebnis. Nach einem Neustart sind abgeschlossene Jobs weiter sichtbar; laufende gelten als abgebrochen. Alte Jobs werden nach einer einstellbaren Frist gelöscht.
-*Umgesetzt:* Dienste `jobs.JobStore` (Ordner `<data_dir>/jobs/<id>` mit `job.json`, `events.jsonl`, `upload/`) und `worker.JobWorker` (ein Thread, Warteschlange, Abbruch, Wiederanlauf: wartende und laufende Jobs gelten nach einem Neustart als abgebrochen, Löschfrist `job_retention_days`), belegt durch `tests/test_jobs.py` und `tests/test_worker.py`. Seit P4 startet die Anwendung den Worker; `cards.json` liegt im Job-Ordner. *Offen:* das Ergebnis des Schreibens im Job-Ordner (AS-006).
+*Umgesetzt:* Dienste `jobs.JobStore` (Ordner `<data_dir>/jobs/<id>` mit `job.json`, `events.jsonl`, `upload/`) und `worker.JobWorker` (ein Thread, Warteschlange, Abbruch, Wiederanlauf: wartende und laufende Jobs gelten nach einem Neustart als abgebrochen, Löschfrist `job_retention_days`), belegt durch `tests/test_jobs.py` und `tests/test_worker.py`. Seit P4 startet die Anwendung den Worker; `cards.json`, `review.json` und `result.json` liegen im Job-Ordner (P6).
 
 **AS-033 – Uploads · muss · umgesetzt**
 Größengrenze vor dem Speichern prüfen, Dateinamen nie ungeprüft als Pfad verwenden, Uploads nur im Job-Ordner ablegen.
@@ -291,8 +293,8 @@ Jedes Paket ist ein Branch mit kleinen Commits, wird nach grünen Prüfungen mit
 | P4c | `feature/secret-store` | API-Schlüssel verschlüsselt über die Oberfläche | AS-035, AS-031 | erledigt |
 | P4d | `feature/model-list` | Modelle vom Provider laden und auswählen | AS-014 | erledigt |
 | P5 | `feature/live-progress` | Live-Fortschritt per SSE | AS-004 | erledigt |
-| P6 | `feature/card-review` | Karten prüfen, bearbeiten, abwählen; APKG schreiben; Downloads | AS-005, AS-006 | als Nächstes |
-| P7 | `feature/config-editor` | Konfiguration anzeigen (Herkunft) und Profile und Standardwerte bearbeiten | AS-009, AS-016 | offen |
+| P6 | `feature/card-review` | Karten prüfen, bearbeiten, abwählen; APKG schreiben; Downloads | AS-005, AS-006 | erledigt |
+| P7 | `feature/config-editor` | Konfiguration anzeigen (Herkunft) und Profile und Standardwerte bearbeiten | AS-009, AS-016 | als Nächstes |
 | G1 | Generator-Repo | Generator 0.2.1: `tenacity`, Mehrwort-Tags, Batch-Größe Formeln, genauere GPU-Prüfung; Anki Studio auf `v0.2.1` | – | erledigt (vorgezogen) |
 | P8 | `feature/structured-mode` | Extra `pdf` mit PyTorch `cu126`, Modelle laden, GPU-Anzeige | AS-041, AS-010 | offen |
 | P9 | `feature/decks-export` | Decks einer APKG, Export Karten-JSON → APKG | AS-007, AS-008 (APKG-Teile) | offen |
