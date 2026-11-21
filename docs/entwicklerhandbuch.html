@@ -136,6 +136,7 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
     <tr><td><code>forms.py</code></td><td><code>GenerateForm</code>: Typen, Bereiche, Enums, nur gesetzte Werte; deutsche Fehlermeldungen</td><td><code>test_forms.py</code></td></tr>
     <tr><td><code>generation.py</code></td><td><code>GenerationRunner</code>: Einstellungen je Job, Übertragungsprüfung, <code>produce_cards</code>, <code>cards.json</code></td><td><code>test_generation.py</code></td></tr>
     <tr><td><code>sse.py</code>, <code>routes/jobs.py</code></td><td>Live-Fortschritt: <code>/jobs/&lt;id&gt;/events</code> streamt neue Zeilen aus <code>events.jsonl</code> als Server-Sent Events (<code>line</code>, <code>progress</code>, <code>status</code>, <code>done</code>), gerendert mit den Makros aus <code>_events.html</code></td><td><code>test_live.py</code></td></tr>
+    <tr><td><code>review.py</code>, <code>routes/review.py</code></td><td>Prüfstand <code>review.json</code> (Karten mit ID und Auswahl), Bearbeiten über <code>Card</code>, Schreiben mit <code>deduplicate_cards</code>, <code>validate_output</code>, <code>write_apkg</code>; Ergebnis <code>result.json</code>; htmx-Fragmente und Downloads</td><td><code>test_review.py</code>, <code>test_web_review.py</code></td></tr>
     <tr><td><code>templating.py</code></td><td>Jinja2-Umgebung mit Versionen und Statusnamen</td><td>indirekt</td></tr>
     <tr><td><code>routes/</code></td><td><code>login</code>, <code>pages</code> (Start, <code>/healthz</code>), <code>generate</code>, <code>jobs</code></td><td><code>test_auth.py</code>, <code>test_web_generate.py</code></td></tr>
   </table>
@@ -245,8 +246,13 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
   events.jsonl    ein JSON-Ereignis pro Zeile
   upload/&lt;name&gt;   hochgeladenes Dokument
   target/&lt;name&gt;   APKG zum Erweitern (optional)
-  cards.json      Karten-JSON des Generators (schema_version 1)
+  cards.json      Karten-JSON des Generators (schema_version 1), unverändert
+  review.json     Prüfstand: deck, cards[{id, card, selected}]
+  karten.apkg     neue APKG nach dem Schreiben (bei target/ wird diese erweitert)
+  karten.cards.json  ausgewählte Karten zum Download
+  result.json     Ergebnis: deck, added, skipped, added_by_deck, file, written_at
   source.md       aufbereiteter Text (strukturierter Modus)</code></pre>
+  <p>Änderungen an <code>review.json</code> laufen unter einer Sperre und werden atomar ersetzt. Existiert <code>result.json</code>, lehnt <code>review.py</code> jede weitere Änderung mit <code>AlreadyWrittenError</code> ab (HTTP 409). Kartenfragmente antworten auch bei Validierungsfehlern mit 200, weil htmx Fehlerantworten nicht einsetzt; der Zähler kommt als <code>hx-swap-oob</code>-Element mit.</p>
   <p><code>job.json</code>: <code>id</code>, <code>status</code>, <code>created_at</code>, <code>updated_at</code> (UTC), <code>source_name</code>, <code>message</code>, <code>options</code> mit <code>form</code> (validierte Formularwerte) und <code>target_file</code>.</p>
   <table>
     <tr><th><code>type</code></th><th>Herkunft</th><th>Felder</th></tr>

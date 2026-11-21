@@ -80,6 +80,40 @@ header.container nav ul {
   white-space: nowrap;
 }
 
+.review-card .card-front {
+  font-weight: 600;
+  white-space: pre-wrap;
+  margin-bottom: 0.4rem;
+}
+
+.review-card .card-back {
+  white-space: pre-wrap;
+  margin-bottom: 0.4rem;
+}
+
+.review-card.deselected {
+  opacity: 0.55;
+}
+
+.review-card header {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.card-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.card-actions button {
+  width: auto;
+  margin: 0;
+}
+
 .key-check {
   margin-top: 0.5rem;
 }

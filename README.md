@@ -6,7 +6,7 @@ Anforderungen und ihr Status stehen in [requirements.md](./requirements.md), Arb
 
 ## Stand
 
-Nach der Anmeldung lassen sich API-Schlüssel eintragen, Modelle beim Provider auswählen, Dokumente hochladen und Karten erzeugen: Jede Datei wird ein Job, die Jobs laufen nacheinander im Hintergrund mit Live-Fortschritt, und die Karten landen als `cards.json` im Job-Ordner. Kartenprüfung und die Downloads von APKG und JSON folgen als nächstes Paket (Phase 2), Sync mit der Sammlung in Phase 3.
+Der Web-MVP (Phase 2) steht: Nach der Anmeldung lassen sich API-Schlüssel eintragen, Modelle beim Provider auswählen, Dokumente hochladen und Karten erzeugen. Jede Datei wird ein Job mit Live-Fortschritt; danach werden die Karten geprüft, bearbeitet oder abgewählt und in eine neue oder hochgeladene APKG geschrieben, die sich wie Karten-JSON und aufbereiteter Text herunterladen lässt. Es folgen der Konfigurationseditor und die übrigen Seiten, Sync mit der Sammlung in Phase 3.
 
 Ausführlich: [docs/benutzerhandbuch.html](./docs/benutzerhandbuch.html) für die Bedienung, [docs/entwicklerhandbuch.html](./docs/entwicklerhandbuch.html) für Module, Abläufe und Tests. Beide Dateien lassen sich ohne Server im Browser öffnen.
 
@@ -84,6 +84,10 @@ Geht Dokumentinhalt an einen Provider (`pdf_mode: native` oder Bild-Backend `pro
 
 Jede Datei wird ein eigener **Job**. Es läuft immer nur ein Job, weitere warten. Ein Job-Ordner `<data_dir>/jobs/<id>/` enthält `job.json` (Zustand), `events.jsonl` (Ereignisse des Generators), `upload/` (das Dokument), bei Bedarf `target/` (die APKG zum Erweitern), `cards.json` (die erzeugten Karten) und im strukturierten Modus `source.md` (der aufbereitete Text; er wird immer im Job-Ordner gespeichert). Die Job-Seite zeigt Status, Optionen und Verlauf **live** (Server-Sent Events, AS-004): einen Fortschrittsbalken für den laufenden Schritt (Abschnitte, bisher erzeugte Karten), Hinweise, Warnungen, Datenübertragungen und die Statistik der Aufbereitung; am Ende lädt sie ihren Inhalt einmal neu. Nach einem Verbindungsabbruch setzt der Browser an der letzten Stelle fort. Wartende und laufende Jobs lassen sich abbrechen. Nach einem Neustart gelten wartende und laufende Jobs als abgebrochen.
 
+## Karten prüfen, schreiben, herunterladen
+
+Ist ein Job fertig, zeigt seine Seite die Karten zur **Prüfung** (AS-005): Jede Karte lässt sich bearbeiten (Frage, Antwort, Unterdeck, Tags durch Leerzeichen getrennt), abwählen oder löschen; jede Änderung durchläuft die Kartenprüfung des Generators. **Ausgewählte Karten schreiben** schreibt sie mit dem gewählten Deck in eine neue APKG oder in die hochgeladene APKG; dabei überspringt die Duplikaterkennung des Generators bekannte Fragen. Danach zeigt die Seite das **Ergebnis** (AS-006) – neue und übersprungene Karten, Aufteilung nach Unterdecks – und bietet die APKG, die Auswahl als Karten-JSON und gegebenenfalls den aufbereiteten Text zum Download an. Geschrieben wird je Job genau einmal; der Prüfstand liegt in `review.json`, das Ergebnis in `result.json` im Job-Ordner, `cards.json` bleibt die unveränderte Ausgabe des Generators.
+
 Uploads werden vor dem Speichern geprüft: nur die Dokumenttypen des Generators, je höchstens 100 MiB, höchstens zehn Dateien; Anfragen ohne Längenangabe oder über der Grenze lehnt der Server ab, bevor er sie liest.
 
 ## Vorschau im Container
@@ -134,7 +138,7 @@ Alle Dateien liegen unter [src/anki_studio/static/vendor/](./src/anki_studio/sta
 
 ## Bekannte Grenzen
 
-- Erzeugte Karten lassen sich noch nicht prüfen, herunterladen oder schreiben (folgt mit AS-005/AS-006); Sync und Deployment folgen in den Phasen 3 und 4.
+- Karten landen noch nicht direkt in der Anki-Sammlung (Sync, Phase 3); bis dahin über die heruntergeladene APKG importieren. Deployment nach AS-040 folgt in Phase 4.
 - Der strukturierte PDF-Modus braucht das Extra `pdf` mit PyTorch aus dem `cu126`-Index; Anki Studio installiert es noch nicht (AS-041). Ohne Docling bricht ein solcher Job mit einer Meldung des Generators ab.
 - Die Verbindung ist unverschlüsseltes HTTP; Betrieb nur im LAN und über NetBird. Das Cookie trägt deshalb kein `Secure`-Attribut, und auch API-Schlüssel gehen im LAN unverschlüsselt zum Server (über NetBird im verschlüsselten Tunnel).
 - Ein Backup mit Datenordner und Umgebungsdatei enthält die verschlüsselten Schlüssel zusammen mit dem Entschlüsselungsschlüssel.

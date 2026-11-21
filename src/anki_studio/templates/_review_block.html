@@ -1,0 +1,19 @@
+{# Review and write area of a finished job (AS-005, AS-006). #}
+{% from "_review.html" import review_card, review_count with context %}
+<section id="review">
+  <h2>Karten prüfen</h2>
+  <p>Fragen und Antworten prüfen, bearbeiten oder abwählen. Geschrieben wird erst mit dem Knopf unten; jede Änderung läuft durch die Kartenprüfung des Generators, beim Schreiben auch durch seine Duplikaterkennung.</p>
+  {% for entry in review.cards %}{{ review_card(job, entry) }}{% endfor %}
+  <article id="write">
+    <header><strong>Schreiben</strong> · {{ review_count(review) }}</header>
+    {% if write_error %}<p class="field-error" role="alert">{{ write_error }}</p>{% endif %}
+    <form method="post" action="{{ url_for('write_job', job_id=job.id) }}">
+      <label for="deck">Deck</label>
+      <input id="deck" name="deck" required value="{{ deck_value if deck_value is not none else review.deck }}"
+             {% if write_error %}aria-invalid="true"{% endif %}>
+      <small>Ziel: {% if target_file %}hochgeladene APKG <code>{{ target_file }}</code> erweitern (Duplikate werden übersprungen){% else %}neue APKG-Datei{% endif %}.</small>
+      <button type="submit">Ausgewählte Karten schreiben</button>
+    </form>
+    <footer><a href="{{ url_for('download', job_id=job.id, kind='json') }}">Auswahl als Karten-JSON herunterladen</a>{% if has_source %} · <a href="{{ url_for('download', job_id=job.id, kind='source') }}">Aufbereiteten Text herunterladen</a>{% endif %}</footer>
+  </article>
+</section>

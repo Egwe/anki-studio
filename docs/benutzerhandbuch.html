@@ -67,6 +67,8 @@ mark { background: var(--mark); color: inherit; }
   <a href="#uebertragung">Datenübertragung bestätigen</a>
   <a href="#jobs">Jobs</a>
   <a href="#jobseite">Job-Seite</a>
+  <a href="#pruefen">Karten prüfen</a>
+  <a href="#ergebnis">Schreiben und Ergebnis</a>
   <a href="#fehler">Meldungen und Lösungen</a>
   <a href="#grenzen">Was noch fehlt</a>
 </nav>
@@ -76,7 +78,7 @@ mark { background: var(--mark); color: inherit; }
   <h2>Überblick</h2>
   <p>Anki Studio ist die Web-Oberfläche für den Anki Flashcard Generator. Du lädst Dokumente hoch, wählst die Optionen und lässt eine KI daraus Karteikarten erzeugen. Später landen geprüfte Karten direkt in deiner Anki-Sammlung und damit auf allen Geräten; bis dahin bleiben sie als Datei im Job.</p>
   <p>Anki Studio läuft nur im Heimnetz oder über NetBird, für einen Benutzer, und verlangt eine Anmeldung. API-Schlüssel stehen nur in der Umgebungsdatei auf dem Server; die Oberfläche zeigt höchstens, ob ein Schlüssel gesetzt ist.</p>
-  <div class="note">Stand dieses Handbuchs: Anmeldung, Generieren und Jobs. Kartenprüfung, Downloads und Sync folgen und werden hier ergänzt, sobald sie nutzbar sind.</div>
+  <div class="note">Stand dieses Handbuchs: Anmeldung, Zugangsdaten, Generieren mit Live-Fortschritt, Kartenprüfung, Schreiben und Downloads. Sync mit der Sammlung und der Konfigurationseditor folgen und werden hier ergänzt, sobald sie nutzbar sind.</div>
 </section>
 
 <section id="anmelden">
@@ -193,6 +195,30 @@ mark { background: var(--mark); color: inherit; }
   <p><strong>Abbrechen</strong> beendet einen wartenden Job sofort. Ein laufender Job hält nach dem aktuellen Abschnitt an; eine Anfrage, die gerade beim Provider läuft, wird noch zu Ende geführt. Ein abgebrochener Job schreibt keine Karten.</p>
 </section>
 
+<section id="pruefen">
+  <h2>Karten prüfen</h2>
+  <p>Ist ein Job <strong>fertig</strong>, erscheinen unter dem Verlauf seine Karten. Jede Karte zeigt Frage, Antwort, Unterdeck und Tags.</p>
+  <table>
+    <tr><th>Aktion</th><th>Wirkung</th></tr>
+    <tr><td>Schalter „übernehmen“</td><td>Abwählen schließt die Karte vom Schreiben aus; sie bleibt sichtbar und lässt sich wieder anwählen.</td></tr>
+    <tr><td>Bearbeiten</td><td>Frage, Antwort, Unterdeck (eine Ebene, leer für keins) und Tags (durch Leerzeichen getrennt) ändern. <strong>Speichern</strong> prüft die Karte wie der Generator; ist etwas unzulässig, etwa eine leere Frage, steht der Grund unter dem Formular und deine Eingaben bleiben stehen.</td></tr>
+    <tr><td>Löschen</td><td>Entfernt die Karte nach einer Rückfrage endgültig aus dem Ergebnis.</td></tr>
+  </table>
+  <p>Der Zähler „x von y Karten ausgewählt“ zeigt, was geschrieben wird. <strong>Auswahl als Karten-JSON herunterladen</strong> liefert die aktuelle Auswahl schon vor dem Schreiben, etwa zur Weiterverarbeitung mit dem Generator.</p>
+</section>
+
+<section id="ergebnis">
+  <h2>Schreiben und Ergebnis</h2>
+  <p>Im Kasten <strong>Schreiben</strong> steht das Deck, vorbelegt mit dem Deck des Jobs; <code>::</code> trennt Ebenen. <strong>Ausgewählte Karten schreiben</strong> schreibt die Auswahl in eine neue APKG-Datei oder, wenn du beim Generieren eine APKG hochgeladen hast, in diese Datei. Karten, deren Frage im Deck schon vorkommt, werden übersprungen; doppelte Karten der Auswahl werden zusammengefasst.</p>
+  <p>Danach zeigt die Seite das <strong>Ergebnis</strong>: wie viele Karten neu sind, wie viele übersprungen wurden und wie sie sich auf die Unterdecks verteilen. Darunter liegen die Downloads:</p>
+  <ul>
+    <li><strong>APKG herunterladen</strong> – in Anki Desktop über „Datei → Importieren“ einlesen.</li>
+    <li><strong>Karten-JSON</strong> – die geschriebenen Karten im Format des Generators.</li>
+    <li><strong>Aufbereiteter Text</strong> – nur im strukturierten PDF-Modus.</li>
+  </ul>
+  <p>Ein Job wird genau einmal geschrieben; danach lassen sich seine Karten nicht mehr ändern. Für eine weitere Fassung das Dokument erneut generieren.</p>
+</section>
+
 <section id="fehler">
   <h2>Meldungen und Lösungen</h2>
   <table>
@@ -213,7 +239,6 @@ mark { background: var(--mark); color: inherit; }
 <section id="grenzen">
   <h2>Was noch fehlt</h2>
   <ul>
-    <li>Karten prüfen, bearbeiten und abwählen; Download von APKG, Karten-JSON und aufbereitetem Text.</li>
     <li>Sync mit der Anki-Sammlung, Deckauswahl aus der Sammlung, Sync-Status.</li>
     <li>Decks, Export, Konfiguration und Modelle als eigene Seiten.</li>
     <li>Der strukturierte PDF-Modus auf der GPU des Servers (PyTorch und Docling werden noch nicht mitinstalliert).</li>

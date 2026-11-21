@@ -43,6 +43,7 @@
 </article>
 <div sse-swap="done"></div>
 </div>
+{% if result %}{% include "_result_block.html" %}{% elif review %}{% include "_review_block.html" %}{% endif %}
 </div>
 <p><a href="{{ url_for('job_list') }}">Alle Jobs</a></p>
 {% endblock %}
