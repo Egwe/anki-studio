@@ -155,9 +155,9 @@ Medien-Sync (`sync_media`) erst, wenn Karten Bilder oder Audio enthalten (R-205 
 Ein Passwort; nur sein Hash steht in der Umgebungsdatei. Session-Cookie `HttpOnly`, `SameSite=Strict`. Prüfung des `Host`-Headers gegen eine Liste erlaubter Namen.
 *Umsetzung:* scrypt-Hash aus der Standardbibliothek in `ANKI_STUDIO_PASSWORD_HASH`, erzeugt mit `anki-studio hash-password`; signiertes Session-Cookie `anki_studio_session` (`HttpOnly`, `SameSite=Strict`, 14 Tage); alle Seiten außer Anmeldung, `/healthz` und statischen Dateien verlangen die Anmeldung; `allowed_hosts` in `studio.yaml`, fremde Hosts erhalten 400. Belegt durch `tests/test_auth.py`, `tests/test_hosts.py`, `tests/test_passwords.py` und einen Browser-Test (hell, dunkel, schmal).
 
-**AS-031 – Secrets · muss · teilweise**
+**AS-031 – Secrets · muss · umgesetzt**
 Login-Hash, Session-Schlüssel, Schlüssel der Verschlüsselung und Sync-Zugangsdaten nur in der Umgebungsdatei. API-Schlüssel der Provider in der Umgebungsdatei oder, über die Oberfläche eingegeben, verschlüsselt im Datenordner (AS-035; Änderung vom 21.11.2026, ursprünglich nur Umgebungsdatei). Die YAML enthält wie im Generator nur Variablennamen (`api_key_env`). Keine Secrets in Logs, Job-Dateien, Fehlermeldungen oder der Oberfläche.
-*Umgesetzt:* Login-Hash, Session-, Verschlüsselungs- und Sync-Zugangsdaten kommen nur aus der Umgebung; Fehlermeldungen nennen die Variable, nie den Wert; `repr` blendet die Werte aus (`tests/test_credentials.py`); API-Schlüssel nach AS-035. *Offen:* keine weiteren Secrets im aktuellen Umfang.
+*Umsetzung:* Login-Hash, Session-, Verschlüsselungs- und Sync-Zugangsdaten kommen nur aus der Umgebung; Fehlermeldungen nennen die Variable, nie den Wert; `repr` blendet die Werte aus (`tests/test_credentials.py`); API-Schlüssel nach AS-035.
 
 **AS-032 – Jobs · muss · umgesetzt**
 Ein Job läuft zur Zeit (eine GPU, ein Benutzer); weitere warten in einer Warteschlange. Jeder Job hat einen Ordner mit Upload, Ereignisprotokoll, Karten-JSON und Ergebnis. Nach einem Neustart sind abgeschlossene Jobs weiter sichtbar; laufende gelten als abgebrochen. Alte Jobs werden nach einer einstellbaren Frist gelöscht.
