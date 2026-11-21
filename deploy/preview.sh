@@ -32,6 +32,15 @@ require_root() {
   fi
 }
 
+refuse_after_installation() {
+  # deploy/install.sh takes over the preview's data; afterwards a preview on
+  # the same port and folders would compete with the regular service.
+  if [[ -e /etc/systemd/system/anki-studio.service ]]; then
+    echo "Reguläre Installation vorhanden; Updates mit deploy/update.sh." >&2
+    exit 1
+  fi
+}
+
 ensure_git() {
   command -v git >/dev/null && return
   log "git installieren"
@@ -183,6 +192,7 @@ restart_and_check() {
 
 main() {
   require_root
+  refuse_after_installation
   ensure_git
   ensure_uv
   update_checkout

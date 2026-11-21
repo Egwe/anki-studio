@@ -7,6 +7,10 @@
 # Existing /etc/anki-studio/env, /etc/anki-studio/studio.yaml, and
 # /var/lib/anki-studio are deliberately preserved. This script never copies
 # development files or edits an existing user configuration.
+#
+# A running preview (deploy/preview.sh) is taken over: its service is stopped
+# and removed, and its data (login, generator YAML, stored API keys, models,
+# jobs) moves from systemd's DynamicUser folder to /var/lib/anki-studio.
 set -euo pipefail
 
 readonly REPO_URL="https://github.com/Egwe/anki-studio.git"
@@ -18,6 +22,8 @@ readonly UV_CACHE="/var/cache/anki-studio/uv"
 readonly USER="anki-studio"
 readonly GROUP="anki-studio"
 readonly UNIT="anki-studio"
+readonly PREVIEW_UNIT="anki-studio-preview"
+readonly PREVIEW_DATA_DIR="/var/lib/private/anki-studio"
 readonly PORT="8000"
 readonly UV_VERSION="0.13.7"
 
@@ -82,6 +88,27 @@ install_dependencies() {
   log "Abhängigkeiten aus uv.lock installieren"
   install -d -o "$USER" -g "$GROUP" -m 0750 "$UV_CACHE"
   (cd "$APP_DIR" && UV_CACHE_DIR="$UV_CACHE" uv sync --quiet --locked --no-dev --extra pdf)
+}
+
+retire_preview() {
+  local unit_file="/etc/systemd/system/$PREVIEW_UNIT.service"
+  if [[ -e "$unit_file" ]]; then
+    log "Vorschau-Dienst $PREVIEW_UNIT stoppen und entfernen"
+    systemctl disable --now --quiet "$PREVIEW_UNIT"
+    rm -f "$unit_file"
+    systemctl daemon-reload
+  fi
+  [[ -L "$DATA_DIR" ]] || return 0
+  # DynamicUser keeps the state in /var/lib/private (0700, root) and links it
+  # to /var/lib/anki-studio; the fixed service user cannot pass through that.
+  if [[ "$(readlink -f "$DATA_DIR")" != "$PREVIEW_DATA_DIR" ]]; then
+    echo "$DATA_DIR ist ein unerwarteter Link; Installation abgebrochen." >&2
+    exit 1
+  fi
+  log "Daten der Vorschau nach $DATA_DIR übernehmen"
+  rm "$DATA_DIR"
+  mv "$PREVIEW_DATA_DIR" "$DATA_DIR"
+  chown -R "$USER:$GROUP" "$DATA_DIR"
 }
 
 host_list() {
@@ -180,8 +207,9 @@ main() {
   ensure_uv
   ensure_service_user
   update_checkout
-  ensure_directories
   install_dependencies
+  retire_preview
+  ensure_directories
   install_unit
   restart_and_check
 }
