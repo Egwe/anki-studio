@@ -13,6 +13,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from anki_studio.auth import SESSION_COOKIE, SESSION_MAX_AGE, LoginRequiredMiddleware
 from anki_studio.card_export import EXPORT_KIND, ExportRunner
+from anki_studio.collection_worker import CollectionWorker
 from anki_studio.credentials import SESSION_SECRET_ENV, Credentials, load_credentials
 from anki_studio.decks import DECKS_KIND, DecksRunner
 from anki_studio.generation import GENERATE_KIND, GenerationRunner, KindRunner
@@ -35,8 +36,10 @@ from anki_studio.routes import (
     review,
     structured,
 )
+from anki_studio.routes import sync as sync_routes
 from anki_studio.secret_store import STORE_FILE, SecretStore, SecretStoreError
 from anki_studio.settings import StudioSettings
+from anki_studio.sync import SYNC_KIND, SyncRunner, SyncService, SyncStateStore, collection_paths
 from anki_studio.templating import STATIC_DIR, create_templates
 from anki_studio.worker import JobWorker
 
@@ -61,22 +64,32 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     _ensure_generator_config(settings)
     _open_secret_store(app)
     store = JobStore(settings.data_dir / "jobs")
+    collection_path, state_path = collection_paths(settings.data_dir)
+    collection_worker = CollectionWorker(collection_path)
+    collection_worker.start()
+    sync_service = SyncService(
+        settings, app.state.credentials, collection_worker, SyncStateStore(state_path)
+    )
     runner = KindRunner(
         {
             GENERATE_KIND: GenerationRunner(store, settings.generator_path),
             MODELS_KIND: ModelsRunner(settings.generator_path),
             DECKS_KIND: DecksRunner(store),
             EXPORT_KIND: ExportRunner(store, settings.generator_path),
+            SYNC_KIND: SyncRunner(sync_service),
         }
     )
     worker = JobWorker(store, runner, timedelta(days=settings.job_retention_days))
     worker.start()
     app.state.jobs = store
     app.state.worker = worker
+    app.state.collection_worker = collection_worker
+    app.state.sync_service = sync_service
     try:
         yield
     finally:
         worker.stop()
+        collection_worker.stop()
 
 
 def _ensure_generator_config(settings: StudioSettings) -> None:
@@ -142,7 +155,7 @@ def create_app(
         A configured application; ``app.state`` holds ``settings``,
         ``credentials``, ``templates``, and ``http_transport`` (None for the
         network; tests set a mock), and while running ``jobs``, ``worker``,
-        and ``secrets``.
+        ``collection_worker``, ``sync_service``, and ``secrets``.
 
     Raises:
         CredentialsError: If ``credentials`` is None and the environment
@@ -175,6 +188,7 @@ def create_app(
         structured,
         decks,
         export,
+        sync_routes,
     ):
         app.include_router(module.router)
     app.add_middleware(LoginRequiredMiddleware)

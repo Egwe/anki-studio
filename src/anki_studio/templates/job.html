@@ -50,6 +50,8 @@
 <article class="success"><strong>Deckbaum bereit.</strong> <a href="{{ url_for('deck_result', job_id=job.id) }}">Decks ansehen</a></article>
 {% elif job.status.value == "done" and job.options.get("kind") == "export" %}
 <article class="success"><strong>APKG bereit.</strong> <a href="{{ url_for('export_download', job_id=job.id) }}">APKG herunterladen</a></article>
+{% elif job.status.value == "done" and job.options.get("kind") == "sync" %}
+<article class="success"><strong>Synchronisierung abgeschlossen.</strong> <a href="{{ url_for('sync_page') }}">Sync-Status ansehen</a></article>
 {% endif %}
 </div>
 <p><a href="{{ url_for('job_list') }}">Alle Jobs</a></p>
