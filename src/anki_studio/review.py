@@ -37,6 +37,14 @@ class ReviewError(ValueError):
     """Report a refused review change in words for the user."""
 
 
+class UnknownCardError(ReviewError):
+    """Report a card identifier that the review does not contain."""
+
+
+class AlreadyWrittenError(ReviewError):
+    """Report a change after the cards were written."""
+
+
 @dataclass(frozen=True)
 class ReviewCard:
     """One card under review.
@@ -164,7 +172,7 @@ def delete_card(store: JobStore, job: Job, card_id: str) -> None:
         review = _load(folder)
         remaining = [entry for entry in review.cards if entry.id != card_id]
         if len(remaining) == len(review.cards):
-            raise ReviewError("Diese Karte gibt es nicht.")
+            raise UnknownCardError("Diese Karte gibt es nicht.")
         _save(folder, Review(review.deck, remaining))
 
 
@@ -265,7 +273,7 @@ def _change(
         cards = list(review.cards)
         index = next((i for i, entry in enumerate(cards) if entry.id == card_id), None)
         if index is None:
-            raise ReviewError("Diese Karte gibt es nicht.")
+            raise UnknownCardError("Diese Karte gibt es nicht.")
         cards[index] = change(cards[index])
         _save(folder, Review(review.deck, cards))
         return cards[index]
@@ -365,7 +373,7 @@ def _refuse_written(folder: Path) -> None:
         ReviewError: If ``result.json`` exists.
     """
     if (folder / RESULT_FILE).exists():
-        raise ReviewError("Die Karten wurden bereits geschrieben.")
+        raise AlreadyWrittenError("Die Karten wurden bereits geschrieben.")
 
 
 def _load(folder: Path) -> Review:

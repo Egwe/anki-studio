@@ -1,0 +1,3 @@
+{% from "_review.html" import review_card, review_card_edit, review_count with context %}
+{% if mode == "view" %}{{ review_card(job, entry) }}{% elif mode == "edit" %}{{ review_card_edit(job, entry, values, error) }}{% endif %}
+{% if count %}{{ review_count(review, oob=True) }}{% endif %}

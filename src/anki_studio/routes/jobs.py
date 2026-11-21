@@ -8,7 +8,9 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
-from anki_studio.jobs import Job
+from anki_studio.generation import SOURCE_TEXT_FILE
+from anki_studio.jobs import Job, JobStatus
+from anki_studio.review import has_cards, load_result, load_review
 from anki_studio.sse import KEEPALIVE, sse_message
 
 POLL_SECONDS = 0.5
@@ -50,16 +52,39 @@ def job_page(request: Request, job_id: str) -> HTMLResponse:
         HTTPException: 404 if the job does not exist.
     """
     job = _job_or_404(request, job_id)
-    events = request.app.state.jobs.read_events(job.id)
+    return request.app.state.templates.TemplateResponse(
+        request, "job.html", job_context(request, job)
+    )
+
+
+def job_context(request: Request, job: Job) -> dict[str, Any]:
+    """Collect what the job page shows.
+
+    Args:
+        request: Incoming request.
+        job: Job to show.
+
+    Returns:
+        Job, form values, target, events, the current progress, and for
+        finished jobs with cards the review, the written result, and
+        whether a source text exists.
+    """
+    store = request.app.state.jobs
+    events = store.read_events(job.id)
     progress = [event for event in events if event.get("type") == "stage_progress"]
-    context = {
+    reviewable = job.status is JobStatus.DONE and has_cards(store, job)
+    return {
         "job": job,
         "form": job.options.get("form", {}),
         "target_file": job.options.get("target_file"),
         "events": events,
         "progress": progress[-1] if progress and not job.status.finished else None,
+        "review": load_review(store, job) if reviewable else None,
+        "result": load_result(store, job) if reviewable else None,
+        "has_source": (store.job_dir(job.id) / SOURCE_TEXT_FILE).exists(),
+        "write_error": None,
+        "deck_value": None,
     }
-    return request.app.state.templates.TemplateResponse(request, "job.html", context)
 
 
 @router.get("/jobs/{job_id}/events")
