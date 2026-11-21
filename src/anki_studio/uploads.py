@@ -46,6 +46,7 @@ class UploadKind:
 
 DOCUMENT = UploadKind(frozenset(SUPPORTED_SUFFIXES), MAX_FILE_SIZE)
 APKG = UploadKind(frozenset({".apkg"}), 512 * 2**20)
+CARD_JSON = UploadKind(frozenset({".json"}), MAX_FILE_SIZE)
 
 
 def clean_filename(raw: str | None) -> str:

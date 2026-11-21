@@ -46,6 +46,11 @@
 <div sse-swap="done"></div>
 </div>
 {% if result %}{% include "_result_block.html" %}{% elif review %}{% include "_review_block.html" %}{% endif %}
+{% if job.status.value == "done" and job.options.get("kind") == "decks" %}
+<article class="success"><strong>Deckbaum bereit.</strong> <a href="{{ url_for('deck_result', job_id=job.id) }}">Decks ansehen</a></article>
+{% elif job.status.value == "done" and job.options.get("kind") == "export" %}
+<article class="success"><strong>APKG bereit.</strong> <a href="{{ url_for('export_download', job_id=job.id) }}">APKG herunterladen</a></article>
+{% endif %}
 </div>
 <p><a href="{{ url_for('job_list') }}">Alle Jobs</a></p>
 {% endblock %}

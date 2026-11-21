@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Deckbaum – Anki Studio{% endblock %}
+{% block content %}
+<hgroup>
+  <h1>Deckbaum</h1>
+  <p>{{ job.source_name }} · direkte Kartenanzahl je Deck</p>
+</hgroup>
+<article>
+  {% if decks %}
+  <ul class="deck-tree">
+    {% for deck in decks recursive %}
+    <li><strong>{{ deck.name }}</strong> <span class="nowrap">· {{ deck.cards }} Karten</span>
+      {% if deck.children %}<ul>{{ loop(deck.children) }}</ul>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p>Die APKG enthält keine normalen Decks.</p>{% endif %}
+</article>
+<p><a href="{{ url_for('decks_page') }}">Andere APKG prüfen</a> · <a href="{{ url_for('job_page', job_id=job.id) }}">Zum Job</a></p>
+{% endblock %}

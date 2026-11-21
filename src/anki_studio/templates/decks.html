@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Decks ansehen – Anki Studio{% endblock %}
+{% block content %}
+<hgroup>
+  <h1>Decks ansehen</h1>
+  <p>Lies Decks und direkte Kartenanzahlen aus einer hochgeladenen APKG-Datei. Das Paket wird nicht verändert.</p>
+</hgroup>
+{% if error %}<article class="alert">{{ error }}</article>{% endif %}
+<article>
+  <form method="post" action="{{ url_for('decks_submit') }}" enctype="multipart/form-data">
+    <label for="package">APKG-Datei
+      <input id="package" type="file" name="package" accept=".apkg" required>
+    </label>
+    <small>Höchstens {{ max_size }}. Das Lesen läuft als Job; eine APKG bleibt unverändert.</small>
+    <footer><button type="submit">Deckbaum lesen</button></footer>
+  </form>
+</article>
+{% endblock %}

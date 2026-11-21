@@ -63,6 +63,8 @@ mark { background: var(--mark); color: inherit; }
   <a href="#gpu">Modelle und GPU</a>
   <a href="#generieren">Karten generieren</a>
   <a href="#ziel">Ziel und Deck</a>
+  <a href="#decks">Decks ansehen</a>
+  <a href="#export">Karten-JSON exportieren</a>
   <a href="#modell">Modell</a>
   <a href="#karten">Karten-Optionen</a>
   <a href="#pdf">PDF-Verarbeitung</a>
@@ -79,8 +81,8 @@ mark { background: var(--mark); color: inherit; }
 <section id="ueberblick">
   <h2>Überblick</h2>
   <p>Anki Studio ist die Web-Oberfläche für den Anki Flashcard Generator. Du lädst Dokumente hoch, wählst die Optionen und lässt eine KI daraus Karteikarten erzeugen. Später landen geprüfte Karten direkt in deiner Anki-Sammlung und damit auf allen Geräten; bis dahin bleiben sie als Datei im Job.</p>
-  <p>Anki Studio läuft nur im Heimnetz oder über NetBird, für einen Benutzer, und verlangt eine Anmeldung. API-Schlüssel stehen nur in der Umgebungsdatei auf dem Server; die Oberfläche zeigt höchstens, ob ein Schlüssel gesetzt ist.</p>
-  <div class="note">Stand dieses Handbuchs: Anmeldung, Zugangsdaten, Generieren mit Live-Fortschritt, Kartenprüfung, Schreiben und Downloads. Konfiguration. Sync mit der Sammlung folgt und wird hier ergänzt, sobald er nutzbar ist.</div>
+  <p>Anki Studio läuft nur im Heimnetz oder über NetBird, für einen Benutzer, und verlangt eine Anmeldung. API-Schlüssel lassen sich unter <strong>Einstellungen → Zugangsdaten</strong> verschlüsselt auf dem Server speichern; die Oberfläche zeigt sie anschließend nur noch als Status, nie als Wert. Schlüssel aus der Umgebungsdatei haben Vorrang.</p>
+  <div class="note">Stand dieses Handbuchs: Anmeldung, Zugangsdaten, Konfiguration, Generieren mit Live-Fortschritt, Kartenprüfung, Schreiben, Downloads sowie Deckbaum aus APKG und Karten-JSON-Export. Sync mit der Sammlung folgt und wird hier ergänzt, sobald er nutzbar ist.</div>
 </section>
 
 <section id="anmelden">
@@ -98,7 +100,7 @@ mark { background: var(--mark); color: inherit; }
 
 <section id="startseite">
   <h2>Startseite</h2>
-  <p>Die Startseite führt zu <strong>Karten generieren</strong> und zu den <strong>Jobs</strong> und zeigt die installierten Versionen von Anki Studio, Generator und Anki. Die Anki-Version muss zu der des Sync-Servers passen. Die Navigation oben bietet dieselben Ziele auf jeder Seite.</p>
+  <p>Die Startseite führt zu <strong>Karten generieren</strong> und zu den <strong>Jobs</strong> und zeigt die installierten Versionen von Anki Studio, Generator und Anki. Die Anki-Version muss zu der des Sync-Servers passen. Die Navigation oben führt zusätzlich zu <strong>Decks</strong> und <strong>Export</strong>.</p>
 </section>
 
 <section id="konfiguration">
@@ -162,6 +164,18 @@ mark { background: var(--mark); color: inherit; }
   <p>Die Sammlung als Ziel (Karten direkt auf alle Geräte) folgt mit dem Sync.</p>
 </section>
 
+<section id="decks">
+  <h2>Decks ansehen</h2>
+  <p>Unter <strong>Decks</strong> lädst du eine APKG-Datei bis 512 MiB hoch. Anki Studio liest daraus die Deckhierarchie und die Anzahl der Karten, die jeweils direkt in einem Deck liegen. Unterdecks werden eingerückt angezeigt.</p>
+  <p><strong>Deckbaum lesen</strong> startet einen Job. Nach dessen Abschluss führt ein Link auf der Job-Seite zum Ergebnis. Die hochgeladene APKG wird dabei nicht verändert. Der Deckbaum deiner synchronisierten Sammlung erscheint erst, wenn der Sync verfügbar ist.</p>
+</section>
+
+<section id="export">
+  <h2>Karten-JSON exportieren</h2>
+  <p>Unter <strong>Export</strong> lädst du eine versionierte Karten-JSON (Version 1) aus Anki Studio oder dem Generator hoch, höchstens 100 MiB. Gib ein Ziel-Deck an; <code>::</code> trennt Ebenen. Bleibt das Feld leer, gilt das Standard-Deck der Generator-Konfiguration.</p>
+  <p><strong>APKG erzeugen</strong> startet einen Job. Der Generator prüft die Karten und erzeugt danach eine neue APKG-Datei zum Herunterladen. Bestehende APKG-Dateien und die Anki-Sammlung bleiben unverändert.</p>
+</section>
+
 <section id="modell">
   <h2>Modell</h2>
   <p><strong>Profil:</strong> wählt ein Modellprofil aus der Generator-Konfiguration. Sie enthält immer ein Profil für jeden unterstützten Provider: Ollama (Text und Bild), OpenAI (auch native PDF), Anthropic, Gemini, Mistral, DeepSeek, OpenRouter, Groq, xAI, Moonshot und einen eigenen OpenAI-kompatiblen Server. Die Liste zeigt je Profil Modell und PDF-Modus und den Hinweis „Schlüssel fehlt“, solange für den Provider kein API-Schlüssel hinterlegt ist. „Standard“ nimmt das Standardprofil der Konfiguration.</p>
@@ -206,12 +220,12 @@ mark { background: var(--mark); color: inherit; }
 
 <section id="jobs">
   <h2>Jobs</h2>
-  <p>Die Seite <strong>Jobs</strong> listet alle Jobs, die neuesten oben, mit Dokument, Status, Zeit und Hinweis. Es läuft immer nur ein Job; weitere warten in der Reihenfolge, in der du sie abgeschickt hast.</p>
+  <p>Die Seite <strong>Jobs</strong> listet alle Jobs, die neuesten oben, mit Datei, Status, Zeit und Hinweis. Es läuft immer nur ein Job; weitere warten in der Reihenfolge, in der du sie abgeschickt hast.</p>
   <table>
     <tr><th>Status</th><th>Bedeutung</th></tr>
     <tr><td>wartet</td><td>Der Job steht in der Warteschlange.</td></tr>
-    <tr><td>läuft</td><td>Das Dokument wird gelesen oder aufbereitet, die KI erzeugt Karten.</td></tr>
-    <tr><td>fertig</td><td>Die Karten sind erzeugt und im Job gespeichert.</td></tr>
+    <tr><td>läuft</td><td>Das Dokument wird gelesen oder aufbereitet, die KI erzeugt Karten, eine APKG wird gelesen oder Karten-JSON wird exportiert.</td></tr>
+    <tr><td>fertig</td><td>Das jeweilige Ergebnis ist im Job gespeichert und kann über dessen Seite geöffnet oder heruntergeladen werden.</td></tr>
     <tr><td>fehlgeschlagen</td><td>Der Hinweis nennt den Grund, etwa einen nicht erreichbaren Provider.</td></tr>
     <tr><td>abgebrochen</td><td>Von dir abgebrochen oder durch einen Neustart von Anki Studio beendet.</td></tr>
   </table>
@@ -269,7 +283,7 @@ mark { background: var(--mark); color: inherit; }
   <h2>Was noch fehlt</h2>
   <ul>
     <li>Sync mit der Anki-Sammlung, Deckauswahl aus der Sammlung, Sync-Status.</li>
-    <li>Decks, Export und Modelle als eigene Seiten.</li>
+    <li>Deckbaum der synchronisierten Sammlung und Export direkt in diese Sammlung.</li>
   </ul>
 </section>
 

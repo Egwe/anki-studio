@@ -23,7 +23,14 @@ from typing import Any, BinaryIO
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from anki_studio.uploads import UploadError, UploadKind, check_upload, clean_filename, store_upload
+from anki_studio.uploads import (
+    DOCUMENT,
+    UploadError,
+    UploadKind,
+    check_upload,
+    clean_filename,
+    store_upload,
+)
 
 JOB_ID = re.compile(r"[0-9a-f]{32}")
 JOB_FILE = "job.json"
@@ -127,6 +134,7 @@ class JobStore:
         filename: str | None,
         size: int | None,
         options: dict[str, Any] | None = None,
+        upload_kind: UploadKind = DOCUMENT,
     ) -> Job:
         """Store an upload in a new job folder and queue the job.
 
@@ -138,6 +146,8 @@ class JobStore:
             filename: File name sent by the browser.
             size: Reported size in bytes, or None.
             options: JSON-safe options of the job.
+            upload_kind: Accepted type and size limit of the source upload.
+                Documents use the generator's defaults.
 
         Returns:
             The new job with status ``queued``.
@@ -147,12 +157,12 @@ class JobStore:
             OSError: If the folder or file cannot be written.
         """
         name = clean_filename(filename)
-        check_upload(name, size)
+        check_upload(name, size, upload_kind)
         job_id = secrets.token_hex(16)
         folder = self.job_dir(job_id)
         (folder / UPLOAD_DIR).mkdir(parents=True)
         try:
-            store_upload(source, name, folder / UPLOAD_DIR, size)
+            store_upload(source, name, folder / UPLOAD_DIR, size, upload_kind)
         except (UploadError, OSError):
             shutil.rmtree(folder, ignore_errors=True)
             raise

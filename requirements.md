@@ -52,7 +52,7 @@ Mehrere Dateien hochladen (PDF, DOCX, HTML, Markdown, Text; je höchstens 100 Mi
 
 **AS-002 – Ziel wählen · muss · teilweise**
 Ziel ist entweder ein Deck der synchronisierten Sammlung (Auswahl aus vorhandenen Decks oder neuer Name, `::` für Unterdecks), eine neue APKG-Datei zum Download oder eine hochgeladene APKG zum Erweitern.
-*Umgesetzt:* neue APKG oder hochgeladene APKG (höchstens 512 MiB, nur mit einem Dokument) als Ziel des Jobs; Unterdeck-Kontext aus der APKG. *Offen:* Schreiben und Download nach der Prüfung (AS-005/AS-006), Sammlung als Ziel (Phase 3).
+*Umgesetzt:* neue APKG oder hochgeladene APKG (höchstens 512 MiB, nur mit einem Dokument) als Ziel des Jobs; Unterdeck-Kontext aus der APKG; Schreiben und Download nach der Prüfung (AS-005/AS-006). *Offen:* Sammlung als Ziel (Phase 3).
 
 **AS-003 – Datenübertragung bestätigen · muss · umgesetzt**
 Bei `pdf_mode: native` und beim Bild-Backend `profile` muss der Benutzer vor dem Start ausdrücklich bestätigen, dass das Dokument beziehungsweise Bildausschnitte an den Provider gehen. Ohne Bestätigung startet der Job nicht. Während des Laufs kommen dieselben Ankündigungen als `Notice` mit `level == "transfer"` und werden hervorgehoben.
@@ -70,19 +70,22 @@ Nach der Generierung erscheinen die Karten in einer Tabelle: Frage, Antwort, Unt
 Nach dem Schreiben: hinzugefügte und übersprungene Karten, Aufteilung nach Unterdecks, Sync-Ergebnis. Downloads: APKG, Karten-JSON, aufbereiteter Text (falls erzeugt).
 *Umgesetzt:* hinzugefügte und übersprungene Karten, Aufteilung nach Unterdecks, Downloads von APKG, Karten-JSON und aufbereitetem Text. *Offen:* Sync-Ergebnis (Phase 3).
 
-**AS-007 – Decks · muss · offen**
+**AS-007 – Decks · muss · teilweise**
 Deckbaum der synchronisierten Sammlung mit Kartenanzahl. Ebenso für eine hochgeladene APKG (entspricht `anki-flashcards decks`).
+*Umgesetzt:* `/decks` nimmt eine APKG bis 512 MiB als Job entgegen, liest sie ausschließlich mit `inspect_apkg` des Generators und zeigt danach Deckhierarchie und direkte Kartenanzahlen. Das Paket bleibt unverändert (`decks.py`, `routes/decks.py`, `tests/test_decks_export.py`). *Offen:* Deckbaum der synchronisierten Sammlung (Phase 3).
 
-**AS-008 – Export · muss · offen**
+**AS-008 – Export · muss · teilweise**
 Karten-JSON hochladen und als APKG ausgeben oder in die Sammlung schreiben (entspricht `anki-flashcards export`).
+*Umgesetzt:* `/export` nimmt versionierte Karten-JSON bis 100 MiB entgegen, prüft sie über `resolve_export_settings` und `run_export` des Generators und erzeugt als Job eine neue APKG zum Download. Deckname oder YAML-Standard werden dabei verwendet (`card_export.py`, `routes/export.py`, `tests/test_decks_export.py`). *Offen:* Schreiben in die synchronisierte Sammlung (Phase 3).
 
 **AS-009 – Konfiguration · muss · umgesetzt**
 Wirksame Werte mit Herkunft anzeigen (entspricht `config show`). Profile und Standardwerte der YAML bearbeiten, validiert über das Schema des Generators und atomar gespeichert. API-Schlüssel erscheinen nur als „gesetzt“ oder „fehlt“.
 *Ergänzung 21.11.2026:* Die Generator-YAML liegt im Datenordner, damit Anki Studio sie schreiben darf (AS-015); ihre Bearbeitung über die Oberfläche ersetzt das Bearbeiten im Container (AS-016).
 *Umsetzung:* Seite „Einstellungen → Konfiguration“ mit wirksamen Werten und Herkunft (`configuration_diagnostics`), Profil-Editor mit Modellliste, Standardwerten, YAML-Download und geprüftem Upload; Änderungen über `config_editor.py` mit `AppConfig` und `save_config` des Generators (`tests/test_config_editor.py`, `tests/test_web_config.py`, Chrome-Test).
 
-**AS-010 – Modelle · muss · offen**
+**AS-010 – Modelle · muss · umgesetzt**
 Docling- und Bildmodelle herunterladen (entspricht `models download`), mit Fortschritt; anzeigen, ob eine GPU erkannt wird.
+*Umsetzung:* „Einstellungen → Modelle und GPU“ liest die wirksame Generator-Konfiguration und zeigt Docling, nutzbaren Beschleuniger beziehungsweise ein CUDA-Architekturproblem, Formel-Batch-Größe, Modellordner und benötigte Komponenten mit ihrem Manifest-Status. „Fehlende Modelle herunterladen“ legt eine aufgabenartige Job-Art `models` an; `ModelsRunner` ruft `prepare_models` des Generators auf und reicht seine Hinweise über die vorhandene SSE-Job-Seite weiter. Belegt durch `tests/test_structured.py`; die reguläre Suite lädt weder Modelle noch PyTorch oder Netzwerkdaten.
 
 **AS-011 – Sync-Status · muss · offen**
 Seite mit Endpunkt, angemeldetem Benutzer, Zeitpunkt und Ergebnis des letzten Syncs, Knopf „Jetzt synchronisieren“.
@@ -170,7 +173,7 @@ API-Schlüssel der Provider lassen sich in der Oberfläche setzen, ersetzen und 
 
 **AS-034 – Tests · muss · teilweise**
 Reguläre Tests laufen ohne Netzwerk, ohne echten Sync-Server, ohne API-Schlüssel und ohne GPU. KI-Aufrufe werden wie im Generator simuliert (Patch-Ziel `anki_flashcards.pipeline.generate_cards` usw. oder `report`/`cancel`-Argumente). Für Sync-Tests eignet sich ein lokal gestarteter `python -m anki.syncserver` mit Testbenutzer auf `127.0.0.1` (Prototyp in Abschnitt 7.1 der Übergabe).
-*Umgesetzt:* Testgerüst mit pytest und FastAPI-`TestClient`, ohne Netzwerk, GPU, Schlüssel und Sync-Server. *Offen:* simulierte KI-Läufe und Sync-Tests mit den jeweiligen Funktionen.
+*Umgesetzt:* Testgerüst mit pytest und FastAPI-`TestClient`, ohne Netzwerk, GPU, Schlüssel und Sync-Server; simulierte KI-Läufe über gepatchte `pipeline.generate_cards` beziehungsweise `pipeline.generate_native_cards` in `tests/test_generation.py`, `tests/test_web_generate.py` und `tests/test_live.py`. *Offen:* Sync-Tests mit lokalem Sync-Server und Testbenutzer, sobald der Sync-Client umgesetzt wird.
 
 ### 4.4 Deployment (R-201 des Generators)
 
@@ -178,9 +181,9 @@ Reguläre Tests laufen ohne Netzwerk, ohne echten Sync-Server, ohne API-Schlüss
 Im LXC „anki-studio“: eigener Systembenutzer statt root; Programm mit uv in `/opt/anki-studio`; Daten in `/var/lib/anki-studio`; Konfiguration `/etc/anki-studio/config.yaml` (Generator-YAML) und `/etc/anki-studio/studio.yaml` (Endpunkt, Datenpfade, Port); Secrets in `/etc/anki-studio/env` (0600) als `EnvironmentFile`; systemd-Unit mit uvicorn. Ein Installations- und Update-Skript im Repo (`deploy/`).
 *Änderung 21.11.2026:* Die Generator-YAML liegt im Datenordner (`/var/lib/anki-studio/generator.yaml`), weil sie über die Oberfläche bearbeitet wird (AS-015, AS-016); `/etc/anki-studio` enthält nur `studio.yaml` und `env`.
 
-**AS-041 – GPU · soll · offen**
+**AS-041 – GPU · soll · teilweise**
 Strukturierter Modus mit der durchgereichten GPU, sofern der GPU-Test (Abschnitt 5.3) sie als nutzbar bestätigt. Sonst dokumentieren, welche Ausweichwege gelten.
-*Stand:* Der GPU-Test bestätigt die K1200 mit PyTorch `cu126` als nutzbar; Formeln brauchen eine kleinere Batch-Größe (Abschnitt 5.3). *Offen:* Installation des Extras `pdf` mit PyTorch aus dem `cu126`-Index in Anki Studio.
+*Umgesetzt:* Das optionale Extra `pdf` installiert Docling über den Generator und PyTorch `2.14.1`/Torchvision `0.29.1` aus dem expliziten `cu126`-Index; `deploy/preview.sh` installiert dieses Extra. Die Oberfläche zeigt die GPU-Prüfung des Generators und erklärt einen Build ohne passende CUDA-Architektur. Der GPU-Test bestätigt die K1200 mit `cu126` als nutzbar; für Formeln ist `pdf_conversion.formula_batch_size: 1` nötig (Abschnitt 5.3). *Offen:* Der aktualisierte Vorschau-Stand muss noch im Container installiert und ein echter strukturierter Lauf einschließlich Modell-Download über die Oberfläche belegt werden.
 
 **AS-042 – Backup · soll · offen**
 vzdump beider Container. Maßgeblich sind die Daten des Sync-Servers; die Sammlung von Anki Studio ist eine Kopie und lässt sich neu herunterladen.
@@ -246,7 +249,7 @@ Lauf 2 überschnitt sich 14 Sekunden mit der ersten Vorschau-Installation; das �
 **Bewertung**
 
 - Die K1200 ist für den strukturierten Modus nutzbar. Zu verwenden ist PyTorch aus dem `cu126`-Index; `cu128` und `cu130` scheiden aus (Abschnitt 5.2).
-- Formeln scheitern mit der festen Batch-Größe 5 des Docling-Formelmodells am VRAM. Der Generator 0.2.0 bietet dafür keine Einstellung, und Anki Studio darf Docling oder den Generator nicht selbst patchen (AGENTS.md Abschnitt 5). Lösung wäre eine Option im Generator, etwa eine Batch-Größe für das Formelmodell; das ist ein eigenes Paket im Generator-Repo nach Absprache. Bis dahin sind Formeln auf der K1200 nur mit `formulas: false` verlässlich; mit `formulas: true` bricht der Generator korrekt mit einer Liste unlesbarer Formeln ab.
+- Beim Messstand Generator 0.2.0 scheiterte die feste Batch-Größe 5 des Docling-Formelmodells am VRAM. Generator 0.2.1 bietet nun `pdf_conversion.formula_batch_size`; für die K1200 ist der Wert 1 belegt und über die Konfigurationsseite einstellbar. Damit funktionieren Formeln, belegen aber bis zu 3,8 GiB VRAM.
 - Mit Formeln ist der VRAM fast voll (3,8 GiB von 4 GiB). Ein zweiter GPU-Prozess hätte keinen Platz; das passt zu einem Job zur Zeit (AS-032).
 - Docling meldete, dass es den Kernel-Cache unter `models/cache/torch/kernels` nicht anlegen konnte. Das schaltet nur diesen Cache ab und hatte keine sichtbare Auswirkung.
 
@@ -298,8 +301,8 @@ Jedes Paket ist ein Branch mit kleinen Commits, wird nach grünen Prüfungen mit
 | P6 | `feature/card-review` | Karten prüfen, bearbeiten, abwählen; APKG schreiben; Downloads | AS-005, AS-006 | erledigt |
 | P7 | `feature/config-editor` | Konfiguration anzeigen (Herkunft) und Profile und Standardwerte bearbeiten | AS-009, AS-016 | erledigt |
 | G1 | Generator-Repo | Generator 0.2.1: `tenacity`, Mehrwort-Tags, Batch-Größe Formeln, genauere GPU-Prüfung; Anki Studio auf `v0.2.1` | – | erledigt (vorgezogen) |
-| P8 | `feature/structured-mode` | Extra `pdf` mit PyTorch `cu126`, Modelle laden, GPU-Anzeige | AS-041, AS-010 | als Nächstes |
-| P9 | `feature/decks-export` | Decks einer APKG, Export Karten-JSON → APKG | AS-007, AS-008 (APKG-Teile) | offen |
+| P8 | `feature/structured-mode` | Extra `pdf` mit PyTorch `cu126`, Modelle laden, GPU-Anzeige | AS-041, AS-010 | teilweise: Code und Tests erledigt; echter Lauf der aktualisierten Vorschau noch offen |
+| P9 | `feature/decks-export` | Decks einer APKG, Export Karten-JSON → APKG | AS-007, AS-008 (APKG-Teile) | **teilweise erledigt**: APKG-Deckbaum und neuer APKG-Export umgesetzt; Sammlungsteile bleiben Phase 3 |
 | Phase 3 | `feature/sync-…` | Sync-Client, Sammlung als Ziel, Sync-Status; braucht einen Testbenutzer des Projektinhabers | AS-020–AS-025, AS-002, AS-006, AS-007, AS-008, AS-011 | offen |
 | Phase 4 | `feature/deploy-…` | Installation und Update nach AS-040, Backup | AS-040, AS-042 | offen |
 
