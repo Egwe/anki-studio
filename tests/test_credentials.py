@@ -6,6 +6,8 @@ from anki_studio.credentials import (
     PASSWORD_HASH_ENV,
     SECRET_KEY_ENV,
     SESSION_SECRET_ENV,
+    SYNC_PASSWORD_ENV,
+    SYNC_USERNAME_ENV,
     CredentialsError,
     load_credentials,
     new_secret_key,
@@ -72,6 +74,21 @@ def test_reads_valid_secret_key() -> None:
 def test_missing_secret_key_is_allowed() -> None:
     """Without the key the app starts; API keys just cannot be stored."""
     assert load_credentials({SESSION_SECRET_ENV: SECRET}).secret_key is None
+
+
+def test_reads_sync_credentials_without_showing_them() -> None:
+    """Sync credentials remain environment-only and excluded from ``repr``."""
+    credentials = load_credentials(
+        {
+            SESSION_SECRET_ENV: SECRET,
+            SYNC_USERNAME_ENV: "studio",
+            SYNC_PASSWORD_ENV: "test-geheim",
+        }
+    )
+
+    assert credentials.sync_username == "studio"
+    assert credentials.sync_password == "test-geheim"
+    assert "test-geheim" not in repr(credentials)
 
 
 def test_invalid_secret_key_is_rejected_without_value() -> None:

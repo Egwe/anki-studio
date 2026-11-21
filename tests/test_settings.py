@@ -88,6 +88,37 @@ def test_relative_data_dir_is_resolved_next_to_file(tmp_path: Path) -> None:
     assert settings.data_dir == tmp_path / "daten" / "studio"
 
 
+def test_sync_endpoint_is_loaded_from_settings(tmp_path: Path) -> None:
+    """A complete HTTP sync endpoint is retained without secrets.
+
+    Args:
+        tmp_path: Temporary directory containing ``studio.yaml``.
+    """
+    settings = load_settings(write(tmp_path, "sync_endpoint: http://127.0.0.1:8080/\n"))
+
+    assert settings.sync_endpoint == "http://127.0.0.1:8080/"
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "sync.example",
+        "ftp://sync.example",
+        "https://user:pass@sync.example",
+        "https://sync.example/?x=1",
+    ],
+)
+def test_unsafe_sync_endpoint_is_rejected(tmp_path: Path, endpoint: str) -> None:
+    """Sync configuration never accepts embedded credentials or ambiguous URLs.
+
+    Args:
+        tmp_path: Temporary directory containing ``studio.yaml``.
+        endpoint: Invalid endpoint string.
+    """
+    with pytest.raises(SettingsError, match="sync_endpoint"):
+        load_settings(write(tmp_path, f"sync_endpoint: {endpoint}\n"))
+
+
 def test_absolute_data_dir_is_kept(tmp_path: Path) -> None:
     """An absolute data folder is used as it is.
 

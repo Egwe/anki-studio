@@ -6,7 +6,7 @@ Anforderungen und ihr Status stehen in [requirements.md](./requirements.md), Arb
 
 ## Stand
 
-Der Web-MVP (Phase 2) steht: Nach der Anmeldung lassen sich API-Schlüssel eintragen, Modelle beim Provider auswählen, Dokumente hochladen und Karten erzeugen. Jede Datei wird ein Job mit Live-Fortschritt; danach werden die Karten geprüft, bearbeitet oder abgewählt und in eine neue oder hochgeladene APKG geschrieben, die sich wie Karten-JSON und aufbereiteter Text herunterladen lässt. Profile, Standardwerte und API-Schlüssel werden in der Oberfläche gepflegt. Der strukturierte PDF-Modus zeigt GPU und Modellbestand und lädt fehlende Modelle als Job. Hochgeladene APKGs lassen sich als Deckbaum lesen, und Karten-JSON lässt sich in eine neue APKG exportieren; der Sync mit der Sammlung folgt in Phase 3.
+Der Web-MVP (Phase 2) steht: Nach der Anmeldung lassen sich API-Schlüssel eintragen, Modelle beim Provider auswählen, Dokumente hochladen und Karten erzeugen. Jede Datei wird ein Job mit Live-Fortschritt; danach werden die Karten geprüft, bearbeitet oder abgewählt und in eine neue oder hochgeladene APKG geschrieben, die sich wie Karten-JSON und aufbereiteter Text herunterladen lässt. Profile, Standardwerte und API-Schlüssel werden in der Oberfläche gepflegt. Der strukturierte PDF-Modus zeigt GPU und Modellbestand und lädt fehlende Modelle als Job. Hochgeladene APKGs lassen sich als Deckbaum lesen, und Karten-JSON lässt sich in eine neue APKG exportieren. Die Sync-Seite meldet die lokale Sammlung sicher am Server an und lädt eine leere lokale Kopie herunter; Schreiben in die Sammlung folgt im nächsten Paket.
 
 Ausführlich: [docs/benutzerhandbuch.html](./docs/benutzerhandbuch.html) für die Bedienung, [docs/entwicklerhandbuch.html](./docs/entwicklerhandbuch.html) für Module, Abläufe und Tests. Beide Dateien lassen sich ohne Server im Browser öffnen.
 
@@ -40,6 +40,8 @@ Jede Seite außer der Anmeldung, `/healthz` und den statischen Dateien verlangt 
 | `ANKI_STUDIO_PASSWORD_HASH` | scrypt-Hash des Passworts, erzeugt mit `anki-studio hash-password`. Fehlt er, erklärt die Anmeldeseite die Einrichtung, und niemand kann sich anmelden. |
 | `ANKI_STUDIO_SESSION_SECRET` | Schlüssel für das Session-Cookie, mindestens 32 Zeichen. Fehlt er, gilt ein zufälliger Schlüssel bis zum nächsten Neustart. |
 | `ANKI_STUDIO_SECRET_KEY` | Fernet-Schlüssel (32 Byte, URL-sicheres Base64), mit dem Anki Studio API-Schlüssel aus der Oberfläche verschlüsselt. Fehlt er, lassen sich dort keine Schlüssel speichern. |
+| `ANKI_STUDIO_SYNC_USERNAME` | Benutzername des eigenen Anki-Sync-Servers; nur zusammen mit Passwort und `sync_endpoint` wirksam. |
+| `ANKI_STUDIO_SYNC_PASSWORD` | Passwort des Sync-Benutzers; wird nie gespeichert, angezeigt oder in einen Job geschrieben. |
 
 `anki-studio hash-password` fragt das Passwort zweimal ab (mindestens 8 Zeichen) und gibt nur die Zeile für die Umgebungsdatei aus. Im Container setzt dieser Aufruf vom Entwicklungsrechner das Passwort und startet die Vorschau neu:
 
@@ -63,6 +65,7 @@ Die Session hält 14 Tage; das Cookie ist `HttpOnly` und `SameSite=Strict`. Nach
 | `data_dir` | `data` | Ordner für Jobs (und später die Sammlung); relativ zur `studio.yaml`; im Container `/var/lib/anki-studio` |
 | `job_retention_days` | `14` | Abgeschlossene Jobs werden nach so vielen Tagen gelöscht (1–3650) |
 | `generator_config` | `<data_dir>/generator.yaml` | YAML des Generators; nur setzen, wenn sie woanders liegen soll (relativ zur `studio.yaml`) |
+| `sync_endpoint` | – | HTTP(S)-Endpunkt des eigenen Anki-Sync-Servers, ohne Zugangsdaten; Benutzer und Passwort stehen nur in der Umgebung |
 
 ### Generator-Konfiguration mit allen Providern
 
@@ -105,6 +108,12 @@ Uploads werden vor dem Speichern geprüft: nur die Dokumenttypen des Generators,
 **Decks** (`/decks`) liest den Deckbaum einer hochgeladenen APKG (höchstens 512 MiB) mit den direkten Kartenanzahlen. Das Paket bleibt unverändert. Der Vorgang ist ein Job, damit das Öffnen temporärer Anki-Sammlungen immer seriell bleibt. Der Deckbaum der synchronisierten Sammlung folgt erst mit dem Sync.
 
 **Export** (`/export`) nimmt eine versionierte Karten-JSON (`schema_version: 1`) aus Anki Studio oder dem Generator entgegen (höchstens 100 MiB), prüft sie im Generator und erzeugt eine neue APKG. Ein leeres Zielfeld nimmt das Standard-Deck aus der Generator-YAML; `::` trennt Unterdecks. Dieser Export verändert weder eine vorhandene APKG noch die Anki-Sammlung.
+
+## Synchronisierung
+
+**Sync** (`/sync`) zeigt Endpunkt, Benutzer, Passwortstatus und das Ergebnis des letzten Abgleichs, aber niemals das Passwort oder den vom Server ausgegebenen `hkey`. **Jetzt synchronisieren** legt einen Job an. Beim ersten Abgleich lädt Anki Studio eine leere lokale Sammlung vollständig vom Server und öffnet sie danach korrekt neu. Schrittweise Abgleiche laufen ohne Medien-Sync.
+
+Ein automatisch angeforderter Komplett-Upload findet nie statt. Verlangt der Server einen Komplett-Sync oder einen Komplett-Download bei lokalen, noch nicht bestätigten Änderungen, bricht Anki Studio ab und erklärt die Lage. Die lokale Sammlung liegt unter `<data_dir>/collection/`; der Sync-Status enthält keine Zugangsdaten oder `hkey`.
 
 ## Vorschau im Container
 
@@ -154,7 +163,7 @@ Alle Dateien liegen unter [src/anki_studio/static/vendor/](./src/anki_studio/sta
 
 ## Bekannte Grenzen
 
-- Karten landen noch nicht direkt in der Anki-Sammlung (Sync, Phase 3); bis dahin über die heruntergeladene APKG importieren. Deployment nach AS-040 folgt in Phase 4.
+- Geprüfte Karten lassen sich noch nicht direkt in die Anki-Sammlung schreiben; bis dahin über die heruntergeladene APKG importieren. Der Sync lädt und aktualisiert nur die lokale Kopie. Deployment nach AS-040 folgt in Phase 4.
 - Der strukturierte PDF-Modus läuft nur mit dem Extra `pdf`; ohne Docling bricht ein solcher Job mit einer Meldung des Generators ab. Ein laufender Modell-Download lässt sich nicht abbrechen, nur ein wartender.
 - Die Verbindung ist unverschlüsseltes HTTP; Betrieb nur im LAN und über NetBird. Das Cookie trägt deshalb kein `Secure`-Attribut, und auch API-Schlüssel gehen im LAN unverschlüsselt zum Server (über NetBird im verschlüsselten Tunnel).
 - Ein Backup mit Datenordner und Umgebungsdatei enthält die verschlüsselten Schlüssel zusammen mit dem Entschlüsselungsschlüssel.

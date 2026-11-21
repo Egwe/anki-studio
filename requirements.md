@@ -104,20 +104,22 @@ Die Generator-Konfiguration enthält immer ein Profil für jeden unterstützten 
 
 **AS-016 – Bedienung ohne Container-Zugriff · muss · teilweise**
 Alles, was im täglichen Betrieb eingestellt wird, geht über die Oberfläche: Generator-Konfiguration und Profile (AS-009, AS-015), API-Schlüssel (AS-035), Modellwahl (AS-014), später Sync-Zugang und Login-Passwort. Shell-Zugriff auf den Container bleibt für Installation, Updates und Notfälle.
-*Umgesetzt:* Generator-Konfiguration und Profile (P7), API-Schlüssel (P4c), Modellwahl (P4d). *Offen:* Sync-Zugang (Phase 3) und Ändern des Login-Passworts in der Oberfläche.
+*Umgesetzt:* Generator-Konfiguration und Profile (P7), API-Schlüssel (P4c), Modellwahl (P4d), sichtbarer Sync-Status und Start eines Sync-Jobs (P10). *Offen:* Ändern der Sync-Zugangsdaten und des Login-Passworts in der Oberfläche.
 
 **AS-013 – Karten in der Sammlung durchsuchen und bearbeiten · kann · offen**
 Suche über `col.find_notes`, Bearbeiten und Löschen generierter Notizen. Zurückgestellt auf Phase 5.
 
 ### 4.2 Sync
 
-**AS-020 – Anmeldung · muss · offen**
+**AS-020 – Anmeldung · muss · umgesetzt**
 Endpunkt in der Konfiguration von Anki Studio, Benutzername und Passwort in der Umgebungsdatei. Anmeldung über `Collection.sync_login(username, password, endpoint)`; das Ergebnis (`SyncAuth` mit `hkey`, `endpoint`) wird verwendet, das Passwort nicht weiter gespeichert oder angezeigt.
+*Umsetzung:* `sync_endpoint` in `studio.yaml`, `ANKI_STUDIO_SYNC_USERNAME` und `ANKI_STUDIO_SYNC_PASSWORD` nur aus der Umgebung; `SyncService` meldet sich je Job an. `hkey` und Passwort bleiben nur im Speicher (`sync.py`, `tests/test_sync.py`).
 
-**AS-021 – Erster Abgleich · muss · offen**
+**AS-021 – Erster Abgleich · muss · umgesetzt**
 Ist die lokale Kopie leer, antwortet `sync_collection` mit `FULL_DOWNLOAD`. Anki Studio lädt die Sammlung dann herunter: `col.close_for_full_sync()`, `col.full_upload_or_download(auth=auth, server_usn=None, upload=False)`, danach **`col.reopen(after_full_sync=True)`**. Ein einfaches `reopen()` scheitert mit `CollectionAlreadyOpen` (im Prototyp beobachtet).
+*Umsetzung:* `SyncService` führt genau diese Reihenfolge über den Sammlungs-Worker aus und speichert erst danach den nicht geheimen Status (`tests/test_sync.py` gegen lokalen `anki.syncserver`).
 
-**AS-022 – Normaler Sync · muss · offen**
+**AS-022 – Normaler Sync · muss · teilweise**
 Vor jedem Schreiben in die Sammlung und danach `col.sync_collection(auth, sync_media=False)`. Diese Funktion führt den schrittweisen Sync selbst aus; das Feld `required` sagt, was **danach noch** nötig ist (`SyncCollectionResponse.ChangesRequired`):
 
 | `required` | Bedeutung nach `sync_collection` | Reaktion |
@@ -129,15 +131,19 @@ Vor jedem Schreiben in die Sammlung und danach `col.sync_collection(auth, sync_m
 | `NORMAL_SYNC` | gehört zu `sync_status()`, nicht zum Ergebnis von `sync_collection` | – |
 
 Liefert der Server `new_endpoint`, wird dieser übernommen. `server_message` wird angezeigt, falls nicht leer.
+*Umgesetzt:* Sync-Job mit `sync_collection(auth, sync_media=False)`, Statusseite, Übernahme eines neuen Endpunkts und Server-Hinweis. *Offen:* Abgleich unmittelbar vor und nach dem Schreiben geprüfter Karten in die Sammlung.
 
-**AS-023 – Kein automatischer Komplett-Upload · muss · offen**
+**AS-023 – Kein automatischer Komplett-Upload · muss · umgesetzt**
 Ein Komplett-Upload überschreibt die Daten auf dem Server und damit auf allen Geräten. Er findet niemals automatisch statt. Verlangt der Server einen Komplett-Sync, während die lokale Kopie eigene, noch nicht gesendete Änderungen hat, bricht Anki Studio ab und erklärt die Lage. Ein Komplett-Download ist nur erlaubt, wenn lokal nichts verloren geht.
+*Umsetzung:* `FULL_UPLOAD` und `FULL_SYNC` brechen immer ab. Ein `FULL_DOWNLOAD` ist nur ohne lokal markierte, noch nicht bestätigte Änderungen möglich (`tests/test_sync.py`).
 
-**AS-024 – Nicht in die Server-Daten schreiben · muss · offen**
+**AS-024 – Nicht in die Server-Daten schreiben · muss · umgesetzt**
 Anki Studio schreibt nie direkt in `/opt/anki-sync-server/data` oder eine andere Server-Datei. Das umgeht die Sync-Buchhaltung und beschädigt die Synchronisierung.
+*Umsetzung:* `SyncService` nutzt ausschließlich öffentliche pylib-Sync-Aufrufe über den konfigurierten HTTP(S)-Endpunkt; es enthält keinen Pfad oder Schreibzugriff auf Serverdaten.
 
-**AS-025 – Serieller Zugriff · muss · offen**
+**AS-025 – Serieller Zugriff · muss · umgesetzt**
 Die pylib-Sammlung ist nicht threadsicher. Alle Zugriffe auf die Sammlung laufen nacheinander über einen Worker. Generierung (KI, Docling) läuft außerhalb dieser Sperre.
+*Umsetzung:* `CollectionWorker` besitzt die lokale `Collection` in genau einem eigenen Thread und führt Funktionen nacheinander aus; Routen und Job-Runner erhalten keine `Collection` (`tests/test_sync.py`).
 
 **AS-026 – Medien · kann · offen**
 Medien-Sync (`sync_media`) erst, wenn Karten Bilder oder Audio enthalten (R-205 des Generators). Zurückgestellt bis dahin.
@@ -150,7 +156,7 @@ Ein Passwort; nur sein Hash steht in der Umgebungsdatei. Session-Cookie `HttpOnl
 
 **AS-031 – Secrets · muss · teilweise**
 Login-Hash, Session-Schlüssel, Schlüssel der Verschlüsselung und Sync-Zugangsdaten nur in der Umgebungsdatei. API-Schlüssel der Provider in der Umgebungsdatei oder, über die Oberfläche eingegeben, verschlüsselt im Datenordner (AS-035; Änderung vom 21.11.2026, ursprünglich nur Umgebungsdatei). Die YAML enthält wie im Generator nur Variablennamen (`api_key_env`). Keine Secrets in Logs, Job-Dateien, Fehlermeldungen oder der Oberfläche.
-*Umgesetzt:* Login-Hash, Session- und Verschlüsselungsschlüssel kommen nur aus der Umgebung; Fehlermeldungen nennen die Variable, nie den Wert; `repr` blendet die Werte aus (`tests/test_credentials.py`); API-Schlüssel nach AS-035. *Offen:* Sync-Zugangsdaten (mit AS-020).
+*Umgesetzt:* Login-Hash, Session-, Verschlüsselungs- und Sync-Zugangsdaten kommen nur aus der Umgebung; Fehlermeldungen nennen die Variable, nie den Wert; `repr` blendet die Werte aus (`tests/test_credentials.py`); API-Schlüssel nach AS-035. *Offen:* keine weiteren Secrets im aktuellen Umfang.
 
 **AS-032 – Jobs · muss · umgesetzt**
 Ein Job läuft zur Zeit (eine GPU, ein Benutzer); weitere warten in einer Warteschlange. Jeder Job hat einen Ordner mit Upload, Ereignisprotokoll, Karten-JSON und Ergebnis. Nach einem Neustart sind abgeschlossene Jobs weiter sichtbar; laufende gelten als abgebrochen. Alte Jobs werden nach einer einstellbaren Frist gelöscht.
@@ -173,7 +179,7 @@ API-Schlüssel der Provider lassen sich in der Oberfläche setzen, ersetzen und 
 
 **AS-034 – Tests · muss · teilweise**
 Reguläre Tests laufen ohne Netzwerk, ohne echten Sync-Server, ohne API-Schlüssel und ohne GPU. KI-Aufrufe werden wie im Generator simuliert (Patch-Ziel `anki_flashcards.pipeline.generate_cards` usw. oder `report`/`cancel`-Argumente). Für Sync-Tests eignet sich ein lokal gestarteter `python -m anki.syncserver` mit Testbenutzer auf `127.0.0.1` (Prototyp in Abschnitt 7.1 der Übergabe).
-*Umgesetzt:* Testgerüst mit pytest und FastAPI-`TestClient`, ohne Netzwerk, GPU, Schlüssel und Sync-Server; simulierte KI-Läufe über gepatchte `pipeline.generate_cards` beziehungsweise `pipeline.generate_native_cards` in `tests/test_generation.py`, `tests/test_web_generate.py` und `tests/test_live.py`. *Offen:* Sync-Tests mit lokalem Sync-Server und Testbenutzer, sobald der Sync-Client umgesetzt wird.
+*Umgesetzt:* Testgerüst mit pytest und FastAPI-`TestClient`, ohne Netzwerk, GPU, Schlüssel und externen Sync-Server; simulierte KI-Läufe über gepatchte `pipeline.generate_cards` beziehungsweise `pipeline.generate_native_cards` in `tests/test_generation.py`, `tests/test_web_generate.py` und `tests/test_live.py`; markierte Sync-Integrationstests starten einen temporären `anki.syncserver` ausschließlich auf `127.0.0.1` (`tests/test_sync.py`). *Offen:* Tests des Schreibens geprüfter Karten in die Sammlung.
 
 ### 4.4 Deployment (R-201 des Generators)
 
@@ -303,6 +309,7 @@ Jedes Paket ist ein Branch mit kleinen Commits, wird nach grünen Prüfungen mit
 | G1 | Generator-Repo | Generator 0.2.1: `tenacity`, Mehrwort-Tags, Batch-Größe Formeln, genauere GPU-Prüfung; Anki Studio auf `v0.2.1` | – | erledigt (vorgezogen) |
 | P8 | `feature/structured-mode` | Extra `pdf` mit PyTorch `cu126`, Modelle laden, GPU-Anzeige | AS-041, AS-010 | teilweise: Code und Tests erledigt; echter Lauf der aktualisierten Vorschau noch offen |
 | P9 | `feature/decks-export` | Decks einer APKG, Export Karten-JSON → APKG | AS-007, AS-008 (APKG-Teile) | **teilweise erledigt**: APKG-Deckbaum und neuer APKG-Export umgesetzt; Sammlungsteile bleiben Phase 3 |
+| P10 | `codex/sync-foundation` | Sync-Anmeldung, lokaler Sammlungs-Worker, sicherer Erst- und Normal-Sync, Statusseite | AS-020–AS-025, AS-011, AS-031, AS-034 | **teilweise erledigt**: Sync-Grundlage und lokale Integrationstests umgesetzt; Sammlung als Schreibziel, Deckbaum und Export folgen |
 | Phase 3 | `feature/sync-…` | Sync-Client, Sammlung als Ziel, Sync-Status; braucht einen Testbenutzer des Projektinhabers | AS-020–AS-025, AS-002, AS-006, AS-007, AS-008, AS-011 | offen |
 | Phase 4 | `feature/deploy-…` | Installation und Update nach AS-040, Backup | AS-040, AS-042 | offen |
 
