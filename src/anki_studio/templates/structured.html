@@ -18,7 +18,7 @@
     <dt>Formeln je Aufruf</dt>
     <dd>{{ formula_batch_size or "Standard von Docling (5)" }}</dd>
     <dt>Modellordner</dt>
-    <dd><code>{{ state.models_dir }}</code></dd>
+    <dd><code class="path">{{ state.models_dir }}</code></dd>
   </dl>
   {% if state.gpu_problem %}<p class="field-error">{{ state.gpu_problem }}</p>{% endif %}
   {% if not state.docling %}<p><small>Ohne Docling bleiben die PDF-Modi <code>local</code> und <code>native</code>. Installiert wird das Extra mit <code>uv sync --extra pdf</code>; die Vorschau im Container macht das selbst.</small></p>{% endif %}

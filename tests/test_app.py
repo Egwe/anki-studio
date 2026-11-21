@@ -36,6 +36,18 @@ def test_start_page_shows_component_versions(auth_client: TestClient) -> None:
     assert version("anki-flashcard-generator") in response.text
 
 
+def test_start_page_names_available_workflows(auth_client: TestClient) -> None:
+    """The start page points to workflows that are already available.
+
+    Args:
+        auth_client: Logged-in test client.
+    """
+    response = auth_client.get("/")
+
+    assert "Karten prüfen und schreiben" in response.text
+    assert "folgen in den nächsten Ausbaustufen" not in response.text
+
+
 def test_health_check(client: TestClient) -> None:
     """The health check answers with a fixed JSON body.
 
