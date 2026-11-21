@@ -10,7 +10,7 @@
 set -euo pipefail
 
 readonly REMOTE="ct-anki-studio"
-readonly STAGE_PREFIX="/tmp/anki-studio-codex."
+readonly STAGE_PREFIX="/opt/.anki-studio-codex-stage."
 
 log() {
   printf '==> %s\n' "$*"

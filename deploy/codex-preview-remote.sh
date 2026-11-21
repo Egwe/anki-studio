@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Install the archive supplied by deploy/codex-preview.sh inside the container.
 # This helper is not invoked directly: its first argument is a validated
-# /tmp staging directory created by the local deployment script.
+# /opt staging directory created by the local deployment script. It stays on
+# the same filesystem as the target checkout, so the virtual environment can
+# be moved atomically after dependency installation.
 set -euo pipefail
 
 readonly APP_DIR="/opt/anki-studio-codex"
@@ -31,7 +33,7 @@ require_root() {
 
 require_stage() {
   case "$stage" in
-    /tmp/anki-studio-codex.*) ;;
+    /opt/.anki-studio-codex-stage.*) ;;
     *) echo "Ungültiger Staging-Pfad." >&2; exit 1 ;;
   esac
   if [[ ! -f "$stage/pyproject.toml" || ! -f "$stage/deploy/codex-preview-remote.sh" ]]; then
