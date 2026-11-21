@@ -114,6 +114,17 @@ header.container nav ul {
   margin: 0;
 }
 
+.profile-row header {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.card-actions form {
+  margin: 0;
+}
+
 .key-check {
   margin-top: 0.5rem;
 }
