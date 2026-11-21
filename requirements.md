@@ -173,7 +173,7 @@ API-Schlüssel der Provider lassen sich in der Oberfläche setzen, ersetzen und 
 
 **AS-034 – Tests · muss · teilweise**
 Reguläre Tests laufen ohne Netzwerk, ohne echten Sync-Server, ohne API-Schlüssel und ohne GPU. KI-Aufrufe werden wie im Generator simuliert (Patch-Ziel `anki_flashcards.pipeline.generate_cards` usw. oder `report`/`cancel`-Argumente). Für Sync-Tests eignet sich ein lokal gestarteter `python -m anki.syncserver` mit Testbenutzer auf `127.0.0.1` (Prototyp in Abschnitt 7.1 der Übergabe).
-*Umgesetzt:* Testgerüst mit pytest und FastAPI-`TestClient`, ohne Netzwerk, GPU, Schlüssel und Sync-Server. *Offen:* simulierte KI-Läufe und Sync-Tests mit den jeweiligen Funktionen.
+*Umgesetzt:* Testgerüst mit pytest und FastAPI-`TestClient`, ohne Netzwerk, GPU, Schlüssel und Sync-Server; simulierte KI-Läufe über gepatchte `pipeline.generate_cards` beziehungsweise `pipeline.generate_native_cards` in `tests/test_generation.py`, `tests/test_web_generate.py` und `tests/test_live.py`. *Offen:* Sync-Tests mit lokalem Sync-Server und Testbenutzer, sobald der Sync-Client umgesetzt wird.
 
 ### 4.4 Deployment (R-201 des Generators)
 
