@@ -92,12 +92,12 @@ mark { background: var(--mark); color: inherit; }
   <p>Jede Seite außer der Anmeldung verlangt das Passwort. Nach der Anmeldung bleibst du 14 Tage angemeldet, solange der Server nicht mit neuem Session-Schlüssel startet. <strong>Einstellungen → Abmelden</strong> oben rechts beendet die Sitzung sofort.</p>
   <p>Nach einem falschen Passwort antwortet der Server erst nach einer Sekunde. Ist noch kein Passwort eingerichtet, erklärt die Anmeldeseite die Einrichtung, und niemand kann sich anmelden.</p>
   <h3>Passwort setzen oder ändern</h3>
-  <p>Vom eigenen Rechner aus setzt dieser Befehl das Passwort im Container und startet die Vorschau neu. Er fragt das Passwort zweimal ab (mindestens 8 Zeichen); gespeichert wird nur ein Hash.</p>
-  <pre><code>ssh -t ct-anki-studio '/opt/anki-studio/.venv/bin/anki-studio hash-password &gt;&gt; /etc/anki-studio/env &amp;&amp; systemctl restart anki-studio-preview'</code></pre>
-  <p>Für ein neues Passwort vorher die alte Zeile <code>ANKI_STUDIO_PASSWORD_HASH=…</code> aus <code>/etc/anki-studio/env</code> löschen.</p>
+  <p>Im laufenden Betrieb änderst du das Passwort unter <a href="#zugang-sync">Zugang und Sync</a>. Das erste Passwort nach einer Neuinstallation setzt dieser Befehl vom eigenen Rechner aus im Container und startet den Dienst neu. Er fragt das Passwort zweimal ab (mindestens 8 Zeichen); gespeichert wird nur ein Hash.</p>
+  <pre><code>ssh -t ct-anki-studio '/opt/anki-studio/.venv/bin/anki-studio hash-password &gt;&gt; /etc/anki-studio/env &amp;&amp; systemctl restart anki-studio'</code></pre>
+  <p>Solange noch die Vorschau läuft, heißt der Dienst <code>anki-studio-preview</code>. Passwort vergessen: README, Abschnitt „Passwort vergessen“.</p>
   <h3>Unbekannter Host</h3>
   <p>Anki Studio antwortet nur unter Namen und Adressen, die in <code>allowed_hosts</code> der <code>/etc/anki-studio/studio.yaml</code> stehen. Rufst du es unter einem anderen Namen auf, etwa dem NetBird-Namen, erscheint „Unbekannter Host“. Den Namen dort ergänzen und den Dienst neu starten:</p>
-  <pre><code>ssh ct-anki-studio 'systemctl restart anki-studio-preview'</code></pre>
+  <pre><code>ssh ct-anki-studio 'systemctl restart anki-studio'</code></pre>
 </section>
 
 <section id="startseite">

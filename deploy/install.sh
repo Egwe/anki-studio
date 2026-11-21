@@ -147,7 +147,7 @@ ensure_env_file() {
   append_env_if_missing "ANKI_STUDIO_SESSION_SECRET" "$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
   append_env_if_missing "ANKI_STUDIO_SECRET_KEY" "$(python3 -c 'import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())')"
   if ! grep -q '^ANKI_STUDIO_PASSWORD_HASH=.' "$environment"; then
-    log "Noch kein Login-Passwort gesetzt; siehe README, Abschnitt Anmeldung."
+    log "Noch kein Login-Passwort gesetzt; siehe README, Installation Schritt 4."
   fi
 }
 
