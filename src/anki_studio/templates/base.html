@@ -29,6 +29,7 @@
           <details class="dropdown">
             <summary>Einstellungen</summary>
             <ul dir="rtl">
+              <li><a href="{{ url_for('config_page') }}">Konfiguration</a></li>
               <li><a href="{{ url_for('keys_page') }}">Zugangsdaten</a></li>
               <li>
                 <form method="post" action="{{ url_for('logout') }}" class="nav-form">

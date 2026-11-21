@@ -58,6 +58,7 @@ mark { background: var(--mark); color: inherit; }
   <a href="#ueberblick">Überblick</a>
   <a href="#anmelden">Anmelden und Abmelden</a>
   <a href="#startseite">Startseite</a>
+  <a href="#konfiguration">Konfiguration</a>
   <a href="#zugangsdaten">Zugangsdaten</a>
   <a href="#generieren">Karten generieren</a>
   <a href="#ziel">Ziel und Deck</a>
@@ -78,7 +79,7 @@ mark { background: var(--mark); color: inherit; }
   <h2>Überblick</h2>
   <p>Anki Studio ist die Web-Oberfläche für den Anki Flashcard Generator. Du lädst Dokumente hoch, wählst die Optionen und lässt eine KI daraus Karteikarten erzeugen. Später landen geprüfte Karten direkt in deiner Anki-Sammlung und damit auf allen Geräten; bis dahin bleiben sie als Datei im Job.</p>
   <p>Anki Studio läuft nur im Heimnetz oder über NetBird, für einen Benutzer, und verlangt eine Anmeldung. API-Schlüssel stehen nur in der Umgebungsdatei auf dem Server; die Oberfläche zeigt höchstens, ob ein Schlüssel gesetzt ist.</p>
-  <div class="note">Stand dieses Handbuchs: Anmeldung, Zugangsdaten, Generieren mit Live-Fortschritt, Kartenprüfung, Schreiben und Downloads. Sync mit der Sammlung und der Konfigurationseditor folgen und werden hier ergänzt, sobald sie nutzbar sind.</div>
+  <div class="note">Stand dieses Handbuchs: Anmeldung, Zugangsdaten, Generieren mit Live-Fortschritt, Kartenprüfung, Schreiben und Downloads. Konfiguration. Sync mit der Sammlung folgt und wird hier ergänzt, sobald er nutzbar ist.</div>
 </section>
 
 <section id="anmelden">
@@ -97,6 +98,20 @@ mark { background: var(--mark); color: inherit; }
 <section id="startseite">
   <h2>Startseite</h2>
   <p>Die Startseite führt zu <strong>Karten generieren</strong> und zu den <strong>Jobs</strong> und zeigt die installierten Versionen von Anki Studio, Generator und Anki. Die Anki-Version muss zu der des Sync-Servers passen. Die Navigation oben bietet dieselben Ziele auf jeder Seite.</p>
+</section>
+
+<section id="konfiguration">
+  <h2>Konfiguration</h2>
+  <p>Unter <strong>Einstellungen → Konfiguration</strong> pflegst du die Einstellungen des Generators, ohne auf dem Server zu arbeiten.</p>
+  <h3>Wirksame Werte</h3>
+  <p>Aufgeklappt zeigt die Tabelle, welche Werte ein Lauf ohne Angaben im Formular verwenden würde, und woher sie kommen: „Standard“ (eingebaut) oder „Konfiguration“.</p>
+  <h3>Profile</h3>
+  <p>Jedes Profil verbindet ein Modell eines Providers mit Endpunkt, Schlüsselvariable, Timeout, PDF-Modus und Optionen. <strong>Bearbeiten</strong> öffnet den Editor; <strong>Modelle laden</strong> fragt dort den Provider nach seinen Modellen, auch bevor du speicherst. Optionen trägst du als <code>name: wert</code> je Zeile ein, etwa <code>temperature: 0.2</code>; Schlüssel oder Passwörter lehnt der Generator dort ab. <strong>Neues Profil</strong> legt ein eigenes Profil an (Name aus Kleinbuchstaben, Ziffern, <code>-</code> und <code>_</code>).</p>
+  <p>Die Standardprofile – je eines für Ollama, OpenAI, Anthropic, Gemini, Mistral, DeepSeek, OpenRouter, Groq, xAI, Moonshot und einen eigenen Server – lassen sich nur <strong>auf die Vorlage zurücksetzen</strong>, nicht löschen. Eigene Profile lassen sich löschen, solange sie nicht Standard- oder Bildprofil sind.</p>
+  <h3>Standardwerte</h3>
+  <p>Hier stehen das Standardprofil, die Kartenwerte (Deck, Sprache, Höchstzahl, Abschnittsgröße, Timeout, Anweisungen, PDF-Modus, Unterdecks) und die strukturierte PDF-Aufbereitung (OCR-Sprachen, Formeln, Formeln je Aufruf, OCR erzwingen, Platzhalter, CPU, Bildbeschreibung). Für die Quadro K1200 gehört bei <em>Formeln je Aufruf</em> eine <code>1</code> hinein.</p>
+  <h3>Datei</h3>
+  <p><strong>YAML herunterladen</strong> sichert die Konfiguration; <strong>Hochladen und ersetzen</strong> spielt eine Datei zurück. Sie wird vollständig geprüft, bevor sie die alte ersetzt. Kommentare in der Datei bleiben beim Speichern über die Oberfläche nicht erhalten.</p>
 </section>
 
 <section id="zugangsdaten">
@@ -240,7 +255,7 @@ mark { background: var(--mark); color: inherit; }
   <h2>Was noch fehlt</h2>
   <ul>
     <li>Sync mit der Anki-Sammlung, Deckauswahl aus der Sammlung, Sync-Status.</li>
-    <li>Decks, Export, Konfiguration und Modelle als eigene Seiten.</li>
+    <li>Decks, Export und Modelle als eigene Seiten.</li>
     <li>Der strukturierte PDF-Modus auf der GPU des Servers (PyTorch und Docling werden noch nicht mitinstalliert).</li>
   </ul>
 </section>

@@ -166,11 +166,11 @@ def form_errors(errors: list[dict[str, Any]]) -> dict[str, str]:
     messages: dict[str, str] = {}
     for error in errors:
         field = str(error["loc"][0]) if error["loc"] else "form"
-        messages.setdefault(field, _message(error))
+        messages.setdefault(field, error_message(error))
     return messages
 
 
-def _message(error: dict[str, Any]) -> str:
+def error_message(error: dict[str, Any]) -> str:
     """Translate one Pydantic error into a short German message.
 
     Args:

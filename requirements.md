@@ -76,9 +76,10 @@ Deckbaum der synchronisierten Sammlung mit Kartenanzahl. Ebenso für eine hochge
 **AS-008 – Export · muss · offen**
 Karten-JSON hochladen und als APKG ausgeben oder in die Sammlung schreiben (entspricht `anki-flashcards export`).
 
-**AS-009 – Konfiguration · muss · offen**
+**AS-009 – Konfiguration · muss · umgesetzt**
 Wirksame Werte mit Herkunft anzeigen (entspricht `config show`). Profile und Standardwerte der YAML bearbeiten, validiert über das Schema des Generators und atomar gespeichert. API-Schlüssel erscheinen nur als „gesetzt“ oder „fehlt“.
 *Ergänzung 21.11.2026:* Die Generator-YAML liegt im Datenordner, damit Anki Studio sie schreiben darf (AS-015); ihre Bearbeitung über die Oberfläche ersetzt das Bearbeiten im Container (AS-016).
+*Umsetzung:* Seite „Einstellungen → Konfiguration“ mit wirksamen Werten und Herkunft (`configuration_diagnostics`), Profil-Editor mit Modellliste, Standardwerten, YAML-Download und geprüftem Upload; Änderungen über `config_editor.py` mit `AppConfig` und `save_config` des Generators (`tests/test_config_editor.py`, `tests/test_web_config.py`, Chrome-Test).
 
 **AS-010 – Modelle · muss · offen**
 Docling- und Bildmodelle herunterladen (entspricht `models download`), mit Fortschritt; anzeigen, ob eine GPU erkannt wird.
@@ -92,14 +93,15 @@ Schlicht und aufgeräumt, gut lesbar, Dark Mode, auf Desktop und Handy bedienbar
 
 **AS-014 – Modelle des Providers auswählen · soll · umgesetzt**
 Ist für einen Provider ein Schlüssel hinterlegt oder braucht er keinen (etwa Ollama), lädt Anki Studio auf ausdrückliche Aktion die Liste der verfügbaren Modelle beim Provider und bietet sie zur Auswahl an: im Generierungsformular und beim Bearbeiten eines Profils. Dabei geht nur der Schlüssel an den Provider, kein Dokumentinhalt. Fehler (Schlüssel ungültig, Provider nicht erreichbar) erscheinen verständlich; die freie Eingabe eines Modellnamens bleibt möglich.
-*Umsetzung:* `model_catalog.py` mit Tabelle je Provider, Route `/models` (htmx-Fragmente) im Generierungsformular („Modelle laden“) und auf der Seite Zugangsdaten („Prüfen“); belegt durch `tests/test_model_catalog.py`, `tests/test_web_models.py` und einen Chrome-Test mit Klick gegen einen simulierten Ollama-Server. Die Auswahl beim Bearbeiten eines Profils folgt mit dem Konfigurationseditor (AS-009, P7).
+*Umsetzung:* `model_catalog.py` mit Tabelle je Provider, Route `/models` (htmx-Fragmente) im Generierungsformular („Modelle laden“) und auf der Seite Zugangsdaten („Prüfen“); belegt durch `tests/test_model_catalog.py`, `tests/test_web_models.py` und einen Chrome-Test mit Klick gegen einen simulierten Ollama-Server. Seit P7 auch im Profil-Editor, dort schon vor dem Speichern.
 
 **AS-015 – Vorlage mit allen Providern · muss · umgesetzt**
 Die Generator-Konfiguration enthält immer ein Profil für jeden unterstützten Provider, auch ohne hinterlegten Schlüssel: Ollama (Text und Bild), OpenAI (auch native PDF), Anthropic, Google Gemini, Mistral, DeepSeek, OpenRouter, Groq, xAI, Moonshot und ein eigener OpenAI-kompatibler Server. Fehlt die Datei, legt Anki Studio sie aus einer mitgelieferten Vorlage an; fehlende Standardprofile ergänzt es beim Start, vorhandene Profile bleiben unverändert. Die Datei liegt im Datenordner (`<data_dir>/generator.yaml`), `pdf_conversion.models_dir` ist dort absolut. Die Vorlage im Repository enthält keine Adressen aus dem Heimnetz.
 *Umsetzung:* `resources/generator-template.yaml`, `generator_config.ensure_generator_config` beim Start (`tests/test_generator_config.py`, `tests/test_app.py`). In der Vorschau liegt seit dem 21.11.2026 die Konfiguration des Projektinhabers als Ausgangspunkt (`input_dir`/`output_dir` entfernt, `models_dir` absolut, vertauschte Ausgabegrenzen der OpenAI-Profile korrigiert); die übrigen Standardprofile ergänzt Anki Studio.
 
-**AS-016 – Bedienung ohne Container-Zugriff · muss · offen**
+**AS-016 – Bedienung ohne Container-Zugriff · muss · teilweise**
 Alles, was im täglichen Betrieb eingestellt wird, geht über die Oberfläche: Generator-Konfiguration und Profile (AS-009, AS-015), API-Schlüssel (AS-035), Modellwahl (AS-014), später Sync-Zugang und Login-Passwort. Shell-Zugriff auf den Container bleibt für Installation, Updates und Notfälle.
+*Umgesetzt:* Generator-Konfiguration und Profile (P7), API-Schlüssel (P4c), Modellwahl (P4d). *Offen:* Sync-Zugang (Phase 3) und Ändern des Login-Passworts in der Oberfläche.
 
 **AS-013 – Karten in der Sammlung durchsuchen und bearbeiten · kann · offen**
 Suche über `col.find_notes`, Bearbeiten und Löschen generierter Notizen. Zurückgestellt auf Phase 5.
@@ -294,9 +296,9 @@ Jedes Paket ist ein Branch mit kleinen Commits, wird nach grünen Prüfungen mit
 | P4d | `feature/model-list` | Modelle vom Provider laden und auswählen | AS-014 | erledigt |
 | P5 | `feature/live-progress` | Live-Fortschritt per SSE | AS-004 | erledigt |
 | P6 | `feature/card-review` | Karten prüfen, bearbeiten, abwählen; APKG schreiben; Downloads | AS-005, AS-006 | erledigt |
-| P7 | `feature/config-editor` | Konfiguration anzeigen (Herkunft) und Profile und Standardwerte bearbeiten | AS-009, AS-016 | als Nächstes |
+| P7 | `feature/config-editor` | Konfiguration anzeigen (Herkunft) und Profile und Standardwerte bearbeiten | AS-009, AS-016 | erledigt |
 | G1 | Generator-Repo | Generator 0.2.1: `tenacity`, Mehrwort-Tags, Batch-Größe Formeln, genauere GPU-Prüfung; Anki Studio auf `v0.2.1` | – | erledigt (vorgezogen) |
-| P8 | `feature/structured-mode` | Extra `pdf` mit PyTorch `cu126`, Modelle laden, GPU-Anzeige | AS-041, AS-010 | offen |
+| P8 | `feature/structured-mode` | Extra `pdf` mit PyTorch `cu126`, Modelle laden, GPU-Anzeige | AS-041, AS-010 | als Nächstes |
 | P9 | `feature/decks-export` | Decks einer APKG, Export Karten-JSON → APKG | AS-007, AS-008 (APKG-Teile) | offen |
 | Phase 3 | `feature/sync-…` | Sync-Client, Sammlung als Ziel, Sync-Status; braucht einen Testbenutzer des Projektinhabers | AS-020–AS-025, AS-002, AS-006, AS-007, AS-008, AS-011 | offen |
 | Phase 4 | `feature/deploy-…` | Installation und Update nach AS-040, Backup | AS-040, AS-042 | offen |
