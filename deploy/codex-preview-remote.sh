@@ -15,7 +15,8 @@ readonly USER="anki-studio-codex"
 readonly GROUP="anki-studio-codex"
 readonly UNIT="anki-studio-codex-preview"
 readonly PORT="8001"
-readonly SHARED_ENV="/etc/anki-studio/env"
+readonly ENV_FILE="$CONFIG_DIR/env"
+readonly LOGIN_SOURCE_ENV="/etc/anki-studio/env"
 
 stage=${1:?Staging-Pfad fehlt}
 commit=${2:?Commit fehlt}
@@ -71,6 +72,27 @@ ensure_config() {
   chmod 0640 "$studio"
 }
 
+ensure_env_value() {
+  local key=$1 value=$2
+  grep -q "^$key=." "$ENV_FILE" && return
+  printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
+}
+
+copy_login_hash() {
+  local login_hash
+  grep -q '^ANKI_STUDIO_PASSWORD_HASH=.' "$ENV_FILE" && return
+  [[ -r "$LOGIN_SOURCE_ENV" ]] || return
+  login_hash="$(grep -m 1 '^ANKI_STUDIO_PASSWORD_HASH=.' "$LOGIN_SOURCE_ENV" || true)"
+  [[ -n "$login_hash" ]] && printf '%s\n' "$login_hash" >> "$ENV_FILE"
+}
+
+ensure_environment() {
+  [[ -e "$ENV_FILE" ]] || install -o root -g root -m 0600 /dev/null "$ENV_FILE"
+  ensure_env_value "ANKI_STUDIO_SESSION_SECRET" "$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
+  ensure_env_value "ANKI_STUDIO_SECRET_KEY" "$(python3 -c 'import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())')"
+  copy_login_hash
+}
+
 replace_checkout() {
   local incoming="$APP_DIR.new"
   rm -rf "$incoming" "$PREVIOUS_DIR"
@@ -94,10 +116,6 @@ install_dependencies() {
 }
 
 install_unit() {
-  if [[ ! -f "$SHARED_ENV" ]]; then
-    echo "Die bestehende Vorschau-Umgebung fehlt: $SHARED_ENV" >&2
-    exit 1
-  fi
   cat > "/etc/systemd/system/$UNIT.service" <<UNIT_FILE
 [Unit]
 Description=Anki Studio (isolierte Codex-Vorschau $commit)
@@ -110,8 +128,7 @@ User=$USER
 Group=$GROUP
 WorkingDirectory=$APP_DIR
 Environment=ANKI_STUDIO_CONFIG=$CONFIG_DIR/studio.yaml
-EnvironmentFile=$SHARED_ENV
-UnsetEnvironment=ANKI_STUDIO_SYNC_USERNAME ANKI_STUDIO_SYNC_PASSWORD
+EnvironmentFile=$ENV_FILE
 ExecStart=$APP_DIR/.venv/bin/anki-studio serve
 Restart=on-failure
 RestartSec=2
@@ -156,6 +173,7 @@ main() {
   require_stage
   ensure_service_user
   ensure_config
+  ensure_environment
   replace_checkout
   if ! install_dependencies; then
     restore_previous

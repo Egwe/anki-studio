@@ -151,7 +151,7 @@ ssh ct-anki-studio 'bash -s' < deploy/update.sh
 
 `deploy/update.sh` verweigert einen fehlenden oder lokalen veränderten Produktionscheckout und ruft dann den idempotenten Installer auf. Beide Skripte prüfen zum Schluss `/healthz`. Die reguläre Installation wird erst ausgeführt, wenn dieser Codex-Stand nach `main` übernommen wurde; die bestehende `anki-studio-preview`-Vorschau bleibt davon getrennt.
 
-Für die Arbeit auf einem lokalen Codex-Zweig gibt es zusätzlich `deploy/codex-preview.sh`. Es überträgt ausschließlich den **committeten, sauberen** lokalen Stand als `git archive` in einen eigenen Checkout, Datenordner, Systembenutzer und Dienst `anki-studio-codex-preview`; die Vorschau hat keinen Sync-Endpunkt und entfernt die Sync-Credentials aus ihrer Dienstumgebung. Sie wurde im Container zweimal erfolgreich mit Health-Check ausgeführt und ändert weder `main` noch `anki-studio-preview`.
+Für die Arbeit auf einem lokalen Codex-Zweig gibt es zusätzlich `deploy/codex-preview.sh`. Es überträgt ausschließlich den **committeten, sauberen** lokalen Stand als `git archive` in einen eigenen Checkout, Datenordner, Systembenutzer und Dienst `anki-studio-codex-preview`. Die Vorschau hat keinen Sync-Endpunkt und erhält ein eigenes Environment mit eigenen Session- und Verschlüsselungsschlüsseln; beim ersten Einrichten wird höchstens der Login-Hash aus der Standardvorschau übernommen. Provider- und Sync-Zugangsdaten werden nicht in den Codex-Dienst übernommen. Sie wurde im Container erfolgreich mit Health-Check ausgeführt und ändert weder `main` noch `anki-studio-preview`.
 
 ## Tests und Prüfungen
 
