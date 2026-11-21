@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 # Install or update Anki Studio from the published main branch (AS-040).
 #
-# Run as root in the target container only from a checked and published main:
+# Run as root inside the target container (README, "Installation im
+# Container"), after cloning main to /opt/anki-studio:
+#   /opt/anki-studio/deploy/install.sh
+# or from a local clone on another computer:
 #   ssh ct-anki-studio 'bash -s' < deploy/install.sh
+#
+# On an empty Debian 13 container it installs the missing system packages
+# (git, curl, ca-certificates, python3) and uv itself.
 #
 # Existing /etc/anki-studio/env, /etc/anki-studio/studio.yaml, and
 # /var/lib/anki-studio are deliberately preserved. This script never copies
@@ -26,6 +32,7 @@ readonly PREVIEW_UNIT="anki-studio-preview"
 readonly PREVIEW_DATA_DIR="/var/lib/private/anki-studio"
 readonly PORT="8000"
 readonly UV_VERSION="0.13.7"
+readonly PACKAGES=(git curl ca-certificates python3)
 
 log() {
   printf '==> %s\n' "$*"
@@ -38,11 +45,16 @@ require_root() {
   fi
 }
 
-ensure_git() {
-  command -v git >/dev/null && return
-  log "git installieren"
+ensure_packages() {
+  local package missing=()
+  for package in "${PACKAGES[@]}"; do
+    dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q "install ok installed" \
+      || missing+=("$package")
+  done
+  [[ ${#missing[@]} -eq 0 ]] && return
+  log "Pakete installieren: ${missing[*]}"
   apt-get update -qq
-  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends git ca-certificates >/dev/null
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends "${missing[@]}" >/dev/null
 }
 
 ensure_uv() {
@@ -87,7 +99,10 @@ update_checkout() {
 install_dependencies() {
   log "Abhängigkeiten aus uv.lock installieren"
   install -d -o "$USER" -g "$GROUP" -m 0750 "$UV_CACHE"
-  (cd "$APP_DIR" && UV_CACHE_DIR="$UV_CACHE" uv sync --quiet --locked --no-dev --extra pdf)
+  # The system Python (3.13 on Debian 13) must be used: a Python downloaded
+  # by uv would live below /root, which the service account cannot read.
+  (cd "$APP_DIR" && UV_CACHE_DIR="$UV_CACHE" UV_PYTHON_DOWNLOADS=never \
+    uv sync --quiet --locked --no-dev --extra pdf)
 }
 
 retire_preview() {
@@ -203,7 +218,7 @@ restart_and_check() {
 
 main() {
   require_root
-  ensure_git
+  ensure_packages
   ensure_uv
   ensure_service_user
   update_checkout
