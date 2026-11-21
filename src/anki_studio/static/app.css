@@ -20,6 +20,40 @@ header.container nav ul {
   margin: 0;
 }
 
+/* Phones and narrow windows: the settings menu opens in the page flow, in
+   full width, instead of floating right-aligned below "Einstellungen". The
+   floating list extended beyond the left screen edge there. It stays
+   positioned (relative) so it lies above Pico's transparent overlay that
+   closes the menu on a tap outside. */
+@media (max-width: 767px) {
+  header.container nav li:has(> details.dropdown) {
+    flex-basis: 100%;
+  }
+
+  header.container nav details.dropdown {
+    display: block;
+  }
+
+  header.container nav details.dropdown > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  header.container nav details.dropdown > summary + ul[dir] {
+    position: relative;
+    left: auto;
+    right: auto;
+    width: 100%;
+    direction: ltr;
+    white-space: normal;
+  }
+
+  header.container nav details.dropdown .nav-form button {
+    width: 100%;
+  }
+}
+
 .nav-form button {
   margin: 0;
   padding: 0.35rem 0.9rem;
