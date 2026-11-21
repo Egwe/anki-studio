@@ -163,6 +163,23 @@ class JobStore:
         self._write(job)
         return job
 
+    def create_task(self, title: str, options: dict[str, Any]) -> Job:
+        """Queue a job that needs no upload, such as downloading models.
+
+        Args:
+            title: Name shown in the job list instead of a file name.
+            options: JSON-safe options; ``kind`` selects the runner.
+
+        Returns:
+            The new job with status ``queued``.
+        """
+        job_id = secrets.token_hex(16)
+        self.job_dir(job_id).mkdir(parents=True)
+        now = _now()
+        job = Job(id=job_id, created_at=now, updated_at=now, source_name=title, options=options)
+        self._write(job)
+        return job
+
     def add_file(
         self,
         job_id: str,
