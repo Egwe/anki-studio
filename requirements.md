@@ -1,6 +1,6 @@
 # Anforderungen – Anki Studio
 
-Stand: 20.11.2026
+Stand: 21.11.2026
 
 ## 1. Zweck und Geltung
 
@@ -201,6 +201,22 @@ vzdump beider Container. Maßgeblich sind die Daten des Sync-Servers; die Sammlu
 **AS-043 – Community-Script · kann · offen**
 Daraus ein eigenes Proxmox-Community-Script (`ct/` + `install/`) machen. Zurückgestellt bis nach Phase 4.
 
+**AS-044 – Oberflächensprache · muss · umgesetzt**
+Die Web-Oberfläche verwendet standardmäßig Englisch. Eine sichtbare Sprachwahl
+erhält Deutsch als vollständig nutzbare Alternative und ist so aufgebaut, dass
+weitere Sprachkataloge ohne Kopien der Templates ergänzt werden können. Die
+Oberflächensprache ändert nicht die in der Generator-Konfiguration gewählte
+Sprache der erzeugten Karten.
+*Umsetzung:* `i18n.py` liefert Englisch als Fallback und Deutsch als auswählbare
+Sitzungssprache. Die öffentliche POST-Route `/language` nimmt ausschließlich
+`en` oder `de` an und akzeptiert nur lokale Rücksprungziele; Login und Logout
+bewahren die Wahl beim Erneuern der Sitzung. Templates übersetzen über den
+englischen Schlüssel und einen deutschen Fallback, so dass ein weiterer
+Katalog keine Template-Kopien braucht. Neue Job-Titel und eigene
+Hintergrundhinweise übernehmen die Sprache beim Start; vorhandene, bereits
+persistierte Job-Ereignisse bleiben unverändert. Belegt durch
+`tests/test_i18n.py` sowie die Web- und Template-Prüfungen.
+
 ## 5. Zielsystem: Container „anki-studio“
 
 ### 5.1 Bestandsaufnahme (20.11.2026, nur lesend)
@@ -320,6 +336,7 @@ Jedes Paket ist ein Branch mit kleinen Commits, wird nach grünen Prüfungen mit
 | M1 | `codex/main` → `main` | Review und Übernahme des Codex-Stands P9–P13 (Merge `26c6563`) | – | erledigt |
 | P14 | `feature/codex-review-fixes` | Befunde des Reviews: Sync-Fehlertexte und Wiederöffnen nach gescheitertem Komplett-Download, aktuelles Passwort beim Ändern, Sync-Passwort behalten, Session-Schlüssel und Sync-Passwort verschlüsselt in `runtime.env`, Übernahme der Vorschau durch `install.sh`, Entfernen der Codex-Vorschau | AS-016, AS-022, AS-031, AS-040 | erledigt |
 | P15 | `feature/install-guide`, `feature/install-in-container` | Installation direkt im Container (Klonen nach `/opt/anki-studio`, `install.sh` auf leerem Debian 13), `update.sh` mit neuestem Installer, Anleitung im README | AS-040 | erledigt; Ausführung durch den Projektinhaber |
+| P16 | `feature/i18n-english-default` | Englische Standardsprache, deutsche Sitzungssprache, lokalisierte UI- und Jobhinweise, englisches README | AS-044 | erledigt; neue Sprachen über Kataloge ergänzbar |
 | Phase 3 | P10, P11 | Sync-Client, Sammlung als Ziel, Sync-Status | AS-020–AS-025, AS-002, AS-006, AS-007, AS-008, AS-011 | **lokal umgesetzt**; echter Server-Test mit Testbenutzer offen |
 | Phase 4 | P12, P14 | Installation und Update nach AS-040, Backup | AS-040, AS-042 | Skripte fertig; Ausführung von `install.sh` erst auf Auftrag; Backup offen (Proxmox-Host) |
 

@@ -1,20 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Deckbaum – Anki Studio{% endblock %}
+{% block title %}{{ t('Deck tree', de='Deckbaum') }} – Anki Studio{% endblock %}
 {% block content %}
 <hgroup>
-  <h1>Deckbaum</h1>
-  <p>{{ job.source_name }} · direkte Kartenanzahl je Deck</p>
+  <h1>{{ t('Deck tree', de='Deckbaum') }}</h1>
+  <p>{{ job.source_name }} · {{ t('direct card count per deck', de='direkte Kartenanzahl je Deck') }}</p>
 </hgroup>
 <article>
   {% if decks %}
   <ul class="deck-tree">
     {% for deck in decks recursive %}
-    <li><strong>{{ deck.name }}</strong> <span class="nowrap">· {{ deck.cards }} Karten</span>
+    <li><strong>{{ deck.name }}</strong> <span class="nowrap">· {{ t('{count} cards', de='{count} Karten', count=deck.cards) }}</span>
       {% if deck.children %}<ul>{{ loop(deck.children) }}</ul>{% endif %}
     </li>
     {% endfor %}
   </ul>
-  {% else %}<p>Die APKG enthält keine normalen Decks.</p>{% endif %}
+  {% else %}<p>{{ t('The APKG contains no normal decks.', de='Die APKG enthält keine normalen Decks.') }}</p>{% endif %}
 </article>
-<p><a href="{{ url_for('decks_page') }}">Andere APKG prüfen</a> · <a href="{{ url_for('job_page', job_id=job.id) }}">Zum Job</a></p>
+<p><a href="{{ url_for('decks_page') }}">{{ t('Inspect another APKG', de='Andere APKG prüfen') }}</a> · <a href="{{ url_for('job_page', job_id=job.id) }}">{{ t('View job', de='Zum Job') }}</a></p>
 {% endblock %}

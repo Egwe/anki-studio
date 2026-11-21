@@ -12,8 +12,9 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Resp
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from anki_studio.collection_write import COLLECTION_WRITE_KIND, COLLECTION_WRITE_TITLE
+from anki_studio.collection_write import COLLECTION_WRITE_KIND
 from anki_studio.generation import SOURCE_TEXT_FILE, job_paths
+from anki_studio.i18n import locale_from_request, translate_request
 from anki_studio.jobs import Job
 from anki_studio.review import (
     AlreadyWrittenError,
@@ -219,8 +220,12 @@ async def _queue_collection_write(request: Request, job: Job, deck: str) -> Resp
     """
     store = request.app.state.jobs
     write_job = store.create_task(
-        COLLECTION_WRITE_TITLE,
-        {"kind": COLLECTION_WRITE_KIND, "source_job_id": job.id},
+        translate_request(request, "Write cards to collection", de="Karten in Sammlung schreiben"),
+        {
+            "kind": COLLECTION_WRITE_KIND,
+            "source_job_id": job.id,
+            "locale": locale_from_request(request),
+        },
     )
     try:
         await run_in_threadpool(reserve_collection_write, store, job, write_job.id, deck)

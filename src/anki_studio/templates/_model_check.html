@@ -3,7 +3,7 @@
 <small class="field-error">{{ error }}</small>
 {% else %}
 <details>
-  <summary>Schlüssel funktioniert: {{ result.models | length }} Modelle von {{ result.provider }}</summary>
+  <summary>{{ t('Key works: {count} models from {provider}', de='Schlüssel funktioniert: {count} Modelle von {provider}', count=result.models | length, provider=result.provider) }}</summary>
   <ul class="model-names">
     {% for name in result.models %}<li><code>{{ name }}</code></li>{% endfor %}
   </ul>

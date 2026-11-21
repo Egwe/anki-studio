@@ -12,6 +12,7 @@ from anki_flashcards.pipeline import run_export
 from anki_flashcards.settings import ExportSettings, resolve_export_settings
 
 from anki_studio.generator_config import load_generator_config
+from anki_studio.i18n import translate_with_fallback
 from anki_studio.jobs import Job, JobStore
 from anki_studio.sync import SyncService
 from anki_studio.worker import CancelCheck, Reporter
@@ -57,13 +58,22 @@ class ExportRunner:
             FlashcardError: If configuration, card JSON, deck, target, APKG,
                 or safe collection synchronization is invalid.
         """
-        report({"type": "notice", "text": "Karten-JSON wird geprüft …", "level": "info"})
+        locale = str(job.options.get("locale", "en"))
+        report(
+            {
+                "type": "notice",
+                "text": translate_with_fallback(
+                    locale, "Checking card JSON …", de="Karten-JSON wird geprüft …"
+                ),
+                "level": "info",
+            }
+        )
         generator = load_generator_config(self.config_path)
         settings = self._settings(job, generator)
         if job.options.get("target", "new_apkg") == "collection":
             self._write_collection(job, settings, report, cancel)
             return
-        self._write_apkg(settings, report)
+        self._write_apkg(settings, report, locale)
 
     def _settings(self, job: Job, generator: Any) -> ExportSettings:
         """Resolve the generator's export settings with an explicit job path.
@@ -87,12 +97,13 @@ class ExportRunner:
         )
 
     @staticmethod
-    def _write_apkg(settings: ExportSettings, report: Reporter) -> None:
+    def _write_apkg(settings: ExportSettings, report: Reporter, locale: str) -> None:
         """Write a new APKG through the generator's complete export API.
 
         Args:
             settings: Resolved card-JSON-to-APKG settings.
             report: Receives the add-count notice.
+            locale: Interface language captured for the job.
 
         Returns:
             None.
@@ -101,7 +112,13 @@ class ExportRunner:
         report(
             {
                 "type": "notice",
-                "text": f"{result.added} Karten für Deck „{result.deck}“ geschrieben.",
+                "text": translate_with_fallback(
+                    locale,
+                    "Wrote {count} cards for deck “{deck}”.",
+                    de="{count} Karten für Deck „{deck}“ geschrieben.",
+                    count=result.added,
+                    deck=result.deck,
+                ),
                 "level": "info",
             }
         )
@@ -127,7 +144,13 @@ class ExportRunner:
         if self.sync is None:
             raise FlashcardError("Sammlungsziel ist nicht eingerichtet.")
         cards = deduplicate_cards(load_cards(settings.cards_file))
-        result, outcome = self.sync.write_cards(settings.deck, cards, report, cancel)
+        result, outcome = self.sync.write_cards(
+            settings.deck,
+            cards,
+            report,
+            cancel,
+            locale=str(job.options.get("locale", "en")),
+        )
         _write_json(
             self.store.job_dir(job.id) / EXPORT_RESULT_FILE,
             {
@@ -143,8 +166,17 @@ class ExportRunner:
             {
                 "type": "notice",
                 "text": (
-                    f"{result.added} Karten in Deck „{result.deck}“ geschrieben; "
-                    f"{result.skipped} schon vorhanden."
+                    translate_with_fallback(
+                        str(job.options.get("locale", "en")),
+                        "Wrote {added} cards in deck “{deck}”; {skipped} already present.",
+                        de=(
+                            "{added} Karten in Deck „{deck}“ geschrieben; "
+                            "{skipped} schon vorhanden."
+                        ),
+                        added=result.added,
+                        deck=result.deck,
+                        skipped=result.skipped,
+                    )
                 ),
                 "level": "info",
             }

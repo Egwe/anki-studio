@@ -2,6 +2,7 @@
 
 from anki_flashcards.errors import FlashcardError
 
+from anki_studio.i18n import translate_with_fallback
 from anki_studio.jobs import Job, JobStatus, JobStore
 from anki_studio.review import (
     collection_result,
@@ -52,14 +53,24 @@ class CollectionWriteRunner:
         source = self._source_job(job)
         try:
             deck, cards = reserved_collection_cards(self.store, source, job.id)
-            result, outcome = self.sync.write_cards(deck, cards, report, cancel)
+            result, outcome = self.sync.write_cards(
+                deck,
+                cards,
+                report,
+                cancel,
+                locale=str(job.options.get("locale", "en")),
+            )
             finish_collection_write(
                 self.store, source, job.id, collection_result(result, outcome.result)
             )
             report(
                 {
                     "type": "notice",
-                    "text": "Kartenprüfung als geschrieben markiert.",
+                    "text": translate_with_fallback(
+                        str(job.options.get("locale", "en")),
+                        "Card review marked as written.",
+                        de="Kartenprüfung als geschrieben markiert.",
+                    ),
                     "level": "info",
                 }
             )

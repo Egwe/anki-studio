@@ -35,6 +35,18 @@ MESSAGES = {
     "value_error": "{error}",
 }
 
+ENGLISH_MESSAGES = {
+    "greater_than_equal": "Value must be at least {ge}.",
+    "less_than_equal": "Value must be at most {le}.",
+    "int_parsing": "Enter a whole number.",
+    "int_from_float": "Enter a whole number.",
+    "bool_parsing": "Choose yes or no.",
+    "string_too_long": "At most {max_length} characters.",
+    "string_pattern_mismatch": "Use provider/model format, for example ollama/llama3.2.",
+    "enum": "Allowed: {expected}.",
+    "value_error": "{error}",
+}
+
 
 class Target(StrEnum):
     """Name where the reviewed cards go."""
@@ -194,11 +206,13 @@ def normalize_deck(deck: str) -> str:
     return "::".join(levels)
 
 
-def form_errors(errors: list[dict[str, Any]]) -> dict[str, str]:
-    """Map Pydantic errors to one German message per form field.
+def form_errors(errors: list[dict[str, Any]], locale: str = "de") -> dict[str, str]:
+    """Map Pydantic errors to one message per form field.
 
     Args:
         errors: ``ValidationError.errors()`` of ``GenerateForm``.
+        locale: ``en`` for English; German remains the compatibility default
+            for callers outside the web request boundary.
 
     Returns:
         Field name to message; the first error of a field wins.
@@ -206,21 +220,23 @@ def form_errors(errors: list[dict[str, Any]]) -> dict[str, str]:
     messages: dict[str, str] = {}
     for error in errors:
         field = str(error["loc"][0]) if error["loc"] else "form"
-        messages.setdefault(field, error_message(error))
+        messages.setdefault(field, error_message(error, locale))
     return messages
 
 
-def error_message(error: dict[str, Any]) -> str:
-    """Translate one Pydantic error into a short German message.
+def error_message(error: dict[str, Any], locale: str = "de") -> str:
+    """Translate one Pydantic error into a short English or German message.
 
     Args:
         error: One entry of ``ValidationError.errors()``.
+        locale: ``en`` for English; any other value uses German.
 
     Returns:
-        The German template for the error type filled with its context, or
+        A localised template for the error type filled with its context, or
         Pydantic's own message for other error types.
     """
-    template = MESSAGES.get(error["type"])
+    messages = ENGLISH_MESSAGES if locale == "en" else MESSAGES
+    template = messages.get(error["type"])
     if template is None:
         return str(error["msg"])
     return template.format(**(error.get("ctx") or {}))

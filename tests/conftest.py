@@ -123,6 +123,10 @@ def auth_client(studio_settings: StudioSettings) -> Iterator[TestClient]:
     with make_client(studio_settings) as test_client:
         response = test_client.post("/login", data={"password": PASSWORD}, follow_redirects=False)
         assert response.status_code == 303
+        language = test_client.post(
+            "/language", data={"locale": "de", "next": "/"}, follow_redirects=False
+        )
+        assert language.status_code == 303
         yield test_client
 
 

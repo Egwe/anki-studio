@@ -4,7 +4,8 @@ from anki_flashcards.errors import FlashcardError
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from anki_studio.sync import SYNC_KIND, SYNC_TITLE, SyncState
+from anki_studio.i18n import locale_from_request, translate_request
+from anki_studio.sync import SYNC_KIND, SyncState
 
 router = APIRouter()
 
@@ -34,8 +35,20 @@ def sync_submit(request: Request) -> Response:
     """
     service = request.app.state.sync_service
     if not service.configured:
-        return _render(request, error="Sync ist noch nicht vollständig eingerichtet.", status=400)
-    job = request.app.state.jobs.create_task(SYNC_TITLE, {"kind": SYNC_KIND})
+        return _render(
+            request,
+            error=translate_request(
+                request,
+                "Sync is not fully configured yet.",
+                de="Sync ist noch nicht vollständig eingerichtet.",
+            ),
+            status=400,
+        )
+    locale = locale_from_request(request)
+    job = request.app.state.jobs.create_task(
+        translate_request(request, "Synchronise", de="Synchronisieren"),
+        {"kind": SYNC_KIND, "locale": locale},
+    )
     request.app.state.worker.submit(job)
     return RedirectResponse(f"/jobs/{job.id}", status_code=303)
 

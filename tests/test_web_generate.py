@@ -267,7 +267,12 @@ def test_cancel_waiting_job(auth_client: TestClient, studio_settings: StudioSett
         studio_settings: Settings of the test application.
     """
     store = auth_client.app.state.jobs
-    job = store.create(io.BytesIO(b"# Titel"), "wartet.md", 7, {"form": {}, "target_file": None})
+    job = store.create(
+        io.BytesIO(b"# Titel"),
+        "wartet.md",
+        7,
+        {"form": {}, "target_file": None, "locale": "de"},
+    )
 
     response = auth_client.post(f"/jobs/{job.id}/cancel", follow_redirects=False)
 

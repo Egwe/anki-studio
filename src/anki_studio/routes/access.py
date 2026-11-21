@@ -10,6 +10,7 @@ from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 
 from anki_studio.credentials import Credentials
+from anki_studio.i18n import translate_request
 from anki_studio.passwords import hash_password, verify_password
 from anki_studio.runtime_env import RuntimeEnvironment, RuntimeEnvironmentError
 from anki_studio.settings import validate_sync_endpoint
@@ -75,11 +76,23 @@ async def change_password(request: Request, form: Annotated[PasswordForm, Form()
     """
     credentials = request.app.state.credentials
     if not await run_in_threadpool(_current_password_matches, credentials, form.current):
-        return _render(request, password_error="Das aktuelle Passwort ist falsch.", status=400)
+        return _render(
+            request,
+            password_error=translate_request(
+                request,
+                "The current password is incorrect.",
+                de="Das aktuelle Passwort ist falsch.",
+            ),
+            status=400,
+        )
     if form.password != form.confirmation:
         return _render(
             request,
-            password_error="Die beiden Passwörter stimmen nicht überein.",
+            password_error=translate_request(
+                request,
+                "The two passwords do not match.",
+                de="Die beiden Passwörter stimmen nicht überein.",
+            ),
             status=400,
         )
     try:
@@ -100,7 +113,11 @@ async def change_password(request: Request, form: Annotated[PasswordForm, Form()
     except OSError:
         return _render(
             request,
-            password_error="Die Zugangsdaten konnten nicht sicher gespeichert werden.",
+            password_error=translate_request(
+                request,
+                "The credentials could not be saved securely.",
+                de="Die Zugangsdaten konnten nicht sicher gespeichert werden.",
+            ),
             status=500,
         )
     return _restart_response(request)
@@ -118,7 +135,7 @@ async def change_sync_access(request: Request, form: Annotated[SyncAccessForm, F
         A redirect while the service restarts, or the form with an error.
     """
     credentials = request.app.state.credentials
-    values, error = _sync_values(form, credentials)
+    values, error = _sync_values(request, form, credentials)
     if error is not None:
         return _render(request, sync_error=error, sync_values=form, status=400)
     endpoint, username, password = values
@@ -136,7 +153,11 @@ async def change_sync_access(request: Request, form: Annotated[SyncAccessForm, F
     except OSError:
         return _render(
             request,
-            sync_error="Die Sync-Zugangsdaten konnten nicht sicher gespeichert werden.",
+            sync_error=translate_request(
+                request,
+                "The sync credentials could not be saved securely.",
+                de="Die Sync-Zugangsdaten konnten nicht sicher gespeichert werden.",
+            ),
             sync_values=form,
             status=500,
         )
@@ -159,7 +180,7 @@ def _current_password_matches(credentials: Credentials, password: str) -> bool:
 
 
 def _sync_values(
-    form: SyncAccessForm, credentials: Credentials
+    request: Request, form: SyncAccessForm, credentials: Credentials
 ) -> tuple[tuple[str | None, str | None, str | None], str | None]:
     """Validate a complete enabled connection or an explicit disabled state.
 
@@ -167,6 +188,7 @@ def _sync_values(
     stays the same, so changing only the endpoint needs no retyping.
 
     Args:
+        request: Browser request selecting the response language.
         form: Submitted sync form.
         credentials: Currently loaded sync credentials.
 
@@ -181,11 +203,17 @@ def _sync_values(
     if not password and username == credentials.sync_username:
         password = credentials.sync_password or ""
     if not username or not password:
-        return (None, None, None), "Benutzername und Passwort sind erforderlich."
+        return (None, None, None), translate_request(
+            request,
+            "A user name and password are required.",
+            de="Benutzername und Passwort sind erforderlich.",
+        )
     try:
         endpoint = validate_sync_endpoint(form.endpoint)
     except ValueError as error:
-        return (None, None, None), f"Sync-Endpunkt {error}"
+        return (None, None, None), translate_request(
+            request, "Sync endpoint {error}", de="Sync-Endpunkt {error}", error=error
+        )
     return (endpoint, username, password), None
 
 

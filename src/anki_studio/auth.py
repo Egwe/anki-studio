@@ -15,7 +15,7 @@ SESSION_KEY = "authenticated"
 SESSION_COOKIE = "anki_studio_session"
 SESSION_MAX_AGE = 14 * 24 * 60 * 60
 LOGIN_PATH = "/login"
-PUBLIC_PATHS = frozenset({LOGIN_PATH, "/healthz"})
+PUBLIC_PATHS = frozenset({LOGIN_PATH, "/language", "/healthz"})
 PUBLIC_PREFIXES = ("/static/",)
 
 

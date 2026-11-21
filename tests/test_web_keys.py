@@ -154,7 +154,7 @@ def test_environment_file_values_are_read_only(
         page = client.get("/settings/keys").text
         response = store_key(client, "TEST_STUDIO_KEY")
 
-    assert "aus der Umgebungsdatei" in page
+    assert "from environment file" in page
     assert "aus-der-env-datei" not in page
     assert response.status_code == 400
     assert os.environ["TEST_STUDIO_KEY"] == "aus-der-env-datei"

@@ -1,36 +1,36 @@
 {% extends "base.html" %}
-{% block title %}Synchronisierung – Anki Studio{% endblock %}
+{% block title %}{{ t('Synchronisation', de='Synchronisierung') }} – Anki Studio{% endblock %}
 {% block content %}
 <hgroup>
-  <h1>Synchronisierung</h1>
-  <p>Die lokale Sammlung wird sicher mit dem eigenen Anki-Sync-Server abgeglichen. Medien werden noch nicht synchronisiert.</p>
+  <h1>{{ t('Synchronisation', de='Synchronisierung') }}</h1>
+  <p>{{ t('The local collection is synchronised safely with your own Anki sync server. Media is not synchronised yet.', de='Die lokale Sammlung wird sicher mit dem eigenen Anki-Sync-Server abgeglichen. Medien werden noch nicht synchronisiert.') }}</p>
 </hgroup>
 {% if error %}<article class="alert">{{ error }}</article>{% endif %}
 <article>
-  <header><strong>Einrichtung</strong></header>
+  <header><strong>{{ t('Setup', de='Einrichtung') }}</strong></header>
   <dl class="components">
-    <dt>Endpunkt</dt><dd>{{ endpoint or "fehlt" }}</dd>
-    <dt>Benutzer</dt><dd>{{ username or "fehlt" }}</dd>
-    <dt>Passwort</dt><dd>{{ "gesetzt" if password_set else "fehlt" }}</dd>
+    <dt>{{ t('Endpoint', de='Endpunkt') }}</dt><dd>{{ endpoint or t('missing', de='fehlt') }}</dd>
+    <dt>{{ t('User', de='Benutzer') }}</dt><dd>{{ username or t('missing', de='fehlt') }}</dd>
+    <dt>{{ t('Password') }}</dt><dd>{{ t('set', de='gesetzt') if password_set else t('missing', de='fehlt') }}</dd>
   </dl>
   {% if not configured %}
-  <footer><small>Endpunkt in <code>studio.yaml</code>, Benutzer und Passwort in der Umgebungsdatei setzen. Die Zugangsdaten werden hier nie angezeigt oder gespeichert.</small></footer>
+  <footer><small>{{ t('Set the endpoint in <code>studio.yaml</code> and the user name and password in the environment file. Credentials are never shown or stored here.', de='Endpunkt in <code>studio.yaml</code>, Benutzer und Passwort in der Umgebungsdatei setzen. Die Zugangsdaten werden hier nie angezeigt oder gespeichert.') }}</small></footer>
   {% endif %}
 </article>
 <article>
-  <header><strong>Letzter Abgleich</strong></header>
+  <header><strong>{{ t('Last synchronisation', de='Letzter Abgleich') }}</strong></header>
   <dl class="components">
-    <dt>Zeitpunkt</dt><dd>{{ state.last_synced_at.strftime("%d.%m.%Y %H:%M UTC") if state.last_synced_at else "noch nie" }}</dd>
-    <dt>Ergebnis</dt><dd>{{ state.last_result or "–" }}</dd>
-    <dt>Server-Hinweis</dt><dd>{{ state.server_message or "–" }}</dd>
+    <dt>{{ t('Time', de='Zeitpunkt') }}</dt><dd>{{ state.last_synced_at.strftime("%d.%m.%Y %H:%M UTC") if state.last_synced_at else t('never', de='noch nie') }}</dd>
+    <dt>{{ t('Result', de='Ergebnis') }}</dt><dd>{{ state.last_result or "–" }}</dd>
+    <dt>{{ t('Server message', de='Server-Hinweis') }}</dt><dd>{{ state.server_message or "–" }}</dd>
   </dl>
   {% if configured %}
   <footer>
     <form method="post" action="{{ url_for('sync_submit') }}">
-      <button type="submit">Jetzt synchronisieren</button>
+      <button type="submit">{{ t('Synchronise now', de='Jetzt synchronisieren') }}</button>
     </form>
   </footer>
   {% endif %}
 </article>
-<p><small>Ein Komplett-Upload findet nie automatisch statt. Einen verlangten Komplett-Download führt Anki Studio nur aus, wenn keine lokalen, noch nicht bestätigten Änderungen vorliegen.</small></p>
+<p><small>{{ t('A full upload never happens automatically. Anki Studio performs a requested full download only when no unconfirmed local changes exist.', de='Ein Komplett-Upload findet nie automatisch statt. Einen verlangten Komplett-Download führt Anki Studio nur aus, wenn keine lokalen, noch nicht bestätigten Änderungen vorliegen.') }}</small></p>
 {% endblock %}
