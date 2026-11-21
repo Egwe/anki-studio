@@ -39,7 +39,7 @@ Die Entscheidungen zu Basis, Rolle, Generator-Einbindung, Backend, Frontend, Liv
 | 1 | Vorbereitung des Generators: R-170 bis R-176, Version 0.2.0 | Generator-Repo | **erledigt**: Generator 0.2.0, Git-Tag `v0.2.0`; R-170 bis R-176 dort umgesetzt (Übergabe Abschnitt 12) |
 | 2 | Web-MVP: Login, Generieren, Live-Fortschritt, Prüfen, APKG- und JSON-Download | anki-studio | **erledigt** (21.11.2026); dazu Zugangsdaten und Modellliste |
 | 3 | Sync: Anmeldung, lokale Sammlung, Deckauswahl, Schreiben und Synchronisieren | anki-studio | **lokal umgesetzt**; echter Lauf nur mit eigenem freigegebenem Testbenutzer noch offen |
-| 4 | Deployment im LXC: systemd, uv, Pfade, Backup | anki-studio | offen |
+| 4 | Deployment im LXC: systemd, uv, Pfade, Backup | anki-studio | **Skripte fertig** (`install.sh` mit Übernahme der Vorschau, `update.sh`); Ausführung auf Auftrag; Backup offen (Proxmox-Host) |
 | 5 | Optional: Karten durchsuchen und bearbeiten (AS-013) | anki-studio | offen |
 
 ## 4. Anforderungen
@@ -318,7 +318,7 @@ Jedes Paket ist ein Branch mit kleinen Commits, wird nach grünen Prüfungen mit
 | P12 | `codex/deployment-foundation` | reguläre Installations-/Update-Skripte und isolierte Codex-Vorschau | AS-040, AS-041 (Vorschau), AS-042 | **teilweise erledigt**: Skripte und Codex-Vorschau im Container geprüft; reguläre Installation und Proxmox-Backup bewusst noch nicht ausgeführt |
 | P13 | `codex/runtime-access-settings` | Login-Passwort und Sync-Zugang im Browser, atomare Laufzeit-Umgebung, kontrollierter Neustart | AS-016 | erledigt |
 | M1 | `codex/main` → `main` | Review und Übernahme des Codex-Stands P9–P13 (Merge `26c6563`) | – | erledigt |
-| P14 | `feature/codex-review-fixes` | Befunde des Reviews: Sync-Fehlertexte und Wiederöffnen nach gescheitertem Komplett-Download, aktuelles Passwort beim Ändern, Sync-Passwort behalten, Session-Schlüssel und Sync-Passwort verschlüsselt in `runtime.env`, Übernahme der Vorschau durch `install.sh` | AS-016, AS-022, AS-031, AS-040 | in Arbeit |
+| P14 | `feature/codex-review-fixes` | Befunde des Reviews: Sync-Fehlertexte und Wiederöffnen nach gescheitertem Komplett-Download, aktuelles Passwort beim Ändern, Sync-Passwort behalten, Session-Schlüssel und Sync-Passwort verschlüsselt in `runtime.env`, Übernahme der Vorschau durch `install.sh`, Entfernen der Codex-Vorschau | AS-016, AS-022, AS-031, AS-040 | erledigt |
 | Phase 3 | P10, P11 | Sync-Client, Sammlung als Ziel, Sync-Status | AS-020–AS-025, AS-002, AS-006, AS-007, AS-008, AS-011 | **lokal umgesetzt**; echter Server-Test mit Testbenutzer offen |
 | Phase 4 | P12, P14 | Installation und Update nach AS-040, Backup | AS-040, AS-042 | Skripte fertig; Ausführung von `install.sh` erst auf Auftrag; Backup offen (Proxmox-Host) |
 
@@ -347,5 +347,7 @@ darf erst nach einer bewussten Übernahme in das globale `main` erfolgen; das
 Proxmox-Backup (AS-042) braucht eine separate Host-Freigabe. Ein echter
 Sync-Test bleibt bis zur Bereitstellung eines ausdrücklich freigegebenen
 Testbenutzers aus.
+
+*Übernahme nach `main` (21.11.2026):* Claude hat `codex/main` gegen `main` geprüft (Sync-Sicherheit nach AS-023, Sammlungs-Worker, Laufzeit-Umgebung, Routen, Deploy-Skripte) und mit dem Merge-Commit `26c6563` übernommen. Die Befunde behebt P14: allgemeine Sync-Fehlermeldung ohne Grund, fehlendes Wiederöffnen der Sammlung nach gescheitertem Komplett-Download, Passwortänderung ohne aktuelles Passwort, Sync-Passwort und Session-Schlüssel nur Base64-kodiert im Datenordner, keine Übernahme der Vorschau durch `install.sh` (Port- und Datenordnerkonflikt mit `DynamicUser`), Codex-Vorschau-Skripte mit Nicht-`main`-Ständen.
 
 **Übernahme durch eine andere Person oder KI:** `AGENTS.md` lesen, dann `git log --oneline --first-parent main` für die erledigten Pakete und diese Tabelle für das nächste. Prüfungen: `uv sync`, `ruff check`, `ruff format --check`, `pytest` (README). Die Vorschau aktualisiert `ssh ct-anki-studio 'bash -s' < deploy/preview.sh`.

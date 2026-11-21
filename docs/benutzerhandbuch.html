@@ -286,7 +286,8 @@ mark { background: var(--mark); color: inherit; }
     <tr><th>Meldung</th><th>Lösung</th></tr>
     <tr><td>Die Generator-Konfiguration ist nicht nutzbar</td><td>Die Datei aus <code>generator_config</code> fehlt oder ist ungültig. Im Container <code>/etc/anki-studio/config.yaml</code> prüfen.</td></tr>
     <tr><td>Schlüssel fehlt (beim Profil)</td><td>Unter <a href="#zugangsdaten">Zugangsdaten</a> den Schlüssel des Providers eintragen.</td></tr>
-    <tr><td>Speichern ist nicht möglich (Zugangsdaten)</td><td><code>ANKI_STUDIO_SECRET_KEY</code> fehlt auf dem Server; das Vorschau-Skript legt ihn an.</td></tr>
+    <tr><td>Speichern ist nicht möglich (Zugangsdaten, Zugang und Sync)</td><td><code>ANKI_STUDIO_SECRET_KEY</code> fehlt auf dem Server; Vorschau- und Installationsskript legen ihn an.</td></tr>
+    <tr><td>Das aktuelle Passwort ist falsch.</td><td>Beim Ändern des Login-Passworts das bisherige Passwort eingeben; ohne es bleibt das Passwort unverändert.</td></tr>
     <tr><td>… Connection refused</td><td>Der Provider ist nicht erreichbar, etwa ein Ollama-Server; Adresse (API-Basis) und Dienst prüfen.</td></tr>
     <tr><td>Dateityp wird nicht unterstützt</td><td>Nur PDF, DOCX, HTML, Markdown und Text; zum Erweitern nur <code>.apkg</code>.</td></tr>
     <tr><td>… ist größer als 100 MiB</td><td>Dokument verkleinern oder aufteilen.</td></tr>
