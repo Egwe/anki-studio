@@ -136,6 +136,35 @@ class GenerateForm(BaseModel):
         return {name: value for name, value in values.items() if value not in ("", None)}
 
 
+class ExportForm(BaseModel):
+    """Hold the deck selected for a card-JSON export.
+
+    Attributes:
+        deck: Target deck of the new APKG; empty lets the generator YAML
+            provide its generation default.
+    """
+
+    model_config = ConfigDict(str_strip_whitespace=True, frozen=True)
+
+    deck: str = Field(default="", max_length=200)
+
+    @field_validator("deck")
+    @classmethod
+    def _check_deck(cls, deck: str) -> str:
+        """Normalize a non-empty target deck.
+
+        Args:
+            deck: Stripped deck name from the export form.
+
+        Returns:
+            The normalized deck, or an empty string for the YAML default.
+
+        Raises:
+            ValueError: If a non-empty deck has an empty ``::`` level.
+        """
+        return normalize_deck(deck) if deck else deck
+
+
 def normalize_deck(deck: str) -> str:
     """Trim every ``::`` level of a deck name and refuse empty levels.
 

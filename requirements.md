@@ -52,7 +52,7 @@ Mehrere Dateien hochladen (PDF, DOCX, HTML, Markdown, Text; je höchstens 100 Mi
 
 **AS-002 – Ziel wählen · muss · teilweise**
 Ziel ist entweder ein Deck der synchronisierten Sammlung (Auswahl aus vorhandenen Decks oder neuer Name, `::` für Unterdecks), eine neue APKG-Datei zum Download oder eine hochgeladene APKG zum Erweitern.
-*Umgesetzt:* neue APKG oder hochgeladene APKG (höchstens 512 MiB, nur mit einem Dokument) als Ziel des Jobs; Unterdeck-Kontext aus der APKG. *Offen:* Schreiben und Download nach der Prüfung (AS-005/AS-006), Sammlung als Ziel (Phase 3).
+*Umgesetzt:* neue APKG oder hochgeladene APKG (höchstens 512 MiB, nur mit einem Dokument) als Ziel des Jobs; Unterdeck-Kontext aus der APKG; Schreiben und Download nach der Prüfung (AS-005/AS-006). *Offen:* Sammlung als Ziel (Phase 3).
 
 **AS-003 – Datenübertragung bestätigen · muss · umgesetzt**
 Bei `pdf_mode: native` und beim Bild-Backend `profile` muss der Benutzer vor dem Start ausdrücklich bestätigen, dass das Dokument beziehungsweise Bildausschnitte an den Provider gehen. Ohne Bestätigung startet der Job nicht. Während des Laufs kommen dieselben Ankündigungen als `Notice` mit `level == "transfer"` und werden hervorgehoben.
@@ -70,11 +70,13 @@ Nach der Generierung erscheinen die Karten in einer Tabelle: Frage, Antwort, Unt
 Nach dem Schreiben: hinzugefügte und übersprungene Karten, Aufteilung nach Unterdecks, Sync-Ergebnis. Downloads: APKG, Karten-JSON, aufbereiteter Text (falls erzeugt).
 *Umgesetzt:* hinzugefügte und übersprungene Karten, Aufteilung nach Unterdecks, Downloads von APKG, Karten-JSON und aufbereitetem Text. *Offen:* Sync-Ergebnis (Phase 3).
 
-**AS-007 – Decks · muss · offen**
+**AS-007 – Decks · muss · teilweise**
 Deckbaum der synchronisierten Sammlung mit Kartenanzahl. Ebenso für eine hochgeladene APKG (entspricht `anki-flashcards decks`).
+*Umgesetzt:* `/decks` nimmt eine APKG bis 512 MiB als Job entgegen, liest sie ausschließlich mit `inspect_apkg` des Generators und zeigt danach Deckhierarchie und direkte Kartenanzahlen. Das Paket bleibt unverändert (`decks.py`, `routes/decks.py`, `tests/test_decks_export.py`). *Offen:* Deckbaum der synchronisierten Sammlung (Phase 3).
 
-**AS-008 – Export · muss · offen**
+**AS-008 – Export · muss · teilweise**
 Karten-JSON hochladen und als APKG ausgeben oder in die Sammlung schreiben (entspricht `anki-flashcards export`).
+*Umgesetzt:* `/export` nimmt versionierte Karten-JSON bis 100 MiB entgegen, prüft sie über `resolve_export_settings` und `run_export` des Generators und erzeugt als Job eine neue APKG zum Download. Deckname oder YAML-Standard werden dabei verwendet (`card_export.py`, `routes/export.py`, `tests/test_decks_export.py`). *Offen:* Schreiben in die synchronisierte Sammlung (Phase 3).
 
 **AS-009 – Konfiguration · muss · umgesetzt**
 Wirksame Werte mit Herkunft anzeigen (entspricht `config show`). Profile und Standardwerte der YAML bearbeiten, validiert über das Schema des Generators und atomar gespeichert. API-Schlüssel erscheinen nur als „gesetzt“ oder „fehlt“.
@@ -300,7 +302,7 @@ Jedes Paket ist ein Branch mit kleinen Commits, wird nach grünen Prüfungen mit
 | P7 | `feature/config-editor` | Konfiguration anzeigen (Herkunft) und Profile und Standardwerte bearbeiten | AS-009, AS-016 | erledigt |
 | G1 | Generator-Repo | Generator 0.2.1: `tenacity`, Mehrwort-Tags, Batch-Größe Formeln, genauere GPU-Prüfung; Anki Studio auf `v0.2.1` | – | erledigt (vorgezogen) |
 | P8 | `feature/structured-mode` | Extra `pdf` mit PyTorch `cu126`, Modelle laden, GPU-Anzeige | AS-041, AS-010 | teilweise: Code und Tests erledigt; echter Lauf der aktualisierten Vorschau noch offen |
-| P9 | `feature/decks-export` | Decks einer APKG, Export Karten-JSON → APKG | AS-007, AS-008 (APKG-Teile) | offen |
+| P9 | `feature/decks-export` | Decks einer APKG, Export Karten-JSON → APKG | AS-007, AS-008 (APKG-Teile) | **teilweise erledigt**: APKG-Deckbaum und neuer APKG-Export umgesetzt; Sammlungsteile bleiben Phase 3 |
 | Phase 3 | `feature/sync-…` | Sync-Client, Sammlung als Ziel, Sync-Status; braucht einen Testbenutzer des Projektinhabers | AS-020–AS-025, AS-002, AS-006, AS-007, AS-008, AS-011 | offen |
 | Phase 4 | `feature/deploy-…` | Installation und Update nach AS-040, Backup | AS-040, AS-042 | offen |
 

@@ -6,7 +6,7 @@ Anforderungen und ihr Status stehen in [requirements.md](./requirements.md), Arb
 
 ## Stand
 
-Der Web-MVP (Phase 2) steht: Nach der Anmeldung lassen sich API-Schlüssel eintragen, Modelle beim Provider auswählen, Dokumente hochladen und Karten erzeugen. Jede Datei wird ein Job mit Live-Fortschritt; danach werden die Karten geprüft, bearbeitet oder abgewählt und in eine neue oder hochgeladene APKG geschrieben, die sich wie Karten-JSON und aufbereiteter Text herunterladen lässt. Profile, Standardwerte und API-Schlüssel werden in der Oberfläche gepflegt. Der strukturierte PDF-Modus zeigt GPU und Modellbestand und lädt fehlende Modelle als Job; Decks und Export sowie der Sync mit der Sammlung folgen in Phase 3.
+Der Web-MVP (Phase 2) steht: Nach der Anmeldung lassen sich API-Schlüssel eintragen, Modelle beim Provider auswählen, Dokumente hochladen und Karten erzeugen. Jede Datei wird ein Job mit Live-Fortschritt; danach werden die Karten geprüft, bearbeitet oder abgewählt und in eine neue oder hochgeladene APKG geschrieben, die sich wie Karten-JSON und aufbereiteter Text herunterladen lässt. Profile, Standardwerte und API-Schlüssel werden in der Oberfläche gepflegt. Der strukturierte PDF-Modus zeigt GPU und Modellbestand und lädt fehlende Modelle als Job. Hochgeladene APKGs lassen sich als Deckbaum lesen, und Karten-JSON lässt sich in eine neue APKG exportieren; der Sync mit der Sammlung folgt in Phase 3.
 
 Ausführlich: [docs/benutzerhandbuch.html](./docs/benutzerhandbuch.html) für die Bedienung, [docs/entwicklerhandbuch.html](./docs/entwicklerhandbuch.html) für Module, Abläufe und Tests. Beide Dateien lassen sich ohne Server im Browser öffnen.
 
@@ -99,6 +99,12 @@ Jede Datei wird ein eigener **Job**. Es läuft immer nur ein Job, weitere warten
 Ist ein Job fertig, zeigt seine Seite die Karten zur **Prüfung** (AS-005): Jede Karte lässt sich bearbeiten (Frage, Antwort, Unterdeck, Tags durch Leerzeichen getrennt), abwählen oder löschen; jede Änderung durchläuft die Kartenprüfung des Generators. **Ausgewählte Karten schreiben** schreibt sie mit dem gewählten Deck in eine neue APKG oder in die hochgeladene APKG; dabei überspringt die Duplikaterkennung des Generators bekannte Fragen. Danach zeigt die Seite das **Ergebnis** (AS-006) – neue und übersprungene Karten, Aufteilung nach Unterdecks – und bietet die APKG, die Auswahl als Karten-JSON und gegebenenfalls den aufbereiteten Text zum Download an. Geschrieben wird je Job genau einmal; der Prüfstand liegt in `review.json`, das Ergebnis in `result.json` im Job-Ordner, `cards.json` bleibt die unveränderte Ausgabe des Generators.
 
 Uploads werden vor dem Speichern geprüft: nur die Dokumenttypen des Generators, je höchstens 100 MiB, höchstens zehn Dateien; Anfragen ohne Längenangabe oder über der Grenze lehnt der Server ab, bevor er sie liest.
+
+## Decks und Karten-JSON
+
+**Decks** (`/decks`) liest den Deckbaum einer hochgeladenen APKG (höchstens 512 MiB) mit den direkten Kartenanzahlen. Das Paket bleibt unverändert. Der Vorgang ist ein Job, damit das Öffnen temporärer Anki-Sammlungen immer seriell bleibt. Der Deckbaum der synchronisierten Sammlung folgt erst mit dem Sync.
+
+**Export** (`/export`) nimmt eine versionierte Karten-JSON (`schema_version: 1`) aus Anki Studio oder dem Generator entgegen (höchstens 100 MiB), prüft sie im Generator und erzeugt eine neue APKG. Ein leeres Zielfeld nimmt das Standard-Deck aus der Generator-YAML; `::` trennt Unterdecks. Dieser Export verändert weder eine vorhandene APKG noch die Anki-Sammlung.
 
 ## Vorschau im Container
 

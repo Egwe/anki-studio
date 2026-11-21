@@ -24,6 +24,8 @@
       <ul>
         {% if request.session.get("authenticated") %}
         <li><a href="{{ url_for('generate_page') }}">Generieren</a></li>
+        <li><a href="{{ url_for('decks_page') }}">Decks</a></li>
+        <li><a href="{{ url_for('export_page') }}">Export</a></li>
         <li><a href="{{ url_for('job_list') }}">Jobs</a></li>
         <li>
           <details class="dropdown">

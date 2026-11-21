@@ -11,13 +11,17 @@ from collections.abc import Mapping
 from starlette.responses import PlainTextResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from anki_studio.uploads import APKG, DOCUMENT
+from anki_studio.uploads import APKG, CARD_JSON, DOCUMENT
 
 MAX_DOCUMENTS = 10
 FORM_OVERHEAD = 2**20
 DEFAULT_LIMIT = 2**20
 UPLOAD_LIMIT = MAX_DOCUMENTS * DOCUMENT.max_size + APKG.max_size + FORM_OVERHEAD
-PATH_LIMITS = {"/generate": UPLOAD_LIMIT}
+PATH_LIMITS = {
+    "/decks": APKG.max_size + FORM_OVERHEAD,
+    "/export": CARD_JSON.max_size + FORM_OVERHEAD,
+    "/generate": UPLOAD_LIMIT,
+}
 
 
 class BodyLimitMiddleware:

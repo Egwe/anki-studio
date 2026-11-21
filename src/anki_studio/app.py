@@ -12,7 +12,9 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from anki_studio.auth import SESSION_COOKIE, SESSION_MAX_AGE, LoginRequiredMiddleware
+from anki_studio.card_export import EXPORT_KIND, ExportRunner
 from anki_studio.credentials import SESSION_SECRET_ENV, Credentials, load_credentials
+from anki_studio.decks import DECKS_KIND, DecksRunner
 from anki_studio.generation import GENERATE_KIND, GenerationRunner, KindRunner
 from anki_studio.generator_config import ensure_generator_config
 from anki_studio.headers import SecurityHeadersMiddleware
@@ -22,6 +24,8 @@ from anki_studio.limits import BodyLimitMiddleware
 from anki_studio.models_task import MODELS_KIND, ModelsRunner
 from anki_studio.routes import (
     config,
+    decks,
+    export,
     generate,
     jobs,
     keys,
@@ -61,6 +65,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         {
             GENERATE_KIND: GenerationRunner(store, settings.generator_path),
             MODELS_KIND: ModelsRunner(settings.generator_path),
+            DECKS_KIND: DecksRunner(store),
+            EXPORT_KIND: ExportRunner(store, settings.generator_path),
         }
     )
     worker = JobWorker(store, runner, timedelta(days=settings.job_retention_days))
@@ -157,7 +163,19 @@ def create_app(
     app.state.templates = create_templates()
     app.state.http_transport = None
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-    for module in (login, pages, generate, jobs, keys, models, review, config, structured):
+    for module in (
+        login,
+        pages,
+        generate,
+        jobs,
+        keys,
+        models,
+        review,
+        config,
+        structured,
+        decks,
+        export,
+    ):
         app.include_router(module.router)
     app.add_middleware(LoginRequiredMiddleware)
     app.add_middleware(

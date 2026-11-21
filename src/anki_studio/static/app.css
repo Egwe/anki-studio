@@ -187,3 +187,8 @@ fieldset {
 .job-progress:empty {
   display: none;
 }
+
+.deck-tree ul {
+  margin-top: 0.35rem;
+  margin-bottom: 0.35rem;
+}
