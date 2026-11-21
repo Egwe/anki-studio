@@ -91,9 +91,9 @@ Docling- und Bildmodelle herunterladen (entspricht `models download`), mit Forts
 Seite mit Endpunkt, angemeldetem Benutzer, Zeitpunkt und Ergebnis des letzten Syncs, Knopf „Jetzt synchronisieren“.
 *Umsetzung:* `/sync` zeigt den nicht geheimen Endpunkt, Benutzerstatus, Zeitpunkt, Ergebnis und Server-Hinweis des letzten Abgleichs und legt per Knopf einen Sync-Job an. Passwort und `hkey` erscheinen nicht (`routes/sync.py`, `templates/sync.html`, `tests/test_sync.py`).
 
-**AS-012 – Gestaltung · muss · teilweise**
+**AS-012 – Gestaltung · muss · umgesetzt**
 Schlicht und aufgeräumt, gut lesbar, Dark Mode, auf Desktop und Handy bedienbar. Keine externen Ressourcen zur Laufzeit.
-*Umgesetzt:* Grundlayout auf Pico CSS mit Dark Mode nach Systemeinstellung, in Desktop-Breite, 390 px Breite und dunkel im Browser geprüft. Alle Frontend-Dateien werden mitgeliefert; eine Content Security Policy erlaubt nur Anki Studio selbst als Quelle (`tests/test_app.py`). *Offen:* alle weiteren Seiten.
+*Umsetzung:* Grundlayout auf Pico CSS mit Dark Mode nach Systemeinstellung; Login und alle angemeldeten Hauptseiten wurden im Browser bei 1280 px, 390 CSS-Pixeln und im Dark Mode geprüft. Lange Werte in Statuslisten umbrechen auf schmalen Ansichten. Alle Frontend-Dateien werden mitgeliefert; eine Content Security Policy erlaubt nur Anki Studio selbst als Quelle (`tests/test_app.py`).
 
 **AS-014 – Modelle des Providers auswählen · soll · umgesetzt**
 Ist für einen Provider ein Schlüssel hinterlegt oder braucht er keinen (etwa Ollama), lädt Anki Studio auf ausdrückliche Aktion die Liste der verfügbaren Modelle beim Provider und bietet sie zur Auswahl an: im Generierungsformular und beim Bearbeiten eines Profils. Dabei geht nur der Schlüssel an den Provider, kein Dokumentinhalt. Fehler (Schlüssel ungültig, Provider nicht erreichbar) erscheinen verständlich; die freie Eingabe eines Modellnamens bleibt möglich.
@@ -178,7 +178,7 @@ API-Schlüssel der Provider lassen sich in der Oberfläche setzen, ersetzen und 
 
 *Umsetzung:* `secret_store.SecretStore`, Seite „Einstellungen → Zugangsdaten“ (`routes/keys.py`), `ANKI_STUDIO_SECRET_KEY` in `credentials.py` und `deploy/preview.sh`; belegt durch `tests/test_secret_store.py`, `tests/test_web_keys.py` (Wert nie in Seite, Log oder Datei), `tests/test_credentials.py` und einen Browser-Test (hell, dunkel, 390 px).
 
-**AS-034 – Tests · muss · teilweise**
+**AS-034 – Tests · muss · umgesetzt**
 Reguläre Tests laufen ohne Netzwerk, ohne echten Sync-Server, ohne API-Schlüssel und ohne GPU. KI-Aufrufe werden wie im Generator simuliert (Patch-Ziel `anki_flashcards.pipeline.generate_cards` usw. oder `report`/`cancel`-Argumente). Für Sync-Tests eignet sich ein lokal gestarteter `python -m anki.syncserver` mit Testbenutzer auf `127.0.0.1` (Prototyp in Abschnitt 7.1 der Übergabe).
 *Umgesetzt:* Testgerüst mit pytest und FastAPI-`TestClient`, ohne Netzwerk, GPU, Schlüssel und externen Sync-Server; simulierte KI-Läufe über gepatchte `pipeline.generate_cards` beziehungsweise `pipeline.generate_native_cards` in `tests/test_generation.py`, `tests/test_web_generate.py` und `tests/test_live.py`; markierte Sync-Integrationstests starten einen temporären `anki.syncserver` ausschließlich auf `127.0.0.1`. Sie belegen Erst-Download, Vor-/Nach-Sync und Schreiben geprüfter Karten sowie Karten-JSON in die Sammlung (`tests/test_sync.py`).
 

@@ -44,6 +44,23 @@ header.container nav ul {
 .components dd {
   margin: 0;
   font-family: var(--pico-font-family-monospace);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.components .path {
+  display: inline;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .components {
+    grid-template-columns: 1fr;
+  }
+
+  .components dd {
+    margin-bottom: 0.5rem;
+  }
 }
 
 /* htmx loading indicators; htmx's own inline styles are disabled for the CSP. */
