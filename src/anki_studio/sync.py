@@ -10,7 +10,10 @@ from typing import Any
 
 from anki import sync_pb2
 from anki.collection import Collection
+from anki_flashcards.apkg import ExportResult
 from anki_flashcards.errors import FlashcardError, GenerationCancelled
+from anki_flashcards.models import Card
+from anki_flashcards.pipeline import write_collection
 
 from anki_studio.collection_worker import CollectionWorker, CollectionWorkerError
 from anki_studio.credentials import Credentials
@@ -222,6 +225,59 @@ class SyncService:
         state = self._initial_state()
         self.states.save(replace(state, local_changes=True))
 
+    def write_cards(
+        self, deck: str, cards: list[Card], report: Reporter, cancel: CancelCheck
+    ) -> tuple[ExportResult, SyncOutcome]:
+        """Synchronize, write validated cards once, and synchronize again.
+
+        The full sequence runs as one collection-worker request.  It blocks
+        another collection operation from appearing between the pre-write
+        sync and the Anki change.  The persistent local-change marker is set
+        immediately before the write, so a later forced download cannot
+        discard an interrupted or unsent write.
+
+        Args:
+            deck: Non-empty target deck; ``::`` separates deck levels.
+            cards: Validated, locally deduplicated cards selected by a user.
+            report: Receives safe progress notices for the job page.
+            cancel: Checked before login and before the collection mutation.
+
+        Returns:
+            The generator's add/skip result and the final safe sync outcome.
+
+        Raises:
+            GenerationCancelled: If cancellation was requested before cards
+                were changed.
+            SyncFailure: If either synchronization is unsafe or fails.
+            FlashcardError: If the generator cannot write into the collection.
+        """
+        if cancel():
+            raise GenerationCancelled("Schreiben abgebrochen")
+        state = self._initial_state()
+        endpoint, username, password = self._connection(state)
+        report(
+            {
+                "type": "notice",
+                "text": "Sammlung vor dem Schreiben abgleichen …",
+                "level": "info",
+            }
+        )
+        try:
+            result, outcome = self.worker.run(
+                lambda collection: self._sync_then_write(
+                    collection, state, endpoint, username, password, deck, cards, report, cancel
+                )
+            )
+        except (CollectionWorkerError, SyncFailure) as error:
+            failure = SyncFailure(str(error))
+            self._record_failure(self._initial_state(), str(failure))
+            raise failure from error
+        self._record_success(self._initial_state(), outcome)
+        report({"type": "notice", "text": _success_text(outcome), "level": "info"})
+        if outcome.server_message:
+            report({"type": "notice", "text": outcome.server_message, "level": "info"})
+        return result, outcome
+
     def _initial_state(self) -> SyncState:
         """Load state and conservatively classify an untracked collection.
 
@@ -238,6 +294,88 @@ class SyncService:
         state = SyncState(local_changes=self.worker.path.exists())
         self.states.save(state)
         return state
+
+    def _connection(self, state: SyncState) -> tuple[str, str, str]:
+        """Return the non-persisted credentials needed for one sync operation.
+
+        Args:
+            state: Current non-secret state, including a redirected endpoint.
+
+        Returns:
+            Endpoint, user name, and password loaded from the process
+            environment.
+
+        Raises:
+            SyncFailure: If endpoint or either credential is absent.
+        """
+        endpoint = state.redirect_endpoint or self.settings.sync_endpoint
+        username = self.credentials.sync_username
+        password = self.credentials.sync_password
+        if endpoint is None or username is None or password is None:
+            raise SyncFailure(
+                "Sync ist nicht vollständig eingerichtet: Endpunkt sowie "
+                "ANKI_STUDIO_SYNC_USERNAME und ANKI_STUDIO_SYNC_PASSWORD fehlen."
+            )
+        return endpoint, username, password
+
+    def _sync_then_write(
+        self,
+        collection: Collection,
+        state: SyncState,
+        endpoint: str,
+        username: str,
+        password: str,
+        deck: str,
+        cards: list[Card],
+        report: Reporter,
+        cancel: CancelCheck,
+    ) -> tuple[ExportResult, SyncOutcome]:
+        """Perform the two safe sync calls around a collection mutation.
+
+        Args:
+            collection: Open collection owned by the collection worker.
+            state: State before the pre-write synchronization.
+            endpoint: Configured or redirected server endpoint.
+            username: Sync user from the environment; never persisted.
+            password: Sync password from the environment; never persisted.
+            deck: Target deck for the official generator write operation.
+            cards: Validated, deduplicated cards to add.
+            report: Receives job notices.
+            cancel: Checked after the pre-write synchronization.
+
+        Returns:
+            Write result and the outcome of the post-write synchronization.
+
+        Raises:
+            GenerationCancelled: If cancellation arrives before the write.
+            SyncFailure: If either sync cannot complete safely.
+            FlashcardError: If the generator rejects the Anki mutation.
+        """
+        before = self._sync_collection(collection, state, endpoint, username, password, report)
+        self._record_success(state, before)
+        if cancel():
+            raise GenerationCancelled("Schreiben abgebrochen")
+        self.mark_local_changes()
+        report({"type": "notice", "text": "Karten in die Sammlung schreiben …", "level": "info"})
+        result = write_collection(collection, deck, cards)
+        report(
+            {
+                "type": "notice",
+                "text": f"{result.added} Karten in Deck „{result.deck}“ geschrieben.",
+                "level": "info",
+            }
+        )
+        post_state = self._initial_state()
+        report(
+            {
+                "type": "notice",
+                "text": "Sammlung nach dem Schreiben abgleichen …",
+                "level": "info",
+            }
+        )
+        return result, self._sync_collection(
+            collection, post_state, before.endpoint, username, password, report
+        )
 
     def _sync_collection(
         self,

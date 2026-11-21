@@ -1,11 +1,14 @@
 """Upload an APKG and show its deck tree (AS-007, APKG part)."""
 
+from anki_flashcards.apkg import collection_decks
+from anki_flashcards.errors import FlashcardError
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
 
-from anki_studio.decks import DECKS_FILE, DECKS_KIND, load_decks
+from anki_studio.collection_worker import CollectionWorkerError, CollectionWorkerStoppedError
+from anki_studio.decks import DECKS_FILE, DECKS_KIND, deck_tree, load_decks
 from anki_studio.jobs import Job, JobStatus, JobStore
 from anki_studio.uploads import APKG, UploadError, check_upload, clean_filename
 from anki_studio.worker import JobWorker
@@ -15,7 +18,7 @@ router = APIRouter()
 
 @router.get("/decks", response_class=HTMLResponse)
 def decks_page(request: Request) -> HTMLResponse:
-    """Show the APKG upload form for the deck tree.
+    """Show synchronized collection decks and the APKG upload form.
 
     Args:
         request: Incoming request.
@@ -144,5 +147,52 @@ def _render(request: Request, *, error: str | None = None, status: int = 200) ->
         The rendered form.
     """
     return request.app.state.templates.TemplateResponse(
-        request, "decks.html", {"error": error, "max_size": APKG.limit_text}, status_code=status
+        request,
+        "decks.html",
+        {"error": error, "max_size": APKG.limit_text, **_collection_context(request)},
+        status_code=status,
     )
+
+
+def _collection_context(request: Request) -> dict[str, object]:
+    """Read the current local collection deck tree through its owner worker.
+
+    The page never opens a collection itself. A tree is shown only after a
+    successful sync, so its label does not imply that an untouched empty
+    local file represents the server collection.
+
+    Args:
+        request: Incoming request with sync and collection services.
+
+    Returns:
+        Tree, last-sync timestamp, and a concise unavailable reason.
+    """
+    try:
+        state = request.app.state.sync_service.state()
+    except FlashcardError:
+        return {
+            "collection_decks": (),
+            "collection_synced_at": None,
+            "collection_error": "Sync-Status nicht lesbar.",
+        }
+    if state.last_synced_at is None:
+        return {
+            "collection_decks": (),
+            "collection_synced_at": None,
+            "collection_error": "Noch nicht synchronisiert.",
+        }
+    try:
+        decks = request.app.state.collection_worker.run(
+            lambda collection: deck_tree(collection_decks(collection))
+        )
+    except (CollectionWorkerError, CollectionWorkerStoppedError, FlashcardError):
+        return {
+            "collection_decks": (),
+            "collection_synced_at": state.last_synced_at,
+            "collection_error": "Lokale Sammlung kann gerade nicht gelesen werden.",
+        }
+    return {
+        "collection_decks": decks,
+        "collection_synced_at": state.last_synced_at,
+        "collection_error": None,
+    }

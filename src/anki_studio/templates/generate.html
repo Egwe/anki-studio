@@ -37,6 +37,7 @@
     <legend><strong>Ziel</strong></legend>
     <label><input type="radio" name="target" value="new_apkg" x-model="target"> Neue APKG-Datei</label>
     <label><input type="radio" name="target" value="extend_apkg" x-model="target"> Vorhandene APKG erweitern</label>
+    <label><input type="radio" name="target" value="collection" x-model="target"> Synchronisierte Anki-Sammlung</label>
     <div x-show="extend">
       <label for="target_apkg">APKG-Datei zum Erweitern</label>
       <input id="target_apkg" type="file" name="target_apkg" accept=".apkg"
@@ -44,11 +45,13 @@
       <small>Höchstens 512 MiB; nur zusammen mit einem einzelnen Dokument.</small>
     </div>
     {{ error(errors, "target_apkg") }}
+    {{ error(errors, "target") }}
     <label for="deck">Deck</label>
-    <input id="deck" name="deck" value="{{ values.deck or '' }}"
+    <input id="deck" name="deck" list="collection-deck-list" value="{{ values.deck or '' }}"
            placeholder="{{ deck_placeholder }}"
            {% if errors.deck %}aria-invalid="true"{% endif %}>
-    <small>Leer: Wert aus der Konfiguration oder Dateiname. <code>::</code> trennt Unterdecks.</small>
+    <datalist id="collection-deck-list">{% for name in collection_decks %}<option value="{{ name }}">{% endfor %}</datalist>
+    <small>Für die Sammlung schlagen synchronisierte Decks Namen vor; ein neuer Name ist ebenfalls möglich. Leer: Wert aus der Konfiguration oder Dateiname. <code>::</code> trennt Unterdecks.</small>
     {{ error(errors, "deck") }}
     {{ switch("subdecks", "KI ordnet Karten Unterdecks zu", values, defaults.subdecks) }}
   </fieldset>

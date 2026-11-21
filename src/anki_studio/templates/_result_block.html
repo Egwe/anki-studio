@@ -2,7 +2,7 @@
 <section id="result">
   <h2>Ergebnis</h2>
   <article class="success">
-    <header><strong>{{ result.added }} neue Karten geschrieben</strong>{% if result.skipped %}, {{ result.skipped }} übersprungen (schon vorhanden){% endif %}</header>
+    <header><strong>{{ result.added }} neue Karten geschrieben</strong>{% if result.skipped %}, {{ result.skipped }} übersprungen (schon vorhanden){% endif %}{% if result.target == "collection" %} · synchronisierte Sammlung{% endif %}</header>
     {% if result.added_by_deck %}
     <table>
       <thead><tr><th scope="col">Deck</th><th scope="col">Neue Karten</th></tr></thead>
@@ -12,10 +12,10 @@
     </table>
     {% endif %}
     <p>
-      <a href="{{ url_for('download', job_id=job.id, kind='apkg') }}" role="button">APKG herunterladen</a>
+      {% if result.target != "collection" %}<a href="{{ url_for('download', job_id=job.id, kind='apkg') }}" role="button">APKG herunterladen</a>{% endif %}
       <a href="{{ url_for('download', job_id=job.id, kind='json') }}" role="button" class="secondary outline">Karten-JSON</a>
       {% if has_source %}<a href="{{ url_for('download', job_id=job.id, kind='source') }}" role="button" class="secondary outline">Aufbereiteter Text</a>{% endif %}
     </p>
-    <footer><small>Die APKG-Datei lässt sich in Anki Desktop über „Datei → Importieren“ einlesen. Geschrieben am {{ result.written_at[:16] | replace("T", " ") }} UTC.</small></footer>
+    <footer><small>{% if result.target == "collection" %}Nach dem Schreiben: {{ result.sync_result }}. {% else %}Die APKG-Datei lässt sich in Anki Desktop über „Datei → Importieren“ einlesen. {% endif %}Geschrieben am {{ result.written_at[:16] | replace("T", " ") }} UTC.</small></footer>
   </article>
 </section>

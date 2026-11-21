@@ -4,6 +4,7 @@ import json
 from collections.abc import Sequence
 from typing import Any
 
+from anki_flashcards.apkg import collection_decks
 from anki_flashcards.errors import FlashcardError
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -11,6 +12,7 @@ from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
 
+from anki_studio.collection_worker import CollectionWorkerError, CollectionWorkerStoppedError
 from anki_studio.forms import GenerateForm, Target, form_errors
 from anki_studio.generation import TARGET_DIR, job_options, transfer_notice
 from anki_studio.generator_config import (
@@ -112,7 +114,7 @@ def _submission_errors(
     Returns:
         Field name to German message; empty if the jobs may be created.
     """
-    errors = _document_errors(documents) | _target_errors(form, documents, package)
+    errors = _document_errors(documents) | _target_errors(request, form, documents, package)
     try:
         generator = load_generator_config(request.app.state.settings.generator_path)
     except FlashcardError as error:
@@ -142,11 +144,13 @@ def _document_errors(documents: list[UploadFile]) -> dict[str, str]:
 
 
 def _target_errors(
-    form: GenerateForm, documents: list[UploadFile], package: UploadFile | None
+    request: Request, form: GenerateForm, documents: list[UploadFile], package: UploadFile | None
 ) -> dict[str, str]:
     """Check the APKG upload when a package is to be extended.
 
     Args:
+        request: Incoming request, used to check whether the collection
+            target can synchronize.
         form: Validated form fields.
         documents: Uploaded documents.
         package: Uploaded APKG, or None.
@@ -154,6 +158,10 @@ def _target_errors(
     Returns:
         A message for ``target_apkg`` if something is wrong, otherwise empty.
     """
+    if form.target is Target.COLLECTION:
+        if request.app.state.sync_service.configured:
+            return {}
+        return {"target": "Für die Sammlung zuerst die Synchronisierung einrichten."}
     if form.target is not Target.EXTEND_APKG:
         return {}
     if package is None:
@@ -235,6 +243,7 @@ def _render(
         explains why and offers no form.
     """
     context: dict[str, Any] = {"values": values, "errors": errors, "max_documents": MAX_DOCUMENTS}
+    context["collection_decks"] = _collection_deck_names(request)
     try:
         context |= _config_context(load_generator_config(request.app.state.settings.generator_path))
     except FlashcardError as error:
@@ -242,6 +251,30 @@ def _render(
     return request.app.state.templates.TemplateResponse(
         request, "generate.html", context, status_code=status
     )
+
+
+def _collection_deck_names(request: Request) -> tuple[str, ...]:
+    """Return cached collection deck names for a browser datalist.
+
+    A target form is still usable before the first sync: its future job will
+    synchronize first and accepts a new deck name. The route only offers
+    suggestions after a known successful synchronization and never opens the
+    non-thread-safe collection outside its dedicated worker.
+
+    Args:
+        request: Incoming request with sync state and collection worker.
+
+    Returns:
+        Case-insensitively sorted normal deck names, or an empty tuple when
+        no synchronized collection can currently be read.
+    """
+    try:
+        if request.app.state.sync_service.state().last_synced_at is None:
+            return ()
+        entries = request.app.state.collection_worker.run(collection_decks)
+    except (CollectionWorkerError, CollectionWorkerStoppedError, FlashcardError):
+        return ()
+    return tuple(sorted((str(entry["name"]) for entry in entries), key=str.casefold))
 
 
 def _config_context(generator: GeneratorConfig) -> dict[str, Any]:

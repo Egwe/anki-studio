@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 import pytest
-from anki_flashcards.apkg import create_apkg, inspect_apkg
+from anki_flashcards.apkg import ExportResult, create_apkg, inspect_apkg
 from anki_flashcards.errors import FlashcardError
 from anki_flashcards.models import Card, load_cards, save_cards
 
@@ -14,11 +14,17 @@ from anki_studio.generation import CARDS_FILE, NEW_APKG_FILE, TARGET_DIR, job_op
 from anki_studio.jobs import Job, JobStatus, JobStore
 from anki_studio.review import (
     EXPORT_FILE,
+    AlreadyWritingError,
     ReviewError,
+    collection_result,
     delete_card,
     export_json,
+    finish_collection_write,
     load_result,
     load_review,
+    pending_collection_write,
+    reserve_collection_write,
+    reserved_collection_cards,
     set_selected,
     update_card,
     write_reviewed,
@@ -255,3 +261,35 @@ def test_existing_target_blocks_new_apkg(store: JobStore) -> None:
 
     with pytest.raises(FlashcardError, match="already exists"):
         write_reviewed(store, job, "EL1")
+
+
+def test_collection_reservation_freezes_review_and_stores_result(store: JobStore) -> None:
+    """A collection task owns exactly one immutable review until it finishes.
+
+    Args:
+        store: Empty job storage.
+    """
+    job = done_job(store)
+    task = store.create_task("Sammlung", {"kind": "collection_write"})
+
+    reservation = reserve_collection_write(store, job, task.id, "Elektrotechnik :: EL1")
+
+    assert reservation.deck == "Elektrotechnik::EL1"
+    assert pending_collection_write(store, job) == reservation
+    with pytest.raises(AlreadyWritingError, match="bereits in die Sammlung"):
+        set_selected(store, job, "c1", False)
+    deck, cards = reserved_collection_cards(store, job, task.id)
+    assert deck == "Elektrotechnik::EL1"
+    assert cards == CARDS
+    finish_collection_write(
+        store,
+        job,
+        task.id,
+        collection_result(
+            ExportResult(Path("collection.anki2"), deck, 3, 0),
+            "no_changes",
+        ),
+    )
+
+    assert pending_collection_write(store, job) is None
+    assert load_result(store, job)["target"] == "collection"

@@ -3,7 +3,7 @@
 {% block content %}
 <hgroup>
   <h1>Karten-JSON exportieren</h1>
-  <p>Erzeuge aus einer versionierten Karten-JSON des Generators eine neue APKG-Datei. Bestehende APKGs und die Anki-Sammlung bleiben unverändert.</p>
+  <p>Schreibe eine versionierte Karten-JSON des Generators in eine neue APKG-Datei oder sicher in die synchronisierte Anki-Sammlung.</p>
 </hgroup>
 {% if config_error %}<article class="alert">Generator-Konfiguration nicht nutzbar: {{ config_error }}</article>{% else %}
 {% if errors.form %}<article class="alert">{{ errors.form }}</article>{% endif %}
@@ -14,12 +14,18 @@
       {% if errors.cards %}<small class="field-error">{{ errors.cards }}</small>{% endif %}
     </label>
     <small>Version 1 aus Anki Studio oder dem Generator, höchstens {{ max_size }}.</small>
+    <fieldset>
+      <legend><strong>Ziel</strong></legend>
+      <label><input type="radio" name="target" value="new_apkg" {% if values.target != "collection" %}checked{% endif %}> Neue APKG-Datei</label>
+      <label><input type="radio" name="target" value="collection" {% if values.target == "collection" %}checked{% endif %}> Synchronisierte Anki-Sammlung</label>
+      {% if errors.target %}<small class="field-error">{{ errors.target }}</small>{% endif %}
+    </fieldset>
     <label for="deck">Ziel-Deck
       <input id="deck" name="deck" value="{{ values.deck or '' }}" placeholder="{{ default_deck or 'zum Beispiel Elektrotechnik::EL1' }}" {% if errors.deck %}aria-invalid="true"{% endif %}>
       {% if errors.deck %}<small class="field-error">{{ errors.deck }}</small>{% endif %}
     </label>
     <small>Leer verwendet das Standard-Deck der Generator-Konfiguration. <code>::</code> trennt Ebenen.</small>
-    <footer><button type="submit">APKG erzeugen</button></footer>
+    <footer><button type="submit">Export starten</button></footer>
   </form>
 </article>
 {% endif %}

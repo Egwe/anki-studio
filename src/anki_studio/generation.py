@@ -20,13 +20,16 @@ from anki_flashcards.pipeline import (
     apkg_subdeck_context,
     event_to_dict,
     produce_cards,
+    subdeck_context_from_collection,
     validate_output,
 )
 from anki_flashcards.settings import GenerateSettings, resolve_generate_settings
 
-from anki_studio.forms import GenerateForm
+from anki_studio.collection_worker import CollectionWorker
+from anki_studio.forms import GenerateForm, Target
 from anki_studio.generator_config import GeneratorConfig, load_generator_config
 from anki_studio.jobs import Job, JobStore
+from anki_studio.sync import SyncService
 from anki_studio.worker import CancelCheck
 from anki_studio.worker import Reporter as JobReporter
 
@@ -176,15 +179,27 @@ class GenerationRunner:
         config_path: Absolute path of the generator YAML.
     """
 
-    def __init__(self, store: JobStore, config_path: Path) -> None:
+    def __init__(
+        self,
+        store: JobStore,
+        config_path: Path,
+        collection_worker: CollectionWorker | None = None,
+        sync: SyncService | None = None,
+    ) -> None:
         """Remember where jobs and the generator configuration live.
 
         Args:
             store: Job store with the job folders.
             config_path: Absolute path of the generator YAML.
+            collection_worker: Optional serial owner of the local Anki
+                collection. It is required for the collection target.
+            sync: Optional service used to refresh the collection target
+                before cards are generated from its subdeck context.
         """
         self.store = store
         self.config_path = config_path
+        self.collection_worker = collection_worker
+        self.sync = sync
 
     def __call__(self, job: Job, report: JobReporter, cancel: CancelCheck) -> None:
         """Generate the cards of a job and save them as ``cards.json``.
@@ -210,12 +225,57 @@ class GenerationRunner:
         paths = job_paths(self.store, job)
         settings = resolve_job_settings(generator, form, paths)
         check_job_settings(generator, settings, form.confirm_transfer)
-        validate_output(settings.output, settings.extend)
         reporter = _event_reporter(report)
-        context = apkg_subdeck_context(settings, report=reporter)
+        context = self._subdeck_context(form, settings, reporter, report, cancel)
         run = produce_cards(settings, context, report=reporter, cancel=cancel)
         save_cards(paths.cards, run.cards, deck=settings.deck, source=job.source_name)
         report({"type": "cards_saved", "count": len(run.cards), "deck": settings.deck})
+
+    def _subdeck_context(
+        self,
+        form: GenerateForm,
+        settings: GenerateSettings,
+        reporter: Reporter,
+        report: JobReporter,
+        cancel: CancelCheck,
+    ) -> Any:
+        """Build target-specific subdeck context before card generation.
+
+        A collection target is synchronized first, so both suggested deck
+        names and the AI context describe the current server state. APKG
+        targets retain their existing file validation semantics.
+
+        Args:
+            form: Validated generation target and options.
+            settings: Effective generator settings.
+            reporter: Adapter for generator notices.
+            report: Receives the preceding sync notices for the job page.
+            cancel: Cancellation callback used before generation starts.
+
+        Returns:
+            Existing subdeck context for the selected target, or None.
+
+        Raises:
+            FlashcardError: If the target cannot be synchronized or read.
+        """
+        if form.target is not Target.COLLECTION:
+            validate_output(settings.output, settings.extend)
+            return apkg_subdeck_context(settings, report=reporter)
+        report(
+            {
+                "type": "notice",
+                "text": "Sammlung vor der Generierung abgleichen …",
+                "level": "info",
+            }
+        )
+        if self.collection_worker is None or self.sync is None:
+            raise FlashcardError("Sammlungsziel ist nicht eingerichtet.")
+        self.sync.sync(report, cancel)
+        return self.collection_worker.run(
+            lambda collection: subdeck_context_from_collection(
+                settings, collection, report=reporter
+            )
+        )
 
 
 class KindRunner:

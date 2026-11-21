@@ -12,16 +12,19 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Resp
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
+from anki_studio.collection_write import COLLECTION_WRITE_KIND, COLLECTION_WRITE_TITLE
 from anki_studio.generation import SOURCE_TEXT_FILE, job_paths
 from anki_studio.jobs import Job
 from anki_studio.review import (
     AlreadyWrittenError,
     ReviewError,
     UnknownCardError,
+    clear_finished_collection_write,
     delete_card,
     export_json,
     load_result,
     load_review,
+    reserve_collection_write,
     set_selected,
     update_card,
     write_reviewed,
@@ -175,7 +178,7 @@ async def remove_card(request: Request, job_id: str, card_id: str) -> HTMLRespon
 
 @router.post("/jobs/{job_id}/write", response_class=HTMLResponse)
 async def write_job(request: Request, job_id: str, form: Annotated[WriteForm, Form()]) -> Response:
-    """Write the selected cards into the job's APKG target.
+    """Write reviewed cards into their APKG or queued collection target.
 
     Args:
         request: Incoming request.
@@ -183,13 +186,15 @@ async def write_job(request: Request, job_id: str, form: Annotated[WriteForm, Fo
         form: Chosen deck.
 
     Returns:
-        A redirect to the job page with the result, or the job page with
-        an error (status 400).
+        A redirect to the completed APKG result or the live collection-write
+        job, or the source job page with an error (status 400).
 
     Raises:
         HTTPException: 404 for unknown jobs.
     """
     job = _done_job(request, job_id)
+    if job.options.get("form", {}).get("target") == "collection":
+        return await _queue_collection_write(request, job, form.deck)
     try:
         await run_in_threadpool(write_reviewed, request.app.state.jobs, job, form.deck)
     except (ReviewError, FlashcardError) as error:
@@ -198,6 +203,35 @@ async def write_job(request: Request, job_id: str, form: Annotated[WriteForm, Fo
             request, "job.html", context, status_code=400
         )
     return RedirectResponse(f"/jobs/{job.id}#result", status_code=303)
+
+
+async def _queue_collection_write(request: Request, job: Job, deck: str) -> Response:
+    """Reserve a review and queue its pre-sync/write/post-sync task.
+
+    Args:
+        request: Incoming request with the jobs and background worker.
+        job: Finished generation job with collection target.
+        deck: Target deck text entered in the review form.
+
+    Returns:
+        Redirect to the dedicated live write job, or source job page with a
+        validation error.
+    """
+    store = request.app.state.jobs
+    write_job = store.create_task(
+        COLLECTION_WRITE_TITLE,
+        {"kind": COLLECTION_WRITE_KIND, "source_job_id": job.id},
+    )
+    try:
+        await run_in_threadpool(reserve_collection_write, store, job, write_job.id, deck)
+    except ReviewError as error:
+        store.delete(write_job.id)
+        context = job_context(request, job) | {"write_error": str(error), "deck_value": deck}
+        return request.app.state.templates.TemplateResponse(
+            request, "job.html", context, status_code=400
+        )
+    request.app.state.worker.submit(write_job)
+    return RedirectResponse(f"/jobs/{write_job.id}", status_code=303)
 
 
 @router.get("/jobs/{job_id}/files/{kind}")
@@ -221,7 +255,7 @@ async def download(request: Request, job_id: str, kind: str) -> FileResponse:
     result = load_result(store, job)
     deck = (result or {}).get("deck") or load_review(store, job).deck or job.source_name
     name = clean_filename(deck.replace("::", " - "))
-    if kind == "apkg" and result is not None:
+    if kind == "apkg" and result is not None and result.get("target") != "collection":
         return FileResponse(job_paths(store, job).output, filename=f"{name}.apkg")
     if kind == "json":
         try:
@@ -274,6 +308,7 @@ def _done_job(request: Request, job_id: str) -> Job:
     job = request.app.state.jobs.get(job_id)
     if job is None or job.status.value != "done":
         raise HTTPException(status_code=404, detail="Keine Karten zu diesem Job")
+    clear_finished_collection_write(request.app.state.jobs, job)
     return job
 
 

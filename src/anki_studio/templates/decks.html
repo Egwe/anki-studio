@@ -3,10 +3,28 @@
 {% block content %}
 <hgroup>
   <h1>Decks ansehen</h1>
-  <p>Lies Decks und direkte Kartenanzahlen aus einer hochgeladenen APKG-Datei. Das Paket wird nicht verändert.</p>
+  <p>Sieh Decks und direkte Kartenanzahlen der synchronisierten Sammlung oder einer hochgeladenen APKG-Datei an. Dateien werden nicht verändert.</p>
 </hgroup>
 {% if error %}<article class="alert">{{ error }}</article>{% endif %}
 <article>
+  <header><strong>Synchronisierte Sammlung</strong></header>
+  {% if collection_error %}
+  <p>{{ collection_error }} <a href="{{ url_for('sync_page') }}">Zum Sync-Status</a></p>
+  {% else %}
+  <small>Stand {{ collection_synced_at.strftime("%d.%m.%Y %H:%M UTC") }}; Karten in Unterdecks zählen nur dort.</small>
+  {% if collection_decks %}
+  <ul class="deck-tree">
+    {% for deck in collection_decks recursive %}
+    <li><strong>{{ deck.name }}</strong> <span class="nowrap">· {{ deck.cards }} Karten</span>
+      {% if deck.children %}<ul>{{ loop(deck.children) }}</ul>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p>Die synchronisierte Sammlung enthält keine normalen Decks.</p>{% endif %}
+  {% endif %}
+</article>
+<article>
+  <header><strong>Hochgeladene APKG</strong></header>
   <form method="post" action="{{ url_for('decks_submit') }}" enctype="multipart/form-data">
     <label for="package">APKG-Datei
       <input id="package" type="file" name="package" accept=".apkg" required>

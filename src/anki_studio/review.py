@@ -29,6 +29,7 @@ from anki_studio.jobs import Job, JobStore
 REVIEW_FILE = "review.json"
 RESULT_FILE = "result.json"
 EXPORT_FILE = "karten.cards.json"
+WRITING_FILE = "writing.json"
 
 _LOCK = threading.Lock()
 
@@ -43,6 +44,10 @@ class UnknownCardError(ReviewError):
 
 class AlreadyWrittenError(ReviewError):
     """Report a change after the cards were written."""
+
+
+class AlreadyWritingError(AlreadyWrittenError):
+    """Report a change while a queued collection write owns the review."""
 
 
 @dataclass(frozen=True)
@@ -80,6 +85,19 @@ class Review:
             Cards that would be written, deduplicated by the generator.
         """
         return deduplicate_cards([entry.card for entry in self.cards if entry.selected])
+
+
+@dataclass(frozen=True)
+class PendingCollectionWrite:
+    """Reserve one immutable review selection for a collection-write job.
+
+    Attributes:
+        job_id: Identifier of the dedicated collection-write job.
+        deck: Normalized target deck fixed for that job.
+    """
+
+    job_id: str
+    deck: str
 
 
 def has_cards(store: JobStore, job: Job) -> bool:
@@ -207,6 +225,171 @@ def write_reviewed(store: JobStore, job: Job, deck: str) -> dict[str, Any]:
         result = _result(export, paths.output)
         _write_json(folder / RESULT_FILE, result)
     return result
+
+
+def reserve_collection_write(
+    store: JobStore, job: Job, write_job_id: str, deck: str
+) -> PendingCollectionWrite:
+    """Freeze the selected cards for one queued collection write.
+
+    The reservation prevents edits, deselection, and a second write button
+    from changing the review while its background job is waiting or running.
+
+    Args:
+        store: Job store containing the source generation job.
+        job: Finished generation job whose review is written.
+        write_job_id: Identifier of the new no-upload write job.
+        deck: Target deck submitted by the user.
+
+    Returns:
+        The persisted reservation with normalized deck name.
+
+    Raises:
+        ReviewError: If another write owns the review, no card is selected,
+            or the target deck is invalid.
+    """
+    folder = store.job_dir(job.id)
+    with _LOCK:
+        _refuse_written(folder)
+        cards = _load(folder).selected
+        if not cards:
+            raise ReviewError("Keine Karte ausgewählt.")
+        pending = PendingCollectionWrite(write_job_id, _deck(deck))
+        _write_json(folder / WRITING_FILE, {"job_id": pending.job_id, "deck": pending.deck})
+    return pending
+
+
+def reserved_collection_cards(
+    store: JobStore, job: Job, write_job_id: str
+) -> tuple[str, list[Card]]:
+    """Return the frozen selected cards for their collection-write job.
+
+    Args:
+        store: Job store containing the source generation job.
+        job: Finished generation job with a previous reservation.
+        write_job_id: Identifier expected in ``writing.json``.
+
+    Returns:
+        Normalized target deck and selected, deduplicated cards.
+
+    Raises:
+        ReviewError: If the reservation is gone, belongs to another job, or
+            no selected cards remain.
+    """
+    folder = store.job_dir(job.id)
+    with _LOCK:
+        pending = _pending(folder)
+        if pending is None or pending.job_id != write_job_id:
+            raise ReviewError("Der Schreibauftrag gehört nicht mehr zu dieser Kartenprüfung.")
+        cards = _load(folder).selected
+        if not cards:
+            raise ReviewError("Keine Karte ausgewählt.")
+        return pending.deck, cards
+
+
+def finish_collection_write(
+    store: JobStore, job: Job, write_job_id: str, result: dict[str, Any]
+) -> None:
+    """Persist a collection result and unlock its source review.
+
+    Args:
+        store: Job store containing the source generation job.
+        job: Finished generation job with a reserved collection write.
+        write_job_id: Identifier expected in ``writing.json``.
+        result: JSON-safe add/skip and sync outcome to expose on the source job.
+
+    Returns:
+        None.
+
+    Raises:
+        ReviewError: If the reservation belongs to another job or a result is
+            already stored.
+    """
+    folder = store.job_dir(job.id)
+    with _LOCK:
+        _refuse_written_result(folder)
+        pending = _pending(folder)
+        if pending is None or pending.job_id != write_job_id:
+            raise ReviewError("Der Schreibauftrag gehört nicht mehr zu dieser Kartenprüfung.")
+        _write_json(folder / RESULT_FILE, result)
+        (folder / WRITING_FILE).unlink(missing_ok=True)
+
+
+def release_collection_write(store: JobStore, job: Job, write_job_id: str) -> None:
+    """Unlock a review after its collection-write job fails or is cancelled.
+
+    Args:
+        store: Job store containing the source generation job.
+        job: Finished generation job whose reservation may be removed.
+        write_job_id: Identifier of the failed or cancelled write job.
+
+    Returns:
+        None. A missing or different reservation is left unchanged.
+    """
+    folder = store.job_dir(job.id)
+    with _LOCK:
+        pending = _pending(folder)
+        if pending is not None and pending.job_id == write_job_id:
+            (folder / WRITING_FILE).unlink(missing_ok=True)
+
+
+def clear_finished_collection_write(store: JobStore, job: Job) -> None:
+    """Remove a reservation orphaned by a restart or finished failed job.
+
+    Args:
+        store: Job store that can look up the dedicated write job.
+        job: Finished generation job whose review might be locked.
+
+    Returns:
+        None. A live reservation and a review with a stored result stay.
+    """
+    folder = store.job_dir(job.id)
+    with _LOCK:
+        if (folder / RESULT_FILE).exists():
+            return
+        pending = _pending(folder)
+        if pending is None:
+            return
+        write_job = store.get(pending.job_id)
+        if write_job is None or write_job.status.finished:
+            (folder / WRITING_FILE).unlink(missing_ok=True)
+
+
+def pending_collection_write(store: JobStore, job: Job) -> PendingCollectionWrite | None:
+    """Return the live collection-write reservation of a review, if any.
+
+    Args:
+        store: Job store containing the source generation job.
+        job: Finished generation job to inspect.
+
+    Returns:
+        Reservation while the separate write job is queued or running, or
+        None after completion, failure, or no collection target.
+    """
+    clear_finished_collection_write(store, job)
+    with _LOCK:
+        return _pending(store.job_dir(job.id))
+
+
+def collection_result(export: ExportResult, sync_result: str) -> dict[str, Any]:
+    """Build the stored source-job result for a collection write.
+
+    Args:
+        export: Add/skip result returned by the generator collection API.
+        sync_result: Machine-readable result of the post-write safe sync.
+
+    Returns:
+        JSON-safe result that shares the regular review result format.
+    """
+    return {
+        "target": "collection",
+        "deck": export.deck,
+        "added": export.added,
+        "skipped": export.skipped,
+        "added_by_deck": export.added_by_deck,
+        "sync_result": sync_result,
+        "written_at": datetime.now(UTC).isoformat(),
+    }
 
 
 def load_result(store: JobStore, job: Job) -> dict[str, Any] | None:
@@ -372,8 +555,51 @@ def _refuse_written(folder: Path) -> None:
     Raises:
         ReviewError: If ``result.json`` exists.
     """
+    _refuse_written_result(folder)
+    if (folder / WRITING_FILE).exists():
+        raise AlreadyWritingError("Die Karten werden bereits in die Sammlung geschrieben.")
+
+
+def _refuse_written_result(folder: Path) -> None:
+    """Refuse a second final result without considering a live reservation.
+
+    Args:
+        folder: Job folder containing ``result.json`` when the review ended.
+
+    Returns:
+        None.
+
+    Raises:
+        AlreadyWrittenError: If ``result.json`` exists.
+    """
     if (folder / RESULT_FILE).exists():
         raise AlreadyWrittenError("Die Karten wurden bereits geschrieben.")
+
+
+def _pending(folder: Path) -> PendingCollectionWrite | None:
+    """Read a collection-write reservation while the review lock is held.
+
+    Args:
+        folder: Job folder containing an optional ``writing.json`` file.
+
+    Returns:
+        Stored reservation, or None when no reservation exists.
+
+    Raises:
+        ReviewError: If the reservation file has an invalid shape.
+    """
+    path = folder / WRITING_FILE
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        job_id = data["job_id"]
+        deck = data["deck"]
+    except (OSError, TypeError, KeyError, json.JSONDecodeError) as error:
+        raise ReviewError("Der Schreibauftrag ist nicht lesbar.") from error
+    if not isinstance(job_id, str) or not isinstance(deck, str):
+        raise ReviewError("Der Schreibauftrag ist nicht lesbar.")
+    return PendingCollectionWrite(job_id, deck)
 
 
 def _load(folder: Path) -> Review:
