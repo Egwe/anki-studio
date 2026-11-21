@@ -59,10 +59,14 @@ mark { background: var(--mark); color: inherit; }
   <a href="#anmelden">Anmelden und Abmelden</a>
   <a href="#startseite">Startseite</a>
   <a href="#konfiguration">Konfiguration</a>
+  <a href="#zugang-sync">Zugang und Sync</a>
   <a href="#zugangsdaten">Zugangsdaten</a>
   <a href="#gpu">Modelle und GPU</a>
   <a href="#generieren">Karten generieren</a>
   <a href="#ziel">Ziel und Deck</a>
+  <a href="#decks">Decks ansehen</a>
+  <a href="#export">Karten-JSON exportieren</a>
+  <a href="#sync">Synchronisierung</a>
   <a href="#modell">Modell</a>
   <a href="#karten">Karten-Optionen</a>
   <a href="#pdf">PDF-Verarbeitung</a>
@@ -78,9 +82,9 @@ mark { background: var(--mark); color: inherit; }
 
 <section id="ueberblick">
   <h2>Überblick</h2>
-  <p>Anki Studio ist die Web-Oberfläche für den Anki Flashcard Generator. Du lädst Dokumente hoch, wählst die Optionen und lässt eine KI daraus Karteikarten erzeugen. Später landen geprüfte Karten direkt in deiner Anki-Sammlung und damit auf allen Geräten; bis dahin bleiben sie als Datei im Job.</p>
-  <p>Anki Studio läuft nur im Heimnetz oder über NetBird, für einen Benutzer, und verlangt eine Anmeldung. API-Schlüssel stehen nur in der Umgebungsdatei auf dem Server; die Oberfläche zeigt höchstens, ob ein Schlüssel gesetzt ist.</p>
-  <div class="note">Stand dieses Handbuchs: Anmeldung, Zugangsdaten, Generieren mit Live-Fortschritt, Kartenprüfung, Schreiben und Downloads. Konfiguration. Sync mit der Sammlung folgt und wird hier ergänzt, sobald er nutzbar ist.</div>
+  <p>Anki Studio ist die Web-Oberfläche für den Anki Flashcard Generator. Du lädst Dokumente hoch, wählst die Optionen und lässt eine KI daraus Karteikarten erzeugen. Geprüfte Karten können als Datei oder nach einem sicheren Abgleich direkt in deiner Anki-Sammlung und damit auf allen Geräten landen.</p>
+  <p>Anki Studio läuft nur im Heimnetz oder über NetBird, für einen Benutzer, und verlangt eine Anmeldung. API-Schlüssel lassen sich unter <strong>Einstellungen → Zugangsdaten</strong> verschlüsselt auf dem Server speichern; die Oberfläche zeigt sie anschließend nur noch als Status, nie als Wert. Schlüssel aus der Umgebungsdatei haben Vorrang.</p>
+  <div class="note">Stand dieses Handbuchs: Anmeldung, Zugangsdaten, Konfiguration, Generieren mit Live-Fortschritt, Kartenprüfung, Schreiben in APKG oder Sammlung, Downloads, Deckbaum aus APKG und synchronisierter Sammlung, Karten-JSON-Export und sicherer Sync.</div>
 </section>
 
 <section id="anmelden">
@@ -98,7 +102,7 @@ mark { background: var(--mark); color: inherit; }
 
 <section id="startseite">
   <h2>Startseite</h2>
-  <p>Die Startseite führt zu <strong>Karten generieren</strong> und zu den <strong>Jobs</strong> und zeigt die installierten Versionen von Anki Studio, Generator und Anki. Die Anki-Version muss zu der des Sync-Servers passen. Die Navigation oben bietet dieselben Ziele auf jeder Seite.</p>
+  <p>Die Startseite führt zu <strong>Karten generieren</strong> und zu den <strong>Jobs</strong> und zeigt die installierten Versionen von Anki Studio, Generator und Anki. Die Anki-Version muss zu der des Sync-Servers passen. Die Navigation oben führt zusätzlich zu <strong>Decks</strong>, <strong>Export</strong> und <strong>Sync</strong>.</p>
 </section>
 
 <section id="konfiguration">
@@ -127,6 +131,13 @@ mark { background: var(--mark); color: inherit; }
   <p><strong>Prüfen</strong> neben einem gespeicherten Schlüssel fragt den Provider nach seinen Modellen: Klappt das, funktioniert der Schlüssel, und die Liste zeigt die verfügbaren Modelle.</p>
   <p>Einen Schlüssel einfügen und <strong>Speichern</strong> wählen. Er gilt sofort, auch für den nächsten Job, und wird <strong>nie wieder angezeigt</strong>, auch nicht teilweise. Hast du ihn verloren, erzeugst du beim Provider einen neuen und ersetzt ihn hier.</p>
   <div class="note warn">Im Heimnetz geht der Schlüssel wie das Login-Passwort unverschlüsselt per HTTP zum Server; über NetBird läuft er im verschlüsselten Tunnel. Ein Backup des Containers enthält die verschlüsselten Schlüssel zusammen mit dem Schlüssel zum Entschlüsseln.</div>
+</section>
+
+<section id="zugang-sync">
+  <h2>Zugang und Sync</h2>
+  <p>Unter <strong>Einstellungen → Zugang und Sync</strong> änderst du das Login-Passwort und richtest die Verbindung zu deinem Anki-Sync-Server ein. Das geht im täglichen Betrieb vollständig im Browser; für Installation, Updates und Notfälle bleibt der Container-Zugang zuständig.</p>
+  <p>Für eine Sync-Verbindung das Häkchen setzen und Endpunkt, Benutzername und Passwort eintragen. Der Endpunkt muss mit <code>http://</code> oder <code>https://</code> beginnen und darf weder Benutzername noch Passwort enthalten. Passwort und Sync-Anmeldeschlüssel werden nach dem Speichern nie angezeigt. Zum Abschalten das Häkchen entfernen und speichern.</p>
+  <p>Nach jeder Änderung startet Anki Studio kontrolliert neu. Nach einem neuen Login-Passwort musst du dich erneut anmelden; alle früheren Sitzungen enden. Die Oberfläche speichert die täglichen Zugänge nur als private Laufzeit-Umgebung des Dienstes, nicht in der Konfiguration, einem Job oder einem Log.</p>
 </section>
 
 <section id="gpu">
@@ -159,7 +170,26 @@ mark { background: var(--mark); color: inherit; }
   </table>
   <p><strong>Deck:</strong> Name des Zieldecks; <code>::</code> trennt Ebenen, etwa <code>Elektrotechnik::Kapitel 1</code>. Leer bedeutet: Wert der Konfiguration oder der Dateiname ohne Endung.</p>
   <p><strong>KI ordnet Karten Unterdecks zu:</strong> Das Deck wird zum übergeordneten Deck, etwa der Name einer Vorlesung, und die KI ordnet jede Karte einem Kapitel-Unterdeck zu. Beim Erweitern werden vorhandene Unterdecks erkannt und bevorzugt wiederverwendet; dafür gehen ihre Namen und einige Beispielfragen an das Modell.</p>
-  <p>Die Sammlung als Ziel (Karten direkt auf alle Geräte) folgt mit dem Sync.</p>
+  <p><strong>Synchronisierte Anki-Sammlung</strong> schreibt erst nach der Kartenprüfung. Das Deck-Feld schlägt nach einem Abgleich vorhandene Decks vor, akzeptiert aber auch einen neuen Namen. Der Generierungsjob gleicht die Sammlung zuerst ab, damit Unterdeck-Vorschläge aktuell sind.</p>
+</section>
+
+<section id="decks">
+  <h2>Decks ansehen</h2>
+  <p>Unter <strong>Decks</strong> siehst du nach einem erfolgreichen Sync die Deckhierarchie und direkte Kartenanzahl deiner lokalen Sammlung. Unterdecks werden eingerückt angezeigt. Vor dem ersten Abgleich weist die Seite auf den fehlenden Sync hin.</p>
+  <p>Zusätzlich lädst du eine APKG-Datei bis 512 MiB hoch. <strong>Deckbaum lesen</strong> startet einen Job; nach dessen Abschluss führt ein Link auf der Job-Seite zum Ergebnis. Die hochgeladene APKG wird dabei nicht verändert.</p>
+</section>
+
+<section id="export">
+  <h2>Karten-JSON exportieren</h2>
+  <p>Unter <strong>Export</strong> lädst du eine versionierte Karten-JSON (Version 1) aus Anki Studio oder dem Generator hoch, höchstens 100 MiB. Gib ein Ziel-Deck an; <code>::</code> trennt Ebenen. Bleibt das Feld leer, gilt das Standard-Deck der Generator-Konfiguration.</p>
+  <p>Wähle <strong>Neue APKG-Datei</strong> für einen Download oder <strong>Synchronisierte Anki-Sammlung</strong> für einen sicheren Import. <strong>Export starten</strong> legt dafür einen Job an. Beim Sammlungsziel gleicht Anki Studio vor und nach dem Schreiben ab; bei einer APKG bleibt die Sammlung unverändert.</p>
+</section>
+
+<section id="sync">
+  <h2>Synchronisierung</h2>
+  <p>Unter <strong>Sync</strong> siehst du den eingerichteten Endpunkt, den Benutzernamen, ob ein Passwort gesetzt ist, sowie Zeitpunkt und Ergebnis des letzten Abgleichs. Passwort und Anmeldeschlüssel des Servers werden niemals angezeigt.</p>
+  <p>Fehlt etwas, öffne <strong>Einstellungen → Zugang und Sync</strong> und richte die Verbindung dort vollständig ein. <strong>Jetzt synchronisieren</strong> startet einen Job mit Live-Verlauf.</p>
+  <p>Bei einer leeren lokalen Sammlung lädt Anki Studio sie beim ersten Abgleich vollständig vom Server. Ein automatischer Komplett-Upload findet nie statt. Fordert der Server einen Komplett-Sync oder würde ein Komplett-Download lokale, noch nicht bestätigte Änderungen überschreiben, bricht Anki Studio ab und erklärt den Grund. Medien werden noch nicht synchronisiert.</p>
 </section>
 
 <section id="modell">
@@ -206,12 +236,12 @@ mark { background: var(--mark); color: inherit; }
 
 <section id="jobs">
   <h2>Jobs</h2>
-  <p>Die Seite <strong>Jobs</strong> listet alle Jobs, die neuesten oben, mit Dokument, Status, Zeit und Hinweis. Es läuft immer nur ein Job; weitere warten in der Reihenfolge, in der du sie abgeschickt hast.</p>
+  <p>Die Seite <strong>Jobs</strong> listet alle Jobs, die neuesten oben, mit Datei, Status, Zeit und Hinweis. Es läuft immer nur ein Job; weitere warten in der Reihenfolge, in der du sie abgeschickt hast.</p>
   <table>
     <tr><th>Status</th><th>Bedeutung</th></tr>
     <tr><td>wartet</td><td>Der Job steht in der Warteschlange.</td></tr>
-    <tr><td>läuft</td><td>Das Dokument wird gelesen oder aufbereitet, die KI erzeugt Karten.</td></tr>
-    <tr><td>fertig</td><td>Die Karten sind erzeugt und im Job gespeichert.</td></tr>
+    <tr><td>läuft</td><td>Das Dokument wird gelesen oder aufbereitet, die KI erzeugt Karten, eine APKG wird gelesen, Karten-JSON wird exportiert oder die Sammlung wird synchronisiert.</td></tr>
+    <tr><td>fertig</td><td>Das jeweilige Ergebnis ist im Job gespeichert und kann über dessen Seite geöffnet oder heruntergeladen werden.</td></tr>
     <tr><td>fehlgeschlagen</td><td>Der Hinweis nennt den Grund, etwa einen nicht erreichbaren Provider.</td></tr>
     <tr><td>abgebrochen</td><td>Von dir abgebrochen oder durch einen Neustart von Anki Studio beendet.</td></tr>
   </table>
@@ -238,10 +268,10 @@ mark { background: var(--mark); color: inherit; }
 
 <section id="ergebnis">
   <h2>Schreiben und Ergebnis</h2>
-  <p>Im Kasten <strong>Schreiben</strong> steht das Deck, vorbelegt mit dem Deck des Jobs; <code>::</code> trennt Ebenen. <strong>Ausgewählte Karten schreiben</strong> schreibt die Auswahl in eine neue APKG-Datei oder, wenn du beim Generieren eine APKG hochgeladen hast, in diese Datei. Karten, deren Frage im Deck schon vorkommt, werden übersprungen; doppelte Karten der Auswahl werden zusammengefasst.</p>
+  <p>Im Kasten <strong>Schreiben</strong> steht das Deck, vorbelegt mit dem Deck des Jobs; <code>::</code> trennt Ebenen. <strong>Ausgewählte Karten schreiben</strong> schreibt die Auswahl in eine neue APKG-Datei, eine hochgeladene APKG oder – wenn beim Generieren gewählt – als eigenen Job in die Sammlung. Karten, deren Frage im Deck schon vorkommt, werden übersprungen; doppelte Karten der Auswahl werden zusammengefasst. Während eines Sammlungsschreibauftrags bleibt die Prüfung gesperrt, damit die Auswahl genau einmal geschrieben wird.</p>
   <p>Danach zeigt die Seite das <strong>Ergebnis</strong>: wie viele Karten neu sind, wie viele übersprungen wurden und wie sie sich auf die Unterdecks verteilen. Darunter liegen die Downloads:</p>
   <ul>
-    <li><strong>APKG herunterladen</strong> – in Anki Desktop über „Datei → Importieren“ einlesen.</li>
+    <li><strong>APKG herunterladen</strong> – bei APKG-Zielen in Anki Desktop über „Datei → Importieren“ einlesen.</li>
     <li><strong>Karten-JSON</strong> – die geschriebenen Karten im Format des Generators.</li>
     <li><strong>Aufbereiteter Text</strong> – nur im strukturierten PDF-Modus.</li>
   </ul>
@@ -259,6 +289,8 @@ mark { background: var(--mark); color: inherit; }
     <tr><td>Dateityp wird nicht unterstützt</td><td>Nur PDF, DOCX, HTML, Markdown und Text; zum Erweitern nur <code>.apkg</code>.</td></tr>
     <tr><td>… ist größer als 100 MiB</td><td>Dokument verkleinern oder aufteilen.</td></tr>
     <tr><td>Bitte die Übertragung bestätigen</td><td>Siehe <a href="#uebertragung">Datenübertragung bestätigen</a>.</td></tr>
+    <tr><td>Sync ist noch nicht vollständig eingerichtet</td><td>Unter <a href="#zugang-sync">Zugang und Sync</a> Endpunkt, Benutzer und Passwort gemeinsam einrichten. Ohne diese Angaben stehen Sammlung als Ziel und Sammlungsexport nicht bereit.</td></tr>
+    <tr><td>Komplett-Upload / Komplett-Sync verlangt</td><td>Anki Studio führt das nicht automatisch aus. Nicht erneut versuchen, sondern die Sync-Lage prüfen.</td></tr>
     <tr><td>Unknown model profile</td><td>Das Profil steht nicht (mehr) in der Generator-Konfiguration.</td></tr>
     <tr><td>Unbekannter Host</td><td>Siehe <a href="#anmelden">Anmelden</a>, Abschnitt „Unbekannter Host“.</td></tr>
   </table>
@@ -268,8 +300,7 @@ mark { background: var(--mark); color: inherit; }
 <section id="grenzen">
   <h2>Was noch fehlt</h2>
   <ul>
-    <li>Sync mit der Anki-Sammlung, Deckauswahl aus der Sammlung, Sync-Status.</li>
-    <li>Decks, Export und Modelle als eigene Seiten.</li>
+    <li>Echter Test gegen den eigenen Sync-Server ausschließlich mit einem eigenen Testbenutzer.</li>
   </ul>
 </section>
 

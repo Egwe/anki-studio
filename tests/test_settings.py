@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from anki_studio.runtime_env import RUNTIME_SYNC_ENDPOINT_ENV, encode_value
 from anki_studio.settings import (
     CONFIG_ENV,
     SettingsError,
@@ -86,6 +87,53 @@ def test_relative_data_dir_is_resolved_next_to_file(tmp_path: Path) -> None:
     settings = load_settings(write(tmp_path, "data_dir: daten/studio\n"))
 
     assert settings.data_dir == tmp_path / "daten" / "studio"
+
+
+def test_sync_endpoint_is_loaded_from_settings(tmp_path: Path) -> None:
+    """A complete HTTP sync endpoint is retained without secrets.
+
+    Args:
+        tmp_path: Temporary directory containing ``studio.yaml``.
+    """
+    settings = load_settings(write(tmp_path, "sync_endpoint: http://127.0.0.1:8080/\n"))
+
+    assert settings.sync_endpoint == "http://127.0.0.1:8080/"
+
+
+def test_runtime_sync_endpoint_overrides_initial_setting(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The optional runtime environment replaces the bootstrap endpoint.
+
+    Args:
+        monkeypatch: Pytest helper that changes process environment values.
+        tmp_path: Temporary directory containing ``studio.yaml``.
+    """
+    monkeypatch.setenv(RUNTIME_SYNC_ENDPOINT_ENV, encode_value("https://sync.example/runtime"))
+
+    settings = load_settings(write(tmp_path, "sync_endpoint: https://sync.example/initial\n"))
+
+    assert settings.sync_endpoint == "https://sync.example/runtime"
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "sync.example",
+        "ftp://sync.example",
+        "https://user:pass@sync.example",
+        "https://sync.example/?x=1",
+    ],
+)
+def test_unsafe_sync_endpoint_is_rejected(tmp_path: Path, endpoint: str) -> None:
+    """Sync configuration never accepts embedded credentials or ambiguous URLs.
+
+    Args:
+        tmp_path: Temporary directory containing ``studio.yaml``.
+        endpoint: Invalid endpoint string.
+    """
+    with pytest.raises(SettingsError, match="sync_endpoint"):
+        load_settings(write(tmp_path, f"sync_endpoint: {endpoint}\n"))
 
 
 def test_absolute_data_dir_is_kept(tmp_path: Path) -> None:

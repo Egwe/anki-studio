@@ -6,11 +6,20 @@ from anki_studio.credentials import (
     PASSWORD_HASH_ENV,
     SECRET_KEY_ENV,
     SESSION_SECRET_ENV,
+    SYNC_PASSWORD_ENV,
+    SYNC_USERNAME_ENV,
     CredentialsError,
     load_credentials,
     new_secret_key,
 )
 from anki_studio.passwords import hash_password
+from anki_studio.runtime_env import (
+    RUNTIME_PASSWORD_HASH_ENV,
+    RUNTIME_SESSION_SECRET_ENV,
+    RUNTIME_SYNC_PASSWORD_ENV,
+    RUNTIME_SYNC_USERNAME_ENV,
+    encode_value,
+)
 
 SECRET = "s" * 40
 
@@ -72,6 +81,44 @@ def test_reads_valid_secret_key() -> None:
 def test_missing_secret_key_is_allowed() -> None:
     """Without the key the app starts; API keys just cannot be stored."""
     assert load_credentials({SESSION_SECRET_ENV: SECRET}).secret_key is None
+
+
+def test_reads_sync_credentials_without_showing_them() -> None:
+    """Sync credentials remain environment-only and excluded from ``repr``."""
+    credentials = load_credentials(
+        {
+            SESSION_SECRET_ENV: SECRET,
+            SYNC_USERNAME_ENV: "studio",
+            SYNC_PASSWORD_ENV: "test-geheim",
+        }
+    )
+
+    assert credentials.sync_username == "studio"
+    assert credentials.sync_password == "test-geheim"
+    assert "test-geheim" not in repr(credentials)
+
+
+def test_runtime_environment_overrides_base_access_values() -> None:
+    """The daily environment wins over initial login and sync setup."""
+    initial_hash = hash_password("erstes-passwort")
+    runtime_hash = hash_password("neues-passwort")
+    environment = {
+        PASSWORD_HASH_ENV: initial_hash,
+        SESSION_SECRET_ENV: SECRET,
+        SYNC_USERNAME_ENV: "initial-user",
+        SYNC_PASSWORD_ENV: "initial-password",
+        RUNTIME_PASSWORD_HASH_ENV: encode_value(runtime_hash),
+        RUNTIME_SESSION_SECRET_ENV: encode_value("runtime-" + "s" * 40),
+        RUNTIME_SYNC_USERNAME_ENV: encode_value("runtime-user"),
+        RUNTIME_SYNC_PASSWORD_ENV: encode_value("runtime-password"),
+    }
+
+    credentials = load_credentials(environment)
+
+    assert credentials.password_hash == runtime_hash
+    assert credentials.session_secret == "runtime-" + "s" * 40
+    assert credentials.sync_username == "runtime-user"
+    assert credentials.sync_password == "runtime-password"
 
 
 def test_invalid_secret_key_is_rejected_without_value() -> None:

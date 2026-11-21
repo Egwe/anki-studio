@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Synchronisierung – Anki Studio{% endblock %}
+{% block content %}
+<hgroup>
+  <h1>Synchronisierung</h1>
+  <p>Die lokale Sammlung wird sicher mit dem eigenen Anki-Sync-Server abgeglichen. Medien werden noch nicht synchronisiert.</p>
+</hgroup>
+{% if error %}<article class="alert">{{ error }}</article>{% endif %}
+<article>
+  <header><strong>Einrichtung</strong></header>
+  <dl class="components">
+    <dt>Endpunkt</dt><dd>{{ endpoint or "fehlt" }}</dd>
+    <dt>Benutzer</dt><dd>{{ username or "fehlt" }}</dd>
+    <dt>Passwort</dt><dd>{{ "gesetzt" if password_set else "fehlt" }}</dd>
+  </dl>
+  {% if not configured %}
+  <footer><small>Endpunkt in <code>studio.yaml</code>, Benutzer und Passwort in der Umgebungsdatei setzen. Die Zugangsdaten werden hier nie angezeigt oder gespeichert.</small></footer>
+  {% endif %}
+</article>
+<article>
+  <header><strong>Letzter Abgleich</strong></header>
+  <dl class="components">
+    <dt>Zeitpunkt</dt><dd>{{ state.last_synced_at.strftime("%d.%m.%Y %H:%M UTC") if state.last_synced_at else "noch nie" }}</dd>
+    <dt>Ergebnis</dt><dd>{{ state.last_result or "–" }}</dd>
+    <dt>Server-Hinweis</dt><dd>{{ state.server_message or "–" }}</dd>
+  </dl>
+  {% if configured %}
+  <footer>
+    <form method="post" action="{{ url_for('sync_submit') }}">
+      <button type="submit">Jetzt synchronisieren</button>
+    </form>
+  </footer>
+  {% endif %}
+</article>
+<p><small>Ein Komplett-Upload findet nie automatisch statt. Einen verlangten Komplett-Download führt Anki Studio nur aus, wenn keine lokalen, noch nicht bestätigten Änderungen vorliegen.</small></p>
+{% endblock %}

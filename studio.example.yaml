@@ -26,3 +26,7 @@ job_retention_days: 14
 # Standard: generator.yaml im data_dir; Anki Studio legt sie mit allen
 # Providern an und darf sie dort bearbeiten. Nur bei Bedarf setzen:
 # generator_config: /pfad/zur/generator.yaml
+
+# Endpunkt des eigenen Anki-Sync-Servers. Benutzername und Passwort gehören
+# ausschließlich in die Umgebungsdatei; leer lassen, bis Sync eingerichtet ist.
+# sync_endpoint: http://anki-sync-server:8080/

@@ -12,10 +12,20 @@ from dataclasses import dataclass, field
 from cryptography.fernet import Fernet
 
 from anki_studio.passwords import PasswordHashError, parse_hash
+from anki_studio.runtime_env import (
+    RUNTIME_PASSWORD_HASH_ENV,
+    RUNTIME_SESSION_SECRET_ENV,
+    RUNTIME_SYNC_PASSWORD_ENV,
+    RUNTIME_SYNC_USERNAME_ENV,
+    RuntimeEnvironmentError,
+    read_value,
+)
 
 PASSWORD_HASH_ENV = "ANKI_STUDIO_PASSWORD_HASH"
 SESSION_SECRET_ENV = "ANKI_STUDIO_SESSION_SECRET"
 SECRET_KEY_ENV = "ANKI_STUDIO_SECRET_KEY"
+SYNC_USERNAME_ENV = "ANKI_STUDIO_SYNC_USERNAME"
+SYNC_PASSWORD_ENV = "ANKI_STUDIO_SYNC_PASSWORD"
 MIN_SESSION_SECRET_LENGTH = 32
 
 
@@ -25,7 +35,7 @@ class CredentialsError(Exception):
 
 @dataclass(frozen=True)
 class Credentials:
-    """Hold the login secrets; their values are excluded from ``repr``.
+    """Hold login and sync secrets; values are excluded from ``repr``.
 
     Attributes:
         password_hash: Stored scrypt hash, or None while no password is set;
@@ -35,16 +45,22 @@ class Credentials:
             because none was configured; sessions then end with a restart.
         secret_key: Fernet key that encrypts API keys entered in the
             interface (AS-035), or None; then they cannot be stored.
+        sync_username: User name for the configured Anki sync server, or None
+            while synchronization is not configured.
+        sync_password: Password for ``sync_username``, or None; it is never
+            persisted or exposed in a route, job, or template.
     """
 
     password_hash: str | None = field(repr=False)
     session_secret: str = field(repr=False)
     temporary_secret: bool = False
     secret_key: str | None = field(default=None, repr=False)
+    sync_username: str | None = field(default=None, repr=False)
+    sync_password: str | None = field(default=None, repr=False)
 
 
 def load_credentials(environ: Mapping[str, str]) -> Credentials:
-    """Read and check the password hash and the session key.
+    """Read and check login, encryption, and sync credentials.
 
     Empty values count as missing. A missing password hash is allowed so the
     login page can explain how to set one; a missing session key is replaced
@@ -58,25 +74,75 @@ def load_credentials(environ: Mapping[str, str]) -> Credentials:
 
     Raises:
         CredentialsError: If the password hash is malformed, the session key
-            is shorter than 32 characters, or the encryption key is no
-            valid Fernet key.
+            is shorter than 32 characters, or the encryption key is no valid
+            Fernet key.
     """
-    password_hash = environ.get(PASSWORD_HASH_ENV, "").strip() or None
+    try:
+        password_hash = (
+            _runtime_or_environment(environ, RUNTIME_PASSWORD_HASH_ENV, PASSWORD_HASH_ENV).strip()
+            or None
+        )
+        sync_username = (
+            _runtime_or_environment(environ, RUNTIME_SYNC_USERNAME_ENV, SYNC_USERNAME_ENV).strip()
+            or None
+        )
+        sync_password = (
+            _runtime_or_environment(environ, RUNTIME_SYNC_PASSWORD_ENV, SYNC_PASSWORD_ENV).strip()
+            or None
+        )
+        session_secret = _runtime_or_environment(
+            environ, RUNTIME_SESSION_SECRET_ENV, SESSION_SECRET_ENV
+        ).strip()
+    except RuntimeEnvironmentError as error:
+        raise CredentialsError(str(error)) from error
     if password_hash is not None:
         _check_hash(password_hash)
     secret_key = environ.get(SECRET_KEY_ENV, "").strip() or None
     if secret_key is not None:
         _check_fernet_key(secret_key)
-    session_secret = environ.get(SESSION_SECRET_ENV, "").strip()
     if not session_secret:
         return Credentials(
-            password_hash, secrets.token_urlsafe(32), temporary_secret=True, secret_key=secret_key
+            password_hash,
+            secrets.token_urlsafe(32),
+            temporary_secret=True,
+            secret_key=secret_key,
+            sync_username=sync_username,
+            sync_password=sync_password,
         )
     if len(session_secret) < MIN_SESSION_SECRET_LENGTH:
         raise CredentialsError(
             f"{SESSION_SECRET_ENV} braucht mindestens {MIN_SESSION_SECRET_LENGTH} Zeichen."
         )
-    return Credentials(password_hash, session_secret, secret_key=secret_key)
+    return Credentials(
+        password_hash,
+        session_secret,
+        secret_key=secret_key,
+        sync_username=sync_username,
+        sync_password=sync_password,
+    )
+
+
+def _runtime_or_environment(
+    environ: Mapping[str, str], runtime_name: str, environment_name: str
+) -> str:
+    """Prefer an explicit encoded runtime value over the base environment.
+
+    Args:
+        environ: Process environment supplied by systemd or a test.
+        runtime_name: Name of the optional encoded runtime variable.
+        environment_name: Name of the administrator-managed base variable.
+
+    Returns:
+        The runtime value if present, otherwise the base value or an empty
+        string.
+
+    Raises:
+        RuntimeEnvironmentError: If the runtime value is malformed.
+    """
+    runtime_value = read_value(environ, runtime_name)
+    if runtime_value is not None:
+        return runtime_value
+    return environ.get(environment_name, "")
 
 
 def new_secret_key() -> str:

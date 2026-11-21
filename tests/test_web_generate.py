@@ -163,6 +163,7 @@ def test_several_documents_become_several_jobs(
         ({"profile": "unbekannt"}, None, "Unknown model profile"),
         ({"profile": "nativ"}, None, "Bitte die Übertragung bestätigen"),
         ({"target": "extend_apkg"}, None, "APKG-Datei wählen"),
+        ({"target": "collection"}, None, "Synchronisierung einrichten"),
     ],
 )
 def test_invalid_submissions_create_no_job(

@@ -24,12 +24,16 @@
       <ul>
         {% if request.session.get("authenticated") %}
         <li><a href="{{ url_for('generate_page') }}">Generieren</a></li>
+        <li><a href="{{ url_for('decks_page') }}">Decks</a></li>
+        <li><a href="{{ url_for('export_page') }}">Export</a></li>
+        <li><a href="{{ url_for('sync_page') }}">Sync</a></li>
         <li><a href="{{ url_for('job_list') }}">Jobs</a></li>
         <li>
           <details class="dropdown">
             <summary>Einstellungen</summary>
             <ul dir="rtl">
               <li><a href="{{ url_for('config_page') }}">Konfiguration</a></li>
+              <li><a href="{{ url_for('access_page') }}">Zugang und Sync</a></li>
               <li><a href="{{ url_for('keys_page') }}">Zugangsdaten</a></li>
               <li><a href="{{ url_for('models_page') }}">Modelle und GPU</a></li>
               <li>

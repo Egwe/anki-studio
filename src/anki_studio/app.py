@@ -12,7 +12,11 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from anki_studio.auth import SESSION_COOKIE, SESSION_MAX_AGE, LoginRequiredMiddleware
+from anki_studio.card_export import EXPORT_KIND, ExportRunner
+from anki_studio.collection_worker import CollectionWorker
+from anki_studio.collection_write import COLLECTION_WRITE_KIND, CollectionWriteRunner
 from anki_studio.credentials import SESSION_SECRET_ENV, Credentials, load_credentials
+from anki_studio.decks import DECKS_KIND, DecksRunner
 from anki_studio.generation import GENERATE_KIND, GenerationRunner, KindRunner
 from anki_studio.generator_config import ensure_generator_config
 from anki_studio.headers import SecurityHeadersMiddleware
@@ -21,7 +25,10 @@ from anki_studio.jobs import JobStore
 from anki_studio.limits import BodyLimitMiddleware
 from anki_studio.models_task import MODELS_KIND, ModelsRunner
 from anki_studio.routes import (
+    access,
     config,
+    decks,
+    export,
     generate,
     jobs,
     keys,
@@ -31,8 +38,10 @@ from anki_studio.routes import (
     review,
     structured,
 )
+from anki_studio.routes import sync as sync_routes
 from anki_studio.secret_store import STORE_FILE, SecretStore, SecretStoreError
 from anki_studio.settings import StudioSettings
+from anki_studio.sync import SYNC_KIND, SyncRunner, SyncService, SyncStateStore, collection_paths
 from anki_studio.templating import STATIC_DIR, create_templates
 from anki_studio.worker import JobWorker
 
@@ -57,20 +66,35 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     _ensure_generator_config(settings)
     _open_secret_store(app)
     store = JobStore(settings.data_dir / "jobs")
+    collection_path, state_path = collection_paths(settings.data_dir)
+    collection_worker = CollectionWorker(collection_path)
+    collection_worker.start()
+    sync_service = SyncService(
+        settings, app.state.credentials, collection_worker, SyncStateStore(state_path)
+    )
     runner = KindRunner(
         {
-            GENERATE_KIND: GenerationRunner(store, settings.generator_path),
+            GENERATE_KIND: GenerationRunner(
+                store, settings.generator_path, collection_worker, sync_service
+            ),
             MODELS_KIND: ModelsRunner(settings.generator_path),
+            DECKS_KIND: DecksRunner(store),
+            EXPORT_KIND: ExportRunner(store, settings.generator_path, sync_service),
+            SYNC_KIND: SyncRunner(sync_service),
+            COLLECTION_WRITE_KIND: CollectionWriteRunner(store, sync_service),
         }
     )
     worker = JobWorker(store, runner, timedelta(days=settings.job_retention_days))
     worker.start()
     app.state.jobs = store
     app.state.worker = worker
+    app.state.collection_worker = collection_worker
+    app.state.sync_service = sync_service
     try:
         yield
     finally:
         worker.stop()
+        collection_worker.stop()
 
 
 def _ensure_generator_config(settings: StudioSettings) -> None:
@@ -136,7 +160,7 @@ def create_app(
         A configured application; ``app.state`` holds ``settings``,
         ``credentials``, ``templates``, and ``http_transport`` (None for the
         network; tests set a mock), and while running ``jobs``, ``worker``,
-        and ``secrets``.
+        ``collection_worker``, ``sync_service``, and ``secrets``.
 
     Raises:
         CredentialsError: If ``credentials`` is None and the environment
@@ -156,8 +180,23 @@ def create_app(
     app.state.credentials = credentials
     app.state.templates = create_templates()
     app.state.http_transport = None
+    app.state.request_restart = _no_restart
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-    for module in (login, pages, generate, jobs, keys, models, review, config, structured):
+    for module in (
+        access,
+        login,
+        pages,
+        generate,
+        jobs,
+        keys,
+        models,
+        review,
+        config,
+        structured,
+        decks,
+        export,
+        sync_routes,
+    ):
         app.include_router(module.router)
     app.add_middleware(LoginRequiredMiddleware)
     app.add_middleware(
@@ -171,3 +210,14 @@ def create_app(
     app.add_middleware(HostCheckMiddleware, allowed_hosts=settings.allowed_hosts)
     app.add_middleware(SecurityHeadersMiddleware)
     return app
+
+
+def _no_restart() -> None:
+    """Keep in-process test applications alive after a settings change.
+
+    The command-line server replaces this callback with a controlled SIGTERM;
+    tests and embedded app users deliberately do not restart their process.
+
+    Returns:
+        None.
+    """
