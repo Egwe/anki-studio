@@ -3,6 +3,7 @@
 {% block content %}
 <article class="login">
   <header><strong>Anmelden</strong></header>
+  {% if changed %}<p role="status">Die Zugangseinstellungen wurden gespeichert. Bitte erneut anmelden.</p>{% endif %}
   {% if password_set %}
   <form method="post" action="{{ url_for('login') }}">
     <input type="hidden" name="next" value="{{ next }}">

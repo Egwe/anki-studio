@@ -37,19 +37,13 @@ Jede Seite außer der Anmeldung, `/healthz` und den statischen Dateien verlangt 
 
 | Variable | Bedeutung |
 |---|---|
-| `ANKI_STUDIO_PASSWORD_HASH` | scrypt-Hash des Passworts, erzeugt mit `anki-studio hash-password`. Fehlt er, erklärt die Anmeldeseite die Einrichtung, und niemand kann sich anmelden. |
+| `ANKI_STUDIO_PASSWORD_HASH` | scrypt-Hash des anfänglichen Passworts, erzeugt mit `anki-studio hash-password`. Fehlt er, erklärt die Anmeldeseite die Einrichtung, und niemand kann sich anmelden. |
 | `ANKI_STUDIO_SESSION_SECRET` | Schlüssel für das Session-Cookie, mindestens 32 Zeichen. Fehlt er, gilt ein zufälliger Schlüssel bis zum nächsten Neustart. |
 | `ANKI_STUDIO_SECRET_KEY` | Fernet-Schlüssel (32 Byte, URL-sicheres Base64), mit dem Anki Studio API-Schlüssel aus der Oberfläche verschlüsselt. Fehlt er, lassen sich dort keine Schlüssel speichern. |
-| `ANKI_STUDIO_SYNC_USERNAME` | Benutzername des eigenen Anki-Sync-Servers; nur zusammen mit Passwort und `sync_endpoint` wirksam. |
-| `ANKI_STUDIO_SYNC_PASSWORD` | Passwort des Sync-Benutzers; wird nie gespeichert, angezeigt oder in einen Job geschrieben. |
+| `ANKI_STUDIO_SYNC_USERNAME` | Anfangs-Benutzername des eigenen Anki-Sync-Servers; nur zusammen mit Passwort und `sync_endpoint` wirksam. |
+| `ANKI_STUDIO_SYNC_PASSWORD` | Anfangs-Passwort des Sync-Benutzers; wird nie angezeigt oder in einen Job geschrieben. |
 
-`anki-studio hash-password` fragt das Passwort zweimal ab (mindestens 8 Zeichen) und gibt nur die Zeile für die Umgebungsdatei aus. Im Container setzt dieser Aufruf vom Entwicklungsrechner das Passwort und startet die Vorschau neu:
-
-```bash
-ssh -t ct-anki-studio '/opt/anki-studio/.venv/bin/anki-studio hash-password >> /etc/anki-studio/env && systemctl restart anki-studio-preview'
-```
-
-Für ein neues Passwort vorher die alte Zeile `ANKI_STUDIO_PASSWORD_HASH=…` aus der Datei löschen.
+`anki-studio hash-password` fragt das Passwort zweimal ab (mindestens 8 Zeichen) und gibt nur die Zeile für die anfängliche Umgebungsdatei aus. Im täglichen Betrieb änderst du das Passwort über **Einstellungen → Zugang und Sync**; dafür ist kein Container-Zugang nötig.
 
 Die Session hält 14 Tage; das Cookie ist `HttpOnly` und `SameSite=Strict`. Nach einem falschen Passwort antwortet der Server erst nach einer Sekunde. Anfragen an einen Hostnamen, der nicht in `allowed_hosts` steht, beantwortet Anki Studio mit 400 (Schutz vor DNS-Rebinding).
 
@@ -65,7 +59,7 @@ Die Session hält 14 Tage; das Cookie ist `HttpOnly` und `SameSite=Strict`. Nach
 | `data_dir` | `data` | Ordner für Jobs (und später die Sammlung); relativ zur `studio.yaml`; im Container `/var/lib/anki-studio` |
 | `job_retention_days` | `14` | Abgeschlossene Jobs werden nach so vielen Tagen gelöscht (1–3650) |
 | `generator_config` | `<data_dir>/generator.yaml` | YAML des Generators; nur setzen, wenn sie woanders liegen soll (relativ zur `studio.yaml`) |
-| `sync_endpoint` | – | HTTP(S)-Endpunkt des eigenen Anki-Sync-Servers, ohne Zugangsdaten; Benutzer und Passwort stehen nur in der Umgebung |
+| `sync_endpoint` | – | anfänglicher HTTP(S)-Endpunkt des eigenen Anki-Sync-Servers, ohne Zugangsdaten; im täglichen Betrieb unter **Zugang und Sync** änderbar |
 
 ### Generator-Konfiguration mit allen Providern
 
@@ -84,6 +78,12 @@ Für `pdf_mode: structured` installiert das optionale Extra `pdf` Docling über 
 ## Zugangsdaten (API-Schlüssel)
 
 Unter **Einstellungen → Zugangsdaten** stehen alle Variablen, die Profile der Generator-YAML als `api_key_env` nennen, mit den Profilen, die sie nutzen, und ihrem Status: „aus der Umgebungsdatei“ (hat Vorrang, dort nicht änderbar), „gespeichert“ (mit Datum) oder „fehlt“. Ein eingegebener Schlüssel wird verschlüsselt in `<data_dir>/secrets.enc` gespeichert (Fernet, Rechte 0600) und nie wieder angezeigt; er lässt sich ersetzen oder löschen. Anki Studio übernimmt gespeicherte Schlüssel beim Start und nach jeder Änderung in die Umgebung des eigenen Prozesses, aus der Generator und LiteLLM sie lesen. Erlaubt sind nur Namen mit der Endung `_API_KEY`, `_TOKEN` oder `_KEY` außerhalb von `ANKI_STUDIO_*`; das Journal nennt nur den Namen. Sicherheitskonzept und Grenzen: AS-035 in [requirements.md](./requirements.md).
+
+## Zugang und Sync
+
+**Einstellungen → Zugang und Sync** ändert das Login-Passwort und richtet die Anki-Sync-Verbindung ein oder deaktiviert sie. Für eine aktive Verbindung sind Endpunkt, Benutzername und Passwort immer gemeinsam erforderlich; der Endpunkt akzeptiert nur vollständige HTTP(S)-Adressen ohne eingebettete Zugangsdaten. Das Passwort wird nach dem Speichern nie wieder angezeigt.
+
+Anki Studio schreibt diese täglichen Werte atomar und mit Rechten `0600` in `<data_dir>/runtime.env`, eine zusätzliche systemd-`EnvironmentFile`. Ihre URL-sicher Base64-kodierten Werte überschreiben die anfänglichen Umgebungswerte beim nächsten Start; die Dateirechte, nicht die Kodierung, schützen die Geheimnisse. Der Dienst startet danach kontrolliert neu. Eine Passwortänderung dreht zusätzlich den Session-Schlüssel, beendet also alle bestehenden Anmeldungen. API-Schlüssel bleiben im getrennten verschlüsselten Schlüsselspeicher.
 
 ## Modelle des Providers
 
@@ -143,7 +143,7 @@ Nach einem geprüften und auf das öffentliche `main` gepushten Stand installier
 ssh ct-anki-studio 'bash -s' < deploy/install.sh
 ```
 
-`deploy/install.sh` installiert bei Bedarf git und die festgelegte uv-Version, checkt ausschließlich `origin/main` nach `/opt/anki-studio` aus, installiert die lockfile-genauen Abhängigkeiten und richtet `anki-studio` als eigenen Systembenutzer ein. Es erhält `/etc/anki-studio/env`, `/etc/anki-studio/studio.yaml` und `/var/lib/anki-studio` unverändert, ergänzt fehlende Session- und Verschlüsselungsschlüssel und startet den gehärteten systemd-Dienst `anki-studio`. Ein Update desselben geprüften `main`-Workflows erfolgt mit:
+`deploy/install.sh` installiert bei Bedarf git und die festgelegte uv-Version, checkt ausschließlich `origin/main` nach `/opt/anki-studio` aus, installiert die lockfile-genauen Abhängigkeiten und richtet `anki-studio` als eigenen Systembenutzer ein. Es erhält `/etc/anki-studio/env`, `/etc/anki-studio/studio.yaml`, `/var/lib/anki-studio` und die optionale Laufzeitumgebung `/var/lib/anki-studio/runtime.env` unverändert, ergänzt fehlende Session- und Verschlüsselungsschlüssel und startet den gehärteten systemd-Dienst `anki-studio`. Ein Update desselben geprüften `main`-Workflows erfolgt mit:
 
 ```bash
 ssh ct-anki-studio 'bash -s' < deploy/update.sh

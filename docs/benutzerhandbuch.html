@@ -59,6 +59,7 @@ mark { background: var(--mark); color: inherit; }
   <a href="#anmelden">Anmelden und Abmelden</a>
   <a href="#startseite">Startseite</a>
   <a href="#konfiguration">Konfiguration</a>
+  <a href="#zugang-sync">Zugang und Sync</a>
   <a href="#zugangsdaten">Zugangsdaten</a>
   <a href="#gpu">Modelle und GPU</a>
   <a href="#generieren">Karten generieren</a>
@@ -132,6 +133,13 @@ mark { background: var(--mark); color: inherit; }
   <div class="note warn">Im Heimnetz geht der Schlüssel wie das Login-Passwort unverschlüsselt per HTTP zum Server; über NetBird läuft er im verschlüsselten Tunnel. Ein Backup des Containers enthält die verschlüsselten Schlüssel zusammen mit dem Schlüssel zum Entschlüsseln.</div>
 </section>
 
+<section id="zugang-sync">
+  <h2>Zugang und Sync</h2>
+  <p>Unter <strong>Einstellungen → Zugang und Sync</strong> änderst du das Login-Passwort und richtest die Verbindung zu deinem Anki-Sync-Server ein. Das geht im täglichen Betrieb vollständig im Browser; für Installation, Updates und Notfälle bleibt der Container-Zugang zuständig.</p>
+  <p>Für eine Sync-Verbindung das Häkchen setzen und Endpunkt, Benutzername und Passwort eintragen. Der Endpunkt muss mit <code>http://</code> oder <code>https://</code> beginnen und darf weder Benutzername noch Passwort enthalten. Passwort und Sync-Anmeldeschlüssel werden nach dem Speichern nie angezeigt. Zum Abschalten das Häkchen entfernen und speichern.</p>
+  <p>Nach jeder Änderung startet Anki Studio kontrolliert neu. Nach einem neuen Login-Passwort musst du dich erneut anmelden; alle früheren Sitzungen enden. Die Oberfläche speichert die täglichen Zugänge nur als private Laufzeit-Umgebung des Dienstes, nicht in der Konfiguration, einem Job oder einem Log.</p>
+</section>
+
 <section id="gpu">
   <h2>Modelle und GPU</h2>
   <p>Der PDF-Modus <code>structured</code> bereitet PDFs auf dem Server auf und braucht dafür Docling, die GPU und einmal heruntergeladene Modelle. <strong>Einstellungen → Modelle und GPU</strong> zeigt den Zustand:</p>
@@ -180,7 +188,7 @@ mark { background: var(--mark); color: inherit; }
 <section id="sync">
   <h2>Synchronisierung</h2>
   <p>Unter <strong>Sync</strong> siehst du den eingerichteten Endpunkt, den Benutzernamen, ob ein Passwort gesetzt ist, sowie Zeitpunkt und Ergebnis des letzten Abgleichs. Passwort und Anmeldeschlüssel des Servers werden niemals angezeigt.</p>
-  <p>Der Endpunkt steht in der Server-Konfiguration; Benutzername und Passwort liegen ausschließlich in der geschützten Umgebungsdatei. Fehlt etwas, erklärt die Seite, was eingerichtet werden muss. <strong>Jetzt synchronisieren</strong> startet einen Job mit Live-Verlauf.</p>
+  <p>Fehlt etwas, öffne <strong>Einstellungen → Zugang und Sync</strong> und richte die Verbindung dort vollständig ein. <strong>Jetzt synchronisieren</strong> startet einen Job mit Live-Verlauf.</p>
   <p>Bei einer leeren lokalen Sammlung lädt Anki Studio sie beim ersten Abgleich vollständig vom Server. Ein automatischer Komplett-Upload findet nie statt. Fordert der Server einen Komplett-Sync oder würde ein Komplett-Download lokale, noch nicht bestätigte Änderungen überschreiben, bricht Anki Studio ab und erklärt den Grund. Medien werden noch nicht synchronisiert.</p>
 </section>
 
@@ -281,7 +289,7 @@ mark { background: var(--mark); color: inherit; }
     <tr><td>Dateityp wird nicht unterstützt</td><td>Nur PDF, DOCX, HTML, Markdown und Text; zum Erweitern nur <code>.apkg</code>.</td></tr>
     <tr><td>… ist größer als 100 MiB</td><td>Dokument verkleinern oder aufteilen.</td></tr>
     <tr><td>Bitte die Übertragung bestätigen</td><td>Siehe <a href="#uebertragung">Datenübertragung bestätigen</a>.</td></tr>
-    <tr><td>Sync ist noch nicht vollständig eingerichtet</td><td>Endpunkt in der Server-Konfiguration sowie Benutzer und Passwort in der Umgebungsdatei prüfen. Ohne diese Angaben stehen Sammlung als Ziel und Sammlungsexport nicht bereit.</td></tr>
+    <tr><td>Sync ist noch nicht vollständig eingerichtet</td><td>Unter <a href="#zugang-sync">Zugang und Sync</a> Endpunkt, Benutzer und Passwort gemeinsam einrichten. Ohne diese Angaben stehen Sammlung als Ziel und Sammlungsexport nicht bereit.</td></tr>
     <tr><td>Komplett-Upload / Komplett-Sync verlangt</td><td>Anki Studio führt das nicht automatisch aus. Nicht erneut versuchen, sondern die Sync-Lage prüfen.</td></tr>
     <tr><td>Unknown model profile</td><td>Das Profil steht nicht (mehr) in der Generator-Konfiguration.</td></tr>
     <tr><td>Unbekannter Host</td><td>Siehe <a href="#anmelden">Anmelden</a>, Abschnitt „Unbekannter Host“.</td></tr>

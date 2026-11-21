@@ -25,6 +25,7 @@ from anki_studio.jobs import JobStore
 from anki_studio.limits import BodyLimitMiddleware
 from anki_studio.models_task import MODELS_KIND, ModelsRunner
 from anki_studio.routes import (
+    access,
     config,
     decks,
     export,
@@ -179,8 +180,10 @@ def create_app(
     app.state.credentials = credentials
     app.state.templates = create_templates()
     app.state.http_transport = None
+    app.state.request_restart = _no_restart
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     for module in (
+        access,
         login,
         pages,
         generate,
@@ -207,3 +210,14 @@ def create_app(
     app.add_middleware(HostCheckMiddleware, allowed_hosts=settings.allowed_hosts)
     app.add_middleware(SecurityHeadersMiddleware)
     return app
+
+
+def _no_restart() -> None:
+    """Keep in-process test applications alive after a settings change.
+
+    The command-line server replaces this callback with a controlled SIGTERM;
+    tests and embedded app users deliberately do not restart their process.
+
+    Returns:
+        None.
+    """

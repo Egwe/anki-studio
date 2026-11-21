@@ -30,19 +30,21 @@ class LoginForm(BaseModel):
 
 
 @router.get(LOGIN_PATH, response_class=HTMLResponse)
-def login_page(request: Request, next: str = "/") -> Response:
+def login_page(request: Request, next: str = "/", changed: bool = False) -> Response:
     """Show the login form, or continue if the session is already logged in.
 
     Args:
         request: Incoming request.
         next: Local path to open after the login.
+        changed: Whether daily access settings were just saved before the
+            controlled service restart.
 
     Returns:
         The login page, or a redirect for a logged-in session.
     """
     if request.session.get(SESSION_KEY):
         return RedirectResponse(safe_next(next), status_code=303)
-    return _render(request, next=safe_next(next))
+    return _render(request, next=safe_next(next), changed=changed)
 
 
 @router.post(LOGIN_PATH, response_class=HTMLResponse)
@@ -100,7 +102,12 @@ async def _password_matches(request: Request, password: str) -> bool:
 
 
 def _render(
-    request: Request, *, next: str, error: str | None = None, status_code: int = 200
+    request: Request,
+    *,
+    next: str,
+    error: str | None = None,
+    changed: bool = False,
+    status_code: int = 200,
 ) -> HTMLResponse:
     """Render the login page.
 
@@ -108,6 +115,7 @@ def _render(
         request: Incoming request.
         next: Local path to open after the login.
         error: Message for a failed attempt, or None.
+        changed: Whether access settings were saved and restarted the service.
         status_code: HTTP status of the page.
 
     Returns:
@@ -116,6 +124,7 @@ def _render(
     context = {
         "next": next,
         "error": error,
+        "changed": changed,
         "password_set": request.app.state.credentials.password_hash is not None,
         "hash_env": PASSWORD_HASH_ENV,
     }

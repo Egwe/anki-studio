@@ -155,8 +155,9 @@ DynamicUser=yes
 StateDirectory=anki-studio
 Environment=ANKI_STUDIO_CONFIG=$CONFIG_DIR/studio.yaml
 EnvironmentFile=$CONFIG_DIR/env
+EnvironmentFile=-/var/lib/anki-studio/runtime.env
 ExecStart=$APP_DIR/.venv/bin/anki-studio serve
-Restart=on-failure
+Restart=always
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes

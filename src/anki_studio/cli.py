@@ -12,6 +12,7 @@ import uvicorn
 from anki_studio.app import create_app
 from anki_studio.credentials import PASSWORD_HASH_ENV, CredentialsError, load_credentials
 from anki_studio.passwords import hash_password
+from anki_studio.service_restart import request_service_restart
 from anki_studio.settings import CONFIG_ENV, SettingsError, load_settings, settings_path
 
 
@@ -87,6 +88,7 @@ def serve_command(args: argparse.Namespace) -> int:
         return 1
     logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(name)s: %(message)s")
     app = create_app(settings, credentials)
+    app.state.request_restart = request_service_restart
     uvicorn.run(app, host=settings.host, port=settings.port, server_header=False)
     return 0
 

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Zugang und Sync – Anki Studio{% endblock %}
+{% block content %}
+<header>
+  <h1>Zugang und Sync</h1>
+  <p>Ändere Login und Sync-Verbindung für den täglichen Betrieb. Nach dem Speichern startet Anki Studio kontrolliert neu.</p>
+</header>
+
+<article>
+  <h2>Login-Passwort</h2>
+  <p>Das neue Passwort beendet alle bestehenden Anmeldungen. Es wird nur als scrypt-Hash gespeichert.</p>
+  {% if password_error %}<p class="error" role="alert">{{ password_error }}</p>{% endif %}
+  <form method="post" action="{{ url_for('change_password') }}">
+    <label for="password">Neues Passwort
+      <input id="password" name="password" type="password" minlength="8" maxlength="1024" autocomplete="new-password" required>
+    </label>
+    <label for="confirmation">Passwort wiederholen
+      <input id="confirmation" name="confirmation" type="password" minlength="8" maxlength="1024" autocomplete="new-password" required>
+    </label>
+    <button type="submit">Passwort speichern und neu starten</button>
+  </form>
+</article>
+
+<article>
+  <h2>Anki-Sync</h2>
+  <p>Die Zugangsdaten gelten nur für die hier verwaltete lokale Kopie der Sammlung. Das Passwort wird nach dem Speichern nicht mehr angezeigt.</p>
+  {% if sync_error %}<p class="error" role="alert">{{ sync_error }}</p>{% endif %}
+  <form method="post" action="{{ url_for('change_sync_access') }}">
+    <label>
+      <input name="enabled" type="checkbox" value="true" {% if sync_values.enabled %}checked{% endif %}>
+      Sync-Verbindung einrichten
+    </label>
+    <label for="endpoint">Sync-Endpunkt
+      <input id="endpoint" name="endpoint" type="url" maxlength="500" value="{{ sync_values.endpoint }}" placeholder="https://sync.example" autocomplete="url">
+    </label>
+    <label for="username">Benutzername
+      <input id="username" name="username" type="text" maxlength="1024" value="{{ sync_values.username }}" autocomplete="username">
+    </label>
+    <label for="sync-password">Passwort
+      <input id="sync-password" name="password" type="password" maxlength="1024" autocomplete="current-password">
+    </label>
+    <small>Zum Deaktivieren das Häkchen entfernen und speichern.</small>
+    <button type="submit">Sync-Zugang speichern und neu starten</button>
+  </form>
+</article>
+{% endblock %}

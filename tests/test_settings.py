@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from anki_studio.runtime_env import RUNTIME_SYNC_ENDPOINT_ENV, encode_value
 from anki_studio.settings import (
     CONFIG_ENV,
     SettingsError,
@@ -97,6 +98,22 @@ def test_sync_endpoint_is_loaded_from_settings(tmp_path: Path) -> None:
     settings = load_settings(write(tmp_path, "sync_endpoint: http://127.0.0.1:8080/\n"))
 
     assert settings.sync_endpoint == "http://127.0.0.1:8080/"
+
+
+def test_runtime_sync_endpoint_overrides_initial_setting(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The optional runtime environment replaces the bootstrap endpoint.
+
+    Args:
+        monkeypatch: Pytest helper that changes process environment values.
+        tmp_path: Temporary directory containing ``studio.yaml``.
+    """
+    monkeypatch.setenv(RUNTIME_SYNC_ENDPOINT_ENV, encode_value("https://sync.example/runtime"))
+
+    settings = load_settings(write(tmp_path, "sync_endpoint: https://sync.example/initial\n"))
+
+    assert settings.sync_endpoint == "https://sync.example/runtime"
 
 
 @pytest.mark.parametrize(
