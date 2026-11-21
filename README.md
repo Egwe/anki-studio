@@ -6,7 +6,7 @@ Anforderungen und ihr Status stehen in [requirements.md](./requirements.md), Arb
 
 ## Stand
 
-Der Web-MVP (Phase 2) steht: Nach der Anmeldung lassen sich API-Schlüssel eintragen, Modelle beim Provider auswählen, Dokumente hochladen und Karten erzeugen. Jede Datei wird ein Job mit Live-Fortschritt; danach werden die Karten geprüft, bearbeitet oder abgewählt und in eine neue oder hochgeladene APKG geschrieben, die sich wie Karten-JSON und aufbereiteter Text herunterladen lässt. Profile, Standardwerte und API-Schlüssel werden in der Oberfläche gepflegt. Es folgen der strukturierte PDF-Modus auf der GPU, Decks und Export, Sync mit der Sammlung in Phase 3.
+Der Web-MVP (Phase 2) steht: Nach der Anmeldung lassen sich API-Schlüssel eintragen, Modelle beim Provider auswählen, Dokumente hochladen und Karten erzeugen. Jede Datei wird ein Job mit Live-Fortschritt; danach werden die Karten geprüft, bearbeitet oder abgewählt und in eine neue oder hochgeladene APKG geschrieben, die sich wie Karten-JSON und aufbereiteter Text herunterladen lässt. Profile, Standardwerte und API-Schlüssel werden in der Oberfläche gepflegt. Der strukturierte PDF-Modus zeigt GPU und Modellbestand und lädt fehlende Modelle als Job; Decks und Export sowie der Sync mit der Sammlung folgen in Phase 3.
 
 Ausführlich: [docs/benutzerhandbuch.html](./docs/benutzerhandbuch.html) für die Bedienung, [docs/entwicklerhandbuch.html](./docs/entwicklerhandbuch.html) für Module, Abläufe und Tests. Beide Dateien lassen sich ohne Server im Browser öffnen.
 

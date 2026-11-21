@@ -79,8 +79,8 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
 
 <section id="ueberblick">
   <h2>Überblick</h2>
-  <p>Anki Studio ist eine FastAPI-Anwendung (Python 3.13, uv) mit Jinja2-Templates, htmx, Alpine.js und Pico CSS, alles mitgeliefert, ohne Node-Build. Fachlich ruft sie ausschließlich die öffentliche Schnittstelle des Anki Flashcard Generators 0.2.0 auf. Verbindliche Regeln stehen in <code>AGENTS.md</code>, Anforderungen und Status in <code>requirements.md</code>.</p>
-  <p>Stand: Projektgerüst, Login (AS-030), Uploads (AS-033), Jobs mit Worker (AS-032), Generierungsformular und Job-Seiten (AS-001 bis AS-004 teilweise). Kartenprüfung, Downloads, SSE und Sync folgen.</p>
+  <p>Anki Studio ist eine FastAPI-Anwendung (Python 3.13, uv) mit Jinja2-Templates, htmx, Alpine.js und Pico CSS, alles mitgeliefert, ohne Node-Build. Fachlich ruft sie ausschließlich öffentliche Schnittstellen des Anki Flashcard Generators 0.2.1 auf. Verbindliche Regeln stehen in <code>AGENTS.md</code>, Anforderungen und Status in <code>requirements.md</code>.</p>
+  <p>Stand: Web-MVP mit Login, Uploads, serieller Job-Queue, Generierung und Live-Fortschritt, Kartenprüfung und APKG-/JSON-Downloads, Provider-Modelllisten, Schlüssel- und Konfigurationsseiten. Der strukturierte PDF-Modus zeigt Docling, GPU und Modellbestand und lädt fehlende Modelle als Job. Sync und Sammlungszugriff folgen in Phase 3.</p>
   <pre><code>uv sync
 .venv/bin/python -m ruff check src tests
 .venv/bin/python -m ruff format --check src tests
@@ -99,13 +99,13 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
         <text x="380" y="92" text-anchor="middle">Middleware: SecurityHeaders → HostCheck → BodyLimit → Session → LoginRequired</text>
         <text x="380" y="110" text-anchor="middle" font-size="12">headers.py · hosts.py · limits.py · Starlette SessionMiddleware · auth.py</text>
         <rect class="box" x="10" y="140" width="740" height="45" rx="6"/>
-        <text x="380" y="167" text-anchor="middle">Routen: login · pages · generate · jobs (routes/*.py) + Templates</text>
+        <text x="380" y="167" text-anchor="middle" font-size="11">Routen: login · pages · generate · jobs · keys · models · review · config · structured + Templates</text>
         <rect class="box" x="10" y="205" width="360" height="55" rx="6"/>
         <text x="190" y="228" text-anchor="middle">Dienste: forms · generator_config</text>
-        <text x="190" y="246" text-anchor="middle">uploads · jobs (JobStore)</text>
+        <text x="190" y="246" text-anchor="middle">uploads · jobs · review · config_editor</text>
         <rect class="box" x="390" y="205" width="360" height="55" rx="6"/>
         <text x="570" y="228" text-anchor="middle">worker (JobWorker, ein Thread)</text>
-        <text x="570" y="246" text-anchor="middle">generation (GenerationRunner)</text>
+        <text x="570" y="246" text-anchor="middle">KindRunner: generation · models_task</text>
         <rect class="box accent" x="10" y="280" width="740" height="40" rx="6"/>
         <text x="380" y="305" text-anchor="middle">anki_flashcards 0.2.1: settings · pipeline · models · apkg · errors</text>
       </g>
@@ -128,18 +128,19 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
     <tr><td><code>headers.py</code></td><td>Content Security Policy und weitere Sicherheits-Header</td><td><code>test_app.py</code></td></tr>
     <tr><td><code>limits.py</code></td><td><code>BodyLimitMiddleware</code>: 411 ohne Länge, 413 über der Grenze</td><td><code>test_limits.py</code></td></tr>
     <tr><td><code>uploads.py</code></td><td>Dateinamen bereinigen, <code>UploadKind</code> (DOCUMENT, APKG), Größe vor und beim Speichern prüfen</td><td><code>test_uploads.py</code></td></tr>
-    <tr><td><code>jobs.py</code></td><td><code>JobStore</code>: Job-Ordner, <code>job.json</code>, <code>events.jsonl</code>, Wiederanlauf, Löschfrist</td><td><code>test_jobs.py</code></td></tr>
+    <tr><td><code>jobs.py</code></td><td><code>JobStore</code>: Job-Ordner, <code>job.json</code>, <code>events.jsonl</code>, Upload- und aufgabenartige Jobs, Wiederanlauf, Löschfrist</td><td><code>test_jobs.py</code></td></tr>
     <tr><td><code>worker.py</code></td><td><code>JobWorker</code>: Warteschlange, ein Thread, Abbruch, Status-Ereignisse</td><td><code>test_worker.py</code></td></tr>
     <tr><td><code>secret_store.py</code></td><td><code>SecretStore</code>: API-Schlüssel als Fernet-Token in <code>secrets.enc</code>, erlaubte Namen, Vorrang der Umgebungsdatei, Übernahme in <code>os.environ</code>, Status ohne Werte</td><td><code>test_secret_store.py</code>, <code>test_web_keys.py</code></td></tr>
     <tr><td><code>model_catalog.py</code></td><td>Modellliste je Provider: Tabelle <code>PROVIDERS</code> (Basis-URL, Pfad, Authentifizierung, Parser), <code>list_models(profile, environ, transport)</code>; Route <code>routes/models.py</code> liefert htmx-Fragmente</td><td><code>test_model_catalog.py</code>, <code>test_web_models.py</code></td></tr>
     <tr><td><code>generator_config.py</code></td><td>Generator-YAML laden (nur expliziter Pfad), aus <code>resources/generator-template.yaml</code> anlegen oder um fehlende Standardprofile ergänzen, wirksame Standardwerte und Profilübersicht über den Generator</td><td><code>test_generator_config.py</code></td></tr>
     <tr><td><code>forms.py</code></td><td><code>GenerateForm</code>: Typen, Bereiche, Enums, nur gesetzte Werte; deutsche Fehlermeldungen</td><td><code>test_forms.py</code></td></tr>
     <tr><td><code>generation.py</code></td><td><code>GenerationRunner</code>: Einstellungen je Job, Übertragungsprüfung, <code>produce_cards</code>, <code>cards.json</code></td><td><code>test_generation.py</code></td></tr>
+    <tr><td><code>models_task.py</code>, <code>routes/structured.py</code></td><td>Strukturierter PDF-Modus: Docling-, GPU- und Komponentenstatus; <code>ModelsRunner</code> lädt fehlende Modelle über <code>prepare_models</code> als Aufgabe mit <code>kind: models</code>; Seite <code>/settings/models</code></td><td><code>test_structured.py</code></td></tr>
     <tr><td><code>sse.py</code>, <code>routes/jobs.py</code></td><td>Live-Fortschritt: <code>/jobs/&lt;id&gt;/events</code> streamt neue Zeilen aus <code>events.jsonl</code> als Server-Sent Events (<code>line</code>, <code>progress</code>, <code>status</code>, <code>done</code>), gerendert mit den Makros aus <code>_events.html</code></td><td><code>test_live.py</code></td></tr>
     <tr><td><code>review.py</code>, <code>routes/review.py</code></td><td>Prüfstand <code>review.json</code> (Karten mit ID und Auswahl), Bearbeiten über <code>Card</code>, Schreiben mit <code>deduplicate_cards</code>, <code>validate_output</code>, <code>write_apkg</code>; Ergebnis <code>result.json</code>; htmx-Fragmente und Downloads</td><td><code>test_review.py</code>, <code>test_web_review.py</code></td></tr>
     <tr><td><code>config_editor.py</code>, <code>routes/config.py</code></td><td>Profile anlegen, bearbeiten, zurücksetzen, löschen; Standardwerte; YAML ersetzen. Änderungen als Daten, Prüfung mit <code>AppConfig</code>, Speichern mit <code>save_config</code>; Fehler je Feld (<code>ConfigEditError.errors</code>)</td><td><code>test_config_editor.py</code>, <code>test_web_config.py</code></td></tr>
     <tr><td><code>templating.py</code></td><td>Jinja2-Umgebung mit Versionen und Statusnamen</td><td>indirekt</td></tr>
-    <tr><td><code>routes/</code></td><td><code>login</code>, <code>pages</code> (Start, <code>/healthz</code>), <code>generate</code>, <code>jobs</code></td><td><code>test_auth.py</code>, <code>test_web_generate.py</code></td></tr>
+    <tr><td><code>routes/</code></td><td><code>login</code>, <code>pages</code> (Start, <code>/healthz</code>), <code>generate</code>, <code>jobs</code>, <code>keys</code>, <code>models</code>, <code>review</code>, <code>config</code>, <code>structured</code></td><td><code>test_auth.py</code>, <code>test_web_generate.py</code>, <code>test_structured.py</code></td></tr>
   </table>
 </section>
 
@@ -177,6 +178,8 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
     <tr><td><code>settings.resolve_generate_settings(values, config, path)</code></td><td>Wirksame Werte für das Formular (Platzhalterpfade) und je Job (echte Pfade); die Rangfolge Default → YAML → Profil → Formular wird nie nachgebaut</td></tr>
     <tr><td><code>pipeline.validate_output</code>, <code>apkg_subdeck_context</code>, <code>produce_cards</code>, <code>event_to_dict</code></td><td>Ablauf eines Jobs bis zu den Karten, ohne zu schreiben</td></tr>
     <tr><td><code>models.save_cards</code>, <code>Card</code></td><td><code>cards.json</code> im Job-Ordner</td></tr>
+    <tr><td><code>pipeline.prepare_models</code>, <code>model_storage.ModelStorage</code>, <code>downloaded_components</code></td><td>benötigte Komponenten anzeigen und fehlende in <code>pdf_conversion.models_dir</code> laden</td></tr>
+    <tr><td><code>docling_pdf.available_accelerator</code>, <code>cuda_architecture_problem</code></td><td>nutzbare GPU erkennen oder eine inkompatible CUDA-Architektur verständlich erklären</td></tr>
     <tr><td><code>errors.FlashcardError</code>, <code>GenerationCancelled</code></td><td>Status „fehlgeschlagen“ mit Meldung beziehungsweise „abgebrochen“</td></tr>
     <tr><td><code>documents.SUPPORTED_SUFFIXES</code>, <code>MAX_FILE_SIZE</code></td><td>Upload-Prüfung ohne doppelte Konstanten (öffentlich, aber nicht in der Schnittstellenliste der Übergabe)</td></tr>
   </table>
@@ -223,7 +226,8 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
     <li>Statuswechsel laufen unter einer Sperre: <code>_claim</code> setzt nur wartende Jobs auf <code>running</code>, <code>cancel</code> beendet wartende Jobs sofort und setzt bei laufenden das <code>threading.Event</code>, das der Generator als <code>cancel</code> prüft.</li>
     <li>Der Worker-Thread ist die Grenze zum Generator: <code>GenerationCancelled</code> → cancelled, <code>FlashcardError</code> → failed mit Meldung, jede andere Exception → failed mit allgemeiner Meldung und Traceback im Log.</li>
     <li><code>start()</code> markiert Jobs, die beim Ende des letzten Prozesses wartend oder laufend waren, als abgebrochen und löscht abgelaufene Jobs; <code>stop()</code> bricht den laufenden Job ab.</li>
-    <li>Der <code>GenerationRunner</code> liest die Generator-YAML für jeden Job neu; Änderungen wirken ohne Neustart.</li>
+    <li><code>KindRunner</code> wählt anhand von <code>options.kind</code> den Runner. Alte Jobs ohne Typ gelten als Generierungsjobs; <code>models</code>-Aufgaben haben keinen Upload und laufen über <code>ModelsRunner</code>.</li>
+    <li>Die Runner lesen die Generator-YAML für jeden Job neu; Änderungen wirken ohne Neustart. <code>ModelsRunner</code> reicht die Modell-Download-Hinweise des Generators als normale Ereignisse an die Job-Seite durch; ein laufender Download ist nicht abbrechbar.</li>
   </ul>
 </section>
 
@@ -254,7 +258,7 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
   result.json     Ergebnis: deck, added, skipped, added_by_deck, file, written_at
   source.md       aufbereiteter Text (strukturierter Modus)</code></pre>
   <p>Änderungen an <code>review.json</code> laufen unter einer Sperre und werden atomar ersetzt. Existiert <code>result.json</code>, lehnt <code>review.py</code> jede weitere Änderung mit <code>AlreadyWrittenError</code> ab (HTTP 409). Kartenfragmente antworten auch bei Validierungsfehlern mit 200, weil htmx Fehlerantworten nicht einsetzt; der Zähler kommt als <code>hx-swap-oob</code>-Element mit.</p>
-  <p><code>job.json</code>: <code>id</code>, <code>status</code>, <code>created_at</code>, <code>updated_at</code> (UTC), <code>source_name</code>, <code>message</code>, <code>options</code> mit <code>form</code> (validierte Formularwerte) und <code>target_file</code>.</p>
+  <p><code>job.json</code>: <code>id</code>, <code>status</code>, <code>created_at</code>, <code>updated_at</code> (UTC), <code>source_name</code>, <code>message</code>, <code>options</code>. Generierungsjobs enthalten <code>kind: generate</code> (bei alten Jobs implizit), <code>form</code> und <code>target_file</code>; Modellaufgaben nur <code>kind: models</code>.</p>
   <table>
     <tr><th><code>type</code></th><th>Herkunft</th><th>Felder</th></tr>
     <tr><td><code>job_status</code></td><td>Worker</td><td><code>status</code>, <code>message</code></td></tr>
@@ -293,6 +297,7 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
     <li><strong>Asynchrones warten:</strong> <code>wait_until(bedingung)</code> mit Zeitlimit statt fester Pausen.</li>
     <li><strong>Provider-HTTP:</strong> <code>app.state.http_transport</code> auf einen <code>httpx.MockTransport</code> setzen; <code>model_catalog</code>-Tests übergeben ihn direkt.</li>
     <li><strong>APKG:</strong> echte Pakete mit <code>anki_flashcards.apkg.create_apkg</code> im Testordner.</li>
+    <li><strong>Strukturierter Modus:</strong> <code>test_structured.py</code> schreibt nur die Komponentenmanifest-Datei; <code>prepare_models</code> und die GPU-Prüfung werden ersetzt. Damit lädt die reguläre Suite weder Docling-Modelle noch PyTorch oder Inhalte aus dem Netz.</li>
     <li>Die Login-Verzögerung setzt eine Autouse-Fixture auf 0.</li>
   </ul>
   <pre><code>.venv/bin/python -m pytest tests/test_web_generate.py -q</code></pre>
@@ -300,7 +305,7 @@ figcaption { color: var(--muted); font-size: 0.9rem; }
 
 <section id="vorschau">
   <h2>Vorschau im Container</h2>
-  <p><code>deploy/preview.sh</code> läuft als root per <code>ssh ct-anki-studio 'bash -s' &lt; deploy/preview.sh</code> und ist idempotent: git (apt) und uv mit Prüfsumme, Checkout von <code>main</code> nach <code>/opt/anki-studio</code>, <code>uv sync --locked --no-dev</code>, fehlende Konfiguration ergänzen (nie überschreiben), systemd-Dienst <code>anki-studio-preview</code> mit <code>DynamicUser</code>, <code>StateDirectory=anki-studio</code>, <code>ProtectSystem=strict</code>, danach Prüfung von <code>/healthz</code>. Die reguläre Installation folgt mit AS-040.</p>
+  <p><code>deploy/preview.sh</code> läuft als root per <code>ssh ct-anki-studio 'bash -s' &lt; deploy/preview.sh</code> und ist idempotent: git (apt) und uv mit Prüfsumme, Checkout von <code>main</code> nach <code>/opt/anki-studio</code>, <code>uv sync --locked --no-dev --extra pdf</code> (Docling und PyTorch <code>cu126</code>), fehlende Konfiguration ergänzen (nie überschreiben), systemd-Dienst <code>anki-studio-preview</code> mit <code>DynamicUser</code>, <code>StateDirectory=anki-studio</code>, <code>ProtectSystem=strict</code>, danach Prüfung von <code>/healthz</code>. Die reguläre Installation folgt mit AS-040.</p>
   <pre><code>ssh ct-anki-studio 'bash -s' &lt; deploy/preview.sh
 ssh ct-anki-studio 'journalctl -u anki-studio-preview -n 50 --no-pager'</code></pre>
 </section>
