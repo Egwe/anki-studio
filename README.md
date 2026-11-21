@@ -12,95 +12,92 @@ Ausführlich: [docs/benutzerhandbuch.html](./docs/benutzerhandbuch.html) für di
 
 ## Installation im Container – Schritt für Schritt
 
-Ziel: Anki Studio läuft als systemd-Dienst `anki-studio` im LXC „anki-studio“ und ist im Heimnetz und über NetBird unter `http://<Container-IP>:8000` erreichbar. Alle Befehle laufen auf dem **eigenen Rechner**; im Container wird nichts von Hand eingerichtet oder bearbeitet. Das Installationsskript holt sich den Programmcode selbst aus GitHub.
+Ziel: Anki Studio läuft als systemd-Dienst `anki-studio` im LXC „anki-studio“ und ist im Heimnetz und über NetBird unter `http://<Container-IP>:8000` erreichbar. Dafür reicht der Container allein: Du meldest dich als root an, holst das Repository von GitHub und startest das Installationsskript. Auf dem eigenen Rechner wird nichts installiert.
 
 ### Voraussetzungen
 
-- Ein LXC mit Debian, erreichbar als root per SSH über den Alias `ct-anki-studio` in `~/.ssh/config` des eigenen Rechners. Test: `ssh ct-anki-studio true` meldet nichts und fragt nach keinem Passwort.
-- Im Container: Internetzugang (GitHub, PyPI, PyTorch-Index, Hugging Face), `curl` und `python3`. git und uv installiert das Skript bei Bedarf selbst.
-- Rund 12 GB freier Platz im Container: etwa 7 GB für Programm und PyTorch, 2 GB für die PDF-Modelle, Rest für Jobs und Sammlung.
-- Für den strukturierten PDF-Modus auf der GPU: NVIDIA-Treiber im Container, `ssh ct-anki-studio nvidia-smi` zeigt die Karte (requirements.md, Abschnitt 5). Ohne GPU funktioniert alles andere.
-- Auf dem eigenen Rechner: git.
+- Ein LXC mit **Debian 13 „trixie“** (bringt Python 3.13 mit) und root-Zugang, etwa per `ssh ct-anki-studio` oder in der Proxmox-Konsole.
+- Internetzugang im Container: GitHub, PyPI, der PyTorch-Index und Hugging Face.
+- Rund 12 GB freier Platz: etwa 7 GB für Programm und PyTorch, 2 GB für die PDF-Modelle, der Rest für Jobs und Sammlung. Prüfen mit `df -h /`.
+- Für den strukturierten PDF-Modus auf der GPU: NVIDIA-Treiber im Container, `nvidia-smi` zeigt die Karte (requirements.md, Abschnitt 5). Ohne GPU funktioniert alles andere.
 
-### 1. Repository auf dem eigenen Rechner klonen
+Alle Befehle unten laufen **im Container als root**.
 
-Empfehlung: ein fester Ordner für alle Repositories, etwa `~/Repositories`, mit Anki Studio neben dem Generator-Repo. **Nicht in den Container klonen:** Dort legt `install.sh` seinen eigenen Checkout unter `/opt/anki-studio` an, den nur die Skripte verändern.
+### 1. Im Container anmelden
 
 ```bash
-mkdir -p ~/Repositories
-git clone https://github.com/Egwe/anki-studio.git ~/Repositories/anki-studio
-cd ~/Repositories/anki-studio
+ssh ct-anki-studio
 ```
 
-Schon geklont? Dann nur auf den neuesten Stand bringen:
+### 2. git installieren
 
 ```bash
-cd ~/Repositories/anki-studio
-git switch main
-git pull
+apt-get update
+apt-get install -y git ca-certificates
 ```
 
-**Wichtig:** Alle folgenden `ssh …`-Befehle laufen in diesem Ordner. `< deploy/install.sh` liest das Skript relativ zum aktuellen Ordner und schickt es an die Shell im Container. Aus einem anderen Ordner, etwa `~`, antwortet die Shell mit `bash: deploy/install.sh: No such file or directory`, und es passiert nichts.
+Weitere Pakete (`curl`, `python3`) und uv installiert das Skript in Schritt 4 selbst.
 
-### 2. Einmalig: alte Vorschau-Dienste
-
-Die Codex-Vorschau (Dienst `anki-studio-codex-preview`, Port 8001) ist überholt und belegt rund 7 GB. Dieses Skript entfernt genau sie: Dienst, Systembenutzer und ihre eigenen Ordner unter `/opt`, `/etc`, `/var/lib` und `/var/cache`. Gibt es sie nicht, tut es nichts.
+### 3. Repository von GitHub nach /opt/anki-studio holen
 
 ```bash
-ssh ct-anki-studio 'bash -s' < deploy/remove-codex-preview.sh
+git clone https://github.com/Egwe/anki-studio.git /opt/anki-studio
 ```
 
-Die Vorschau `anki-studio-preview` auf Port 8000 bleibt stehen; der nächste Schritt übernimmt sie samt Daten.
+Der Ordner `/opt/anki-studio` ist kein Zufall: Hier läuft das Programm später, und genau diesen Checkout pflegt das Installationsskript. Nicht nach `/root` klonen, denn der Dienst läuft als eigener Benutzer und darf dort nicht lesen. Im Checkout nichts von Hand ändern; Installation und Updates verändern ihn nur über die Skripte, und ein veränderter Checkout lässt das Update abbrechen.
 
-### 3. Installieren
+### 4. Installieren
 
 ```bash
-ssh ct-anki-studio 'bash -s' < deploy/install.sh
+/opt/anki-studio/deploy/install.sh
 ```
 
 Beim ersten Mal dauert das wegen PyTorch einige Minuten. Am Ende steht `==> Anki Studio läuft auf Port 8000`. Das Skript ist idempotent und erledigt Folgendes:
 
-- installiert bei Bedarf git und uv 0.13.7 (mit Prüfsumme) und legt den Systembenutzer `anki-studio` an,
-- holt `main` aus GitHub als Git-Checkout nach `/opt/anki-studio` und installiert die Abhängigkeiten aus `uv.lock` einschließlich Docling und PyTorch für die GPU (`uv sync --locked --no-dev --extra pdf`),
-- **übernimmt eine laufende Vorschau:** Erst nach der Installation der Abhängigkeiten stoppt und entfernt es `anki-studio-preview` und verschiebt dessen Daten aus `/var/lib/private/anki-studio` nach `/var/lib/anki-studio`. Login, Profile, API-Schlüssel, Modelle und Jobs bleiben erhalten,
-- legt fehlende Konfiguration an und überschreibt nie vorhandene Werte: `/etc/anki-studio/studio.yaml` mit Host `0.0.0.0`, Port 8000 und `allowed_hosts` aus Hostname und Adressen des Containers, `/etc/anki-studio/env` (0600) mit zufälligem Session- und Verschlüsselungsschlüssel,
-- richtet den gehärteten Dienst `anki-studio` ein, startet ihn neu und prüft `/healthz`.
+- installiert fehlende Pakete (`git`, `curl`, `ca-certificates`, `python3`) und uv 0.13.7 mit Prüfsumme nach `/usr/local/bin`,
+- legt den Systembenutzer `anki-studio` an, unter dem der Dienst läuft,
+- setzt `/opt/anki-studio` auf den neuesten Stand von `main` und installiert die Abhängigkeiten aus `uv.lock` mit dem System-Python, einschließlich Docling und PyTorch für die GPU (`uv sync --locked --no-dev --extra pdf`),
+- legt fehlende Konfiguration an, ohne vorhandene Werte zu überschreiben: `/etc/anki-studio/studio.yaml` mit Host `0.0.0.0`, Port 8000 und `allowed_hosts` aus Hostname und Adressen des Containers, `/etc/anki-studio/env` (0600) mit zufälligem Session- und Verschlüsselungsschlüssel,
+- richtet den gehärteten Dienst `anki-studio` ein, startet ihn und prüft `/healthz`.
 
-### 4. Login-Passwort setzen (nur bei einer Neuinstallation)
+Läuft im Container noch die frühere Vorschau `anki-studio-preview`, übernimmt das Skript sie: Es stoppt und entfernt den Dienst und verschiebt dessen Daten nach `/var/lib/anki-studio`.
 
-Wurde eine Vorschau übernommen, gilt ihr Passwort weiter. Meldet das Skript „Noch kein Login-Passwort gesetzt“, setzt dieser Befehl es. Er fragt das Passwort zweimal ab, mindestens 8 Zeichen; gespeichert wird nur ein Hash:
+### 5. Login-Passwort setzen
 
 ```bash
-ssh -t ct-anki-studio '/opt/anki-studio/.venv/bin/anki-studio hash-password >> /etc/anki-studio/env && systemctl restart anki-studio'
+/opt/anki-studio/.venv/bin/anki-studio hash-password >> /etc/anki-studio/env
+systemctl restart anki-studio
 ```
 
-### 5. Im Browser einrichten
+Der erste Befehl fragt das Passwort zweimal ab, mindestens 8 Zeichen, und hängt nur dessen Hash an die Umgebungsdatei an. Später änderst du das Passwort im Browser unter **Einstellungen → Zugang und Sync**.
 
-`http://<Container-IP>:8000` öffnen, anmelden und dann:
+### 6. Im Browser einrichten
+
+`http://<Container-IP>:8000` öffnen, die IP zeigt `hostname -I` im Container. Anmelden und dann:
 
 1. **Einstellungen → Zugangsdaten:** API-Schlüssel der genutzten Provider eintragen. Für Ollama im Heimnetz ist kein Schlüssel nötig, nur die Adresse im Profil.
-2. **Einstellungen → Konfiguration → Standardwerte:** Standardprofil wählen; für die Quadro K1200 bei „Formeln je Aufruf“ eine `1` eintragen.
-3. **Einstellungen → Modelle und GPU:** **Fehlende Modelle herunterladen**, rund 1,9 GB, als Job mit Live-Fortschritt.
+2. **Einstellungen → Konfiguration:** Profile prüfen und unter **Standardwerte** das Standardprofil wählen. Für die Quadro K1200 bei „Formeln je Aufruf“ eine `1` eintragen. Eine früher heruntergeladene `generator.yaml` lässt sich dort wieder hochladen.
+3. **Einstellungen → Modelle und GPU:** **Fehlende Modelle herunterladen** lädt rund 1,9 GB als Job mit Live-Fortschritt.
 4. **Einstellungen → Zugang und Sync:** Endpunkt, Benutzername und Passwort des eigenen Sync-Servers eintragen, danach unter **Sync** einmal **Jetzt synchronisieren**. Am besten zuerst mit einem eigenen Testbenutzer prüfen und das Ergebnis in AnkiDroid ansehen.
 
-Ruft der Browser Anki Studio unter einem weiteren Namen auf, etwa dem NetBird-Namen statt der IP-Adresse, gehört dieser Name in `allowed_hosts` der `/etc/anki-studio/studio.yaml`, danach `ssh ct-anki-studio 'systemctl restart anki-studio'`.
+Ruft der Browser Anki Studio unter einem weiteren Namen auf, etwa dem NetBird-Namen statt der IP-Adresse, gehört dieser Name in `allowed_hosts` der `/etc/anki-studio/studio.yaml`, danach `systemctl restart anki-studio`.
 
-### 6. Prüfen und Fehlersuche
+### 7. Prüfen und Fehlersuche
 
 ```bash
-ssh ct-anki-studio 'systemctl status anki-studio --no-pager'
-ssh ct-anki-studio 'journalctl -u anki-studio -n 50 --no-pager'
+systemctl status anki-studio --no-pager
+journalctl -u anki-studio -n 50 --no-pager
 ```
 
 ### Update
 
 ```bash
-cd ~/Repositories/anki-studio
-git pull
-ssh ct-anki-studio 'bash -s' < deploy/update.sh
+/opt/anki-studio/deploy/update.sh
 ```
 
-`deploy/update.sh` verweigert einen fehlenden oder im Container veränderten Checkout. Sonst setzt es `/opt/anki-studio` auf den neuesten `main` und führt dessen `install.sh` aus, damit Änderungen am Installer im selben Update wirken. Konfiguration und Daten bleiben unverändert; zum Schluss prüft es `/healthz`. Nach der Installation verweigert `deploy/preview.sh` den Start, damit nicht zwei Dienste denselben Port und Datenordner nutzen.
+`update.sh` bricht ab, wenn die Installation fehlt oder der Checkout von Hand verändert wurde. Sonst holt es den neuesten `main` von GitHub und führt dessen `install.sh` aus, damit Änderungen am Installer im selben Update wirken. Konfiguration und Daten bleiben unverändert; zum Schluss prüft es `/healthz`.
+
+Vom eigenen Rechner aus geht dasselbe ohne Anmeldung im Container: `ssh ct-anki-studio /opt/anki-studio/deploy/update.sh`.
 
 ### Was wo liegt
 
@@ -113,13 +110,17 @@ ssh ct-anki-studio 'bash -s' < deploy/update.sh
 | `/var/cache/anki-studio/uv` | Paket-Cache von uv |
 | `/etc/systemd/system/anki-studio.service` | Dienst, läuft als Benutzer `anki-studio` |
 
+`/etc/anki-studio/env` und `/var/lib/anki-studio` gehören zusammen: Der Schlüssel in `env` entschlüsselt die gespeicherten API-Schlüssel und Sync-Zugangsdaten im Datenordner.
+
 ### Passwort vergessen
 
-Ein in der Oberfläche geändertes Passwort steht in `/var/lib/anki-studio/runtime.env` und hat Vorrang vor `/etc/anki-studio/env`. Zum Zurücksetzen beide alten Einträge entfernen und das Passwort neu setzen:
+Ein im Browser geändertes Passwort steht in `/var/lib/anki-studio/runtime.env` und hat Vorrang vor `/etc/anki-studio/env`. Zum Zurücksetzen beide alten Einträge entfernen und das Passwort neu setzen:
 
 ```bash
-ssh ct-anki-studio "sed -i '/^ANKI_STUDIO_RUNTIME_PASSWORD_HASH_B64=/d' /var/lib/anki-studio/runtime.env 2>/dev/null; sed -i '/^ANKI_STUDIO_PASSWORD_HASH=/d' /etc/anki-studio/env"
-ssh -t ct-anki-studio '/opt/anki-studio/.venv/bin/anki-studio hash-password >> /etc/anki-studio/env && systemctl restart anki-studio'
+sed -i '/^ANKI_STUDIO_RUNTIME_PASSWORD_HASH_B64=/d' /var/lib/anki-studio/runtime.env 2>/dev/null
+sed -i '/^ANKI_STUDIO_PASSWORD_HASH=/d' /etc/anki-studio/env
+/opt/anki-studio/.venv/bin/anki-studio hash-password >> /etc/anki-studio/env
+systemctl restart anki-studio
 ```
 
 ## Entwicklung: lokal installieren
@@ -229,7 +230,7 @@ Ein automatisch angeforderter Komplett-Upload findet nie statt. Verlangt der Ser
 
 ## Vorschau im Container
 
-Bis zur regulären Installation (AS-040, Phase 4) läuft im LXC „anki-studio“ eine Vorschau des aktuellen Stands von `main`. Nach der Installation ist sie durch den Dienst `anki-studio` ersetzt, und das Skript verweigert den Start. Bis dahin aktualisiert sie nach einem Push auf `main` dieser Aufruf aus dem Repository-Ordner des Entwicklungsrechners:
+Bis zur regulären Installation (AS-040, Phase 4) läuft im LXC „anki-studio“ eine Vorschau des aktuellen Stands von `main`. Nach der Installation ist sie durch den Dienst `anki-studio` ersetzt, und das Skript verweigert den Start. Bis dahin aktualisiert sie nach einem Push auf `main` dieser Aufruf aus dem Repository-Ordner eines Entwicklungsrechners:
 
 ```bash
 ssh ct-anki-studio 'bash -s' < deploy/preview.sh
@@ -245,7 +246,7 @@ Das Skript ist idempotent und erledigt Folgendes:
 - legt `/etc/anki-studio/studio.yaml` (Host `0.0.0.0`, Port 8000) und `/etc/anki-studio/env` (0600) an, falls sie fehlen, und ergänzt fehlende Einträge: `allowed_hosts` mit Hostname und Adressen des Containers sowie einen zufälligen `ANKI_STUDIO_SESSION_SECRET`; vorhandene Werte bleiben unverändert,
 - startet den systemd-Dienst `anki-studio-preview` neu und prüft `/healthz`.
 
-Der Dienst läuft ohne Root-Rechte mit einem dynamischen systemd-Benutzer; Daten landen in `/var/lib/anki-studio`. Die Oberfläche ist dann im LAN unter `http://<Container-Adresse>:8000` erreichbar. Weitere Namen, etwa der NetBird-Name, kommen von Hand in `allowed_hosts` der `/etc/anki-studio/studio.yaml`; danach den Dienst neu starten. Das Passwort setzt der Befehl aus Schritt 4 der Installation, mit `anki-studio-preview` statt `anki-studio`. Im Container wird kein Code bearbeitet (AGENTS.md Abschnitt 8).
+Der Dienst läuft ohne Root-Rechte mit einem dynamischen systemd-Benutzer; Daten landen in `/var/lib/anki-studio`. Die Oberfläche ist dann im LAN unter `http://<Container-Adresse>:8000` erreichbar. Weitere Namen, etwa der NetBird-Name, kommen von Hand in `allowed_hosts` der `/etc/anki-studio/studio.yaml`; danach den Dienst neu starten. Das Passwort setzt der Befehl aus Schritt 5 der Installation, mit `anki-studio-preview` statt `anki-studio`. Im Container wird kein Code bearbeitet (AGENTS.md Abschnitt 8).
 
 ## Reguläre Installation und Update
 
@@ -284,4 +285,4 @@ Alle Dateien liegen unter [src/anki_studio/static/vendor/](./src/anki_studio/sta
 - Die Verbindung ist unverschlüsseltes HTTP; Betrieb nur im LAN und über NetBird. Das Cookie trägt deshalb kein `Secure`-Attribut, und auch API-Schlüssel gehen im LAN unverschlüsselt zum Server (über NetBird im verschlüsselten Tunnel).
 - Ein Backup mit Datenordner und Umgebungsdatei enthält die verschlüsselten Schlüssel zusammen mit dem Entschlüsselungsschlüssel.
 - Die Verzögerung nach falschen Passwörtern bremst nur einzelne Versuche; parallele Versuche werden nicht gezählt oder gesperrt.
-- Die regulären Installations- und Update-Skripte sind geprüft (Syntax; der gleiche Dienstaufbau lief in der Codex-Vorschau im Container); die reguläre Installation erfolgt erst auf ausdrücklichen Auftrag. Ein hostseitiger vzdump-Backupablauf (AS-042) braucht eine gesonderte Freigabe für den Proxmox-Host.
+- Die Installation ist in einem leeren `debian:trixie` unter Podman geprüft, dort ohne systemd und ohne das Extra `pdf`; der gleiche Dienstaufbau mit GPU lief in der früheren Codex-Vorschau im Container. Die erste echte Installation im Container führt der Projektinhaber aus. Ein hostseitiger vzdump-Backupablauf (AS-042) braucht eine gesonderte Freigabe für den Proxmox-Host.

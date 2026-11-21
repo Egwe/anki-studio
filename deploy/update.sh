@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Update a regular Anki Studio installation (AS-040).
 #
-# Run as root in the target container from the local repository folder:
-#   ssh ct-anki-studio 'bash -s' < deploy/update.sh
+# Run as root inside the target container:
+#   /opt/anki-studio/deploy/update.sh
+# or from another computer:
+#   ssh ct-anki-studio /opt/anki-studio/deploy/update.sh
 #
 # The first installation uses deploy/install.sh. This script deliberately
 # refuses missing or locally modified production checkouts, moves the
