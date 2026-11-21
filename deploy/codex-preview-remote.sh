@@ -90,7 +90,7 @@ install_dependencies() {
     exit 1
   fi
   log "Abhängigkeiten des Codex-Standes installieren"
-  (cd "$stage" && UV_CACHE_DIR="$UV_CACHE" uv sync --quiet --locked --no-dev --extra pdf)
+  (cd "$APP_DIR" && UV_CACHE_DIR="$UV_CACHE" uv sync --quiet --locked --no-dev --extra pdf)
 }
 
 install_unit() {
@@ -140,24 +140,32 @@ restart_and_check() {
   log "Codex-Vorschau läuft auf Port $PORT"
 }
 
+restore_previous() {
+  # Restore the last isolated Codex checkout after a failed update.
+  if [[ ! -e "$PREVIOUS_DIR" ]]; then
+    return
+  fi
+  log "Vorherigen Codex-Stand wiederherstellen"
+  rm -rf "$APP_DIR"
+  mv "$PREVIOUS_DIR" "$APP_DIR"
+  systemctl restart "$UNIT" || true
+}
+
 main() {
   require_root
   require_stage
   ensure_service_user
   ensure_config
-  install_dependencies
   replace_checkout
+  if ! install_dependencies; then
+    restore_previous
+    exit 1
+  fi
   install_unit
   if restart_and_check; then
     return
   fi
-  if [[ ! -e "$PREVIOUS_DIR" ]]; then
-    exit 1
-  fi
-  log "Vorherigen Codex-Stand wiederherstellen"
-  rm -rf "$APP_DIR"
-  mv "$PREVIOUS_DIR" "$APP_DIR"
-  systemctl restart "$UNIT"
+  restore_previous
   exit 1
 }
 
